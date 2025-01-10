@@ -170,3 +170,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 .idea
+
+data/
+
+hydra_outputs/

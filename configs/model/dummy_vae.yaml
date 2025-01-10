@@ -1,0 +1,5 @@
+model:
+  name: dummy_vae
+  encoder: dummy_encoder
+  decoder: dummy_decoder
+  discriminator: dummy_discriminator
