@@ -1,5 +1,9 @@
-model:
-  name: dummy_vae
-  encoder: dummy_encoder
-  decoder: dummy_decoder
-  discriminator: dummy_discriminator
+name: dummy_vae
+encoder:
+  name: dummy
+  params:
+    latent_dim: 10
+decoder:
+    name: dummy
+    params:
+      latent_dim: 10

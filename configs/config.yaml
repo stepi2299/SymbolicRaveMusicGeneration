@@ -2,7 +2,7 @@
 defaults:
   - dataset: maestro     # default dataset
   - model: dummy_vae     # default model
-  - trainer: dummy_trainer  # default trainer config
+  - competitor: dummy_competitor  # default competitor config
   - _self_
 
 # You can add any additional high-level settings or Hydra settings below

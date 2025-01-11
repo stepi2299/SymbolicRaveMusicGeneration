@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 
+
 class FmdLoss(nn.Module):
     def __init__(self):
         super(FmdLoss, self).__init__()

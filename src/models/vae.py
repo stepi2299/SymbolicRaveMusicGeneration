@@ -1,11 +1,23 @@
 import torch
 from torch import nn
 
+from src.models.encoder import Encoder
+from src.models.decoder import Decoder
+
+
 class VAE(nn.Module):
-    def __init__(self, encoder, decoder) -> None:
+    def __init__(self, encoder: Encoder, decoder: Decoder) -> None:
         super(VAE, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
+        self._validate_if_latent_dimensions_match()
+
+    def _validate_if_latent_dimensions_match(self) -> None:
+        if self.encoder.latent_dim != self.decoder.latent_dim:
+            raise ValueError(
+                "Encoder and Decoder latent dimensions must match, "
+                f"got {self.encoder.latent_dim} for encoder and {self.decoder.latent_dim} for decoder"
+            )
 
     def forward(self, x):
         mu, log_variance = self.encoder(x)
@@ -18,5 +30,7 @@ class VAE(nn.Module):
         eps = torch.randn_like(std)
         return mu + eps * std
 
+    @torch.no_grad()
     def generate(self, latent_vector: torch.Tensor) -> torch.Tensor:
+        self.decoder.eval()
         return self.decoder(latent_vector)

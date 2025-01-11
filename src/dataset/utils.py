@@ -1,6 +1,10 @@
 from pathlib import Path
+from typing import Tuple
+
 import mido
 from mido.messages.messages import Message
+from torch.utils.data import Dataset, random_split
+
 
 def _midi_msg_to_str(msg: Message) -> str:
     str_msg = ""
@@ -45,6 +49,18 @@ def load_abc_song(filepath: Path) -> str:
 
     return data
 
+
 def symbolic_collate_fn(batch: list[str]) -> list[str]:
     # TODO Think if we need to do something here: for example padding to make strings of the same length
     return batch
+
+
+def split_dataset(
+    dataset: Dataset, train_split: float = 0.8
+) -> Tuple[Dataset, Dataset]:
+    dataset_size = len(dataset)
+    train_size = int(train_split * dataset_size)
+    val_size = dataset_size - train_size
+
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    return train_dataset, val_dataset

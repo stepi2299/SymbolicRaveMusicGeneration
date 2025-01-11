@@ -6,7 +6,12 @@ from src.dataset.utils import load_midi_song, load_abc_song
 
 
 class SymbolicMusicDataset(Dataset, ABC):
-    def __init__(self, dataset_path: Path, load_music_function: Callable[[Path], str], transform: Callable[[str], str] | None = None) -> None:
+    def __init__(
+        self,
+        dataset_path: Path,
+        load_music_function: Callable[[Path], str],
+        transform: Callable[[str], str] | None = None,
+    ) -> None:
         self.dataset_path = dataset_path
         self.load_music_function = load_music_function
         self.transform = transform
@@ -28,16 +33,28 @@ class SymbolicMusicDataset(Dataset, ABC):
 
 
 class MidiDataset(SymbolicMusicDataset):
-    def __init__(self, dataset_path: Path, load_music_function: Callable[[Path], str] = load_midi_song, transform: Callable[[str], str] | None = None) -> None:
+    def __init__(
+        self,
+        dataset_path: Path,
+        load_music_function: Callable[[Path], str] = load_midi_song,
+        transform: Callable[[str], str] | None = None,
+    ) -> None:
         super(MidiDataset, self).__init__(dataset_path, load_music_function, transform)
 
     def imread_music_files(self) -> list[Path]:
-        return list(self.dataset_path.glob('*.mid')) + list(self.dataset_path.glob('*.midi'))
+        return list(self.dataset_path.glob("*.mid")) + list(
+            self.dataset_path.glob("*.midi")
+        )
+
 
 class AbcDataset(SymbolicMusicDataset):
-    def __init__(self, dataset_path: Path, load_music_function: Callable[[Path], str] = load_abc_song, transform: Callable[[str], str] | None = None) -> None:
+    def __init__(
+        self,
+        dataset_path: Path,
+        load_music_function: Callable[[Path], str] = load_abc_song,
+        transform: Callable[[str], str] | None = None,
+    ) -> None:
         super(AbcDataset, self).__init__(dataset_path, load_music_function, transform)
 
     def imread_music_files(self) -> list[Path]:
-        return list(self.dataset_path.glob('*.abc'))
-
+        return list(self.dataset_path.glob("*.abc"))
