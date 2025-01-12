@@ -3,6 +3,8 @@ from torch import nn
 from abc import ABC, abstractmethod
 from typing import Tuple, Type
 
+from miditok import TokSequence
+
 
 class Encoder(nn.Module, ABC):
     def __init__(self, latent_dim: int) -> None:
@@ -10,7 +12,7 @@ class Encoder(nn.Module, ABC):
         self.latent_dim = latent_dim
 
     @abstractmethod
-    def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, data: TokSequence) -> Tuple[torch.Tensor, torch.Tensor]:
         # TODO check input data to encoder (symbolic music)
         # TODO Possible handle in some cases from symbolic to tensor (Tokenizer?)
         pass
@@ -20,8 +22,8 @@ class DummyEncoder(Encoder):
     def __init__(self, latent_dim: int) -> None:
         super(DummyEncoder, self).__init__(latent_dim=latent_dim)
 
-    def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        return torch.zeros(data.shape[0], self.latent_dim), torch.zeros(
+    def forward(self, data: TokSequence) -> Tuple[torch.Tensor, torch.Tensor]:
+        return torch.zeros(len(data), self.latent_dim), torch.zeros(
             data.shape[0], self.latent_dim
         )
 

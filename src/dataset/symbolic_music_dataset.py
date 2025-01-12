@@ -3,6 +3,7 @@ from typing import Callable
 from torch.utils.data import Dataset
 from abc import ABC, abstractmethod
 from src.dataset.utils import load_midi_song, load_abc_song
+from symusic import Score
 
 
 class SymbolicMusicDataset(Dataset, ABC):
@@ -24,11 +25,12 @@ class SymbolicMusicDataset(Dataset, ABC):
     def __len__(self):
         return len(self.music_files_path)
 
-    def __getitem__(self, idx: int) -> str:
+    def __getitem__(self, idx: int) -> Score:
         music_file_path = self.music_files_path[idx]
         music_file = self.load_music_function(music_file_path)
         if self.transform:
             music_file = self.transform(music_file)
+        # TODO how to make Score obj!
         return music_file
 
 
