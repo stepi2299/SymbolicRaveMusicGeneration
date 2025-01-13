@@ -17,3 +17,6 @@ def get_dataset(config: DictConfig) -> SymbolicMusicDataset:
         return AbcDataset(dataset_path)
     else:
         raise ValueError(f"Unknown dataset type: {config['dataset_type']}")
+
+
+base_dataset_path = Path.cwd() / "data"

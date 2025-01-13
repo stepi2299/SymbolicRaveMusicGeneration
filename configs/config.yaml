@@ -13,3 +13,10 @@ hydra:
 
 project_name: "Symbolic RAVE"
 seed: 42
+log_level: INFO
+
+tokenizer:
+  tokenizer: tsd  # remi | midilike | tsd, structured | cpword | octuple | mumidi | mmm
+  training_model: BPE  # BPE | Unigram | WordPiece
+  vocab_size: 20000
+  dataset_name: maestro
