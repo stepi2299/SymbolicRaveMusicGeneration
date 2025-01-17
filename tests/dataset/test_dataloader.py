@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import DataLoader
 from src.dataset.dataloader import get_dataloader
 
@@ -53,13 +54,13 @@ class TestDataLoader:
                 ), f"Last batch, expected batch_size=1, got {len(batch)}"
             for song in batch:
                 assert isinstance(
-                    song, list
-                ), f"Expected song to be a list, got {type(song)}"
+                    song, torch.Tensor
+                ), f"Expected song to be a Tensor, got {type(song)}"
                 for path in song:
                     assert isinstance(
-                        path, list
-                    ), f"Expected path to be a list, got {type(path)}"
+                        path, torch.Tensor
+                    ), f"Expected path to be a Tensor, got {type(path)}"
                     for note in path:
                         assert isinstance(
-                            note, int
-                        ), f"Expected note to be an int, got {type(note)}"
+                            note, torch.Tensor
+                        ), f"Expected note to be an Tensor, got {type(note)}"

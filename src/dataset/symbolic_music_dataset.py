@@ -3,6 +3,8 @@ from typing import Callable
 from torch.utils.data import Dataset
 from abc import ABC, abstractmethod
 
+import torch
+
 from src.dataset.utils import load_midi_song, load_abc_song
 from src.adapter.adapter import MusicAdapter
 
@@ -28,13 +30,13 @@ class SymbolicMusicDataset(Dataset, ABC):
     def __len__(self):
         return len(self.music_files_paths)
 
-    def __getitem__(self, idx: int) -> list[int] | list[list[int]]:
+    def __getitem__(self, idx: int) -> torch.Tensor:
         music_file_path = self.music_files_paths[idx]
         music_file = self.load_music_function(music_file_path)
         if self.transform:
             music_file = self.transform(music_file)
         music_file = self.music_adapter.encode(music_file)
-        return music_file
+        return torch.tensor(music_file)
 
 
 class MidiDataset(SymbolicMusicDataset):

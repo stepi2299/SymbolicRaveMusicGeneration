@@ -1,3 +1,5 @@
+import torch
+
 from src.dataset.symbolic_music_dataset import MidiDataset, AbcDataset
 
 
@@ -15,14 +17,17 @@ class TestMidiDataset:
         dataset = MidiDataset(midi_data_path, patchilizer_adapter)
         for i in range(len(dataset)):
             item = dataset[i]
-            assert isinstance(item, list), "MidiDataset should return a list"
-            assert len(item) > 1, "MidiDataset should return a list of lists"
+            assert len(item.shape) == 2, "MidiDataset should return a 2D tensor"
             assert isinstance(
-                item[0], list
-            ), "MidiDataset should return a list of lists"
+                item, torch.Tensor
+            ), "MidiDataset should return a 2D tensor"
+            assert len(item) > 1, "MidiDataset should return a 2D tensor"
             assert isinstance(
-                item[0][0], int
-            ), "MidiDataset should return a list of lists of ints"
+                item[0], torch.Tensor
+            ), "MidiDataset should return a 2D tensor"
+            assert isinstance(
+                item[0][0], torch.Tensor
+            ), "MidiDataset should return a 2D tensor"
             assert len(item[0]) == dataset.music_adapter._adapter.patch_size
 
 
@@ -40,12 +45,15 @@ class TestAbcDataset:
         dataset = AbcDataset(abc_data_path, patchilizer_adapter)
         for i in range(len(dataset)):
             item = dataset[i]
-            assert isinstance(item, list), "MidiDataset should return a list"
-            assert len(item) > 1, "MidiDataset should return a list of lists"
+            assert len(item.shape) == 2, "MidiDataset should return a 2D tensor"
             assert isinstance(
-                item[0], list
-            ), "MidiDataset should return a list of lists"
+                item, torch.Tensor
+            ), "MidiDataset should return a 2D tensor"
+            assert len(item) > 1, "MidiDataset should return a 2D tensor"
             assert isinstance(
-                item[0][0], int
-            ), "MidiDataset should return a list of lists of ints"
+                item[0], torch.Tensor
+            ), "MidiDataset should return a 2D tensor"
+            assert isinstance(
+                item[0][0], torch.Tensor
+            ), "MidiDataset should return a 2D tensor"
             assert len(item[0]) == dataset.music_adapter._adapter.patch_size
