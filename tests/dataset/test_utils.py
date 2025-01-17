@@ -2,10 +2,9 @@ from mido import Message as MidoMessage
 from torch.utils.data import Dataset
 from pathlib import Path
 import pytest
-from symusic import Score
 
 from src.dataset.utils import (
-    _midi_msg_to_str,
+    midi_msg_to_str,
     load_midi_song,
     load_abc_song,
     symbolic_collate_fn,
@@ -31,7 +30,7 @@ class TestDatasetUtils:
     def test_midi_msg_to_str():
         """Test that _midi_msg_to_str converts a MIDI message to a proper string."""
         msg = MidoMessage("note_on", note=64, velocity=127, time=0)
-        result = _midi_msg_to_str(msg)
+        result = midi_msg_to_str(msg)
         # The dictionary typically has keys like 'type', 'channel', 'note', 'velocity', 'time'
         # The order can vary, but let's just check that each parameter is in the result
         assert "note_on" in result
@@ -47,7 +46,7 @@ class TestDatasetUtils:
         ticks_per_beat and MIDI messages (excluding meta messages).
         """
         result = load_midi_song(midi_file)
-        assert isinstance(result, Score)
+        assert isinstance(result, str)
 
     @staticmethod
     def test_load_midi_song_invalid_path():
@@ -63,7 +62,7 @@ class TestDatasetUtils:
         Test that an ABC file is loaded and contains the original content.
         """
         content = load_abc_song(abc_file)
-        assert isinstance(content, Score)
+        assert isinstance(content, str)
 
     @staticmethod
     def test_load_abc_song_invalid_path():

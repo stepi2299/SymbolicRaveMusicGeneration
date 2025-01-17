@@ -35,18 +35,18 @@ class FirstStage(pl.LightningModule):
         return self.vae(*args, **kwargs)
 
     def training_step(self, batch: Any, batch_idx: int) -> Any:
-        x, y = batch
-        reconstruction, mu, log_variance = self.vae(x)
+        print("AAAAAAAAAAaa", batch)
+        data = batch
+        reconstruction, mu, log_variance = self.vae(data)
         # kld_loss = self.kld_loss(mu, log_variance)
         # fmd_loss = self.fmd_loss(reconstruction, y)
         # TODO Compare normal Loss calculation for vae with FMD
         raise NotImplementedError("Validation step not implemented")
 
     def validation_step(self, batch: Any, batch_idx: int) -> Any:
-        x, y = batch
-        reconstruction, mu, log_variance = self.vae(x)
+        data = batch
+        reconstruction, mu, log_variance = self.vae(data)
         kld_loss = self.kld_loss(mu, log_variance)
-        fmd_loss = self.fmd_loss(reconstruction, y)
         raise NotImplementedError("Validation step not implemented")
 
     def train_dataloader(self):

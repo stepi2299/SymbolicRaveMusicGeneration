@@ -1,6 +1,7 @@
 
 defaults:
   - dataset: maestro     # default dataset
+  - adapter: patchilizer  # default adapter
   - model: dummy_vae     # default model
   - competitor: dummy_competitor  # default competitor config
   - _self_
@@ -14,9 +15,4 @@ hydra:
 project_name: "Symbolic RAVE"
 seed: 42
 log_level: INFO
-
-tokenizer:
-  tokenizer: tsd  # remi | midilike | tsd, structured | cpword | octuple | mumidi | mmm
-  training_model: BPE  # BPE | Unigram | WordPiece
-  vocab_size: 20000
-  dataset_name: maestro
+processing_precision: medium  # possible values: medium | high

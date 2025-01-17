@@ -4,14 +4,13 @@ import logging as lg
 
 import torch
 from miditok import REMI, MIDILike, TSD, Structured, CPWord, Octuple, MuMIDI, MMM
-from symusic import Score
-
-from src.dataset import base_dataset_path
-
 
 logger = lg.getLogger(__name__)
 
+base_dataset_path = Path.cwd() / "data"
 
+
+# TODO  Fix to be like patchilizer!
 class Tokenizer:
     TOKENIZER_MAPPER = {
         "remi": REMI,
@@ -52,14 +51,14 @@ class Tokenizer:
             self.tokenizer = self.TOKENIZER_MAPPER[tokenizer_name]()
             self._is_trained = False
 
-    def tokenize(self, text: Score) -> torch.Tensor:
+    def encode(self, text: str) -> list[int]:
         if not self._is_trained:
             raise ValueError("Tokenizer is not trained")
         tok_sequence = self.tokenizer.encode(text)
         # TODO How to properly make tensors from tokens
         return torch.tensor(tok_sequence)
 
-    def detokenize(self, tensor_tokens: torch.Tensor) -> Score:
+    def decode(self, tensor_tokens: list[int]) -> str:
         if not self._is_trained:
             raise ValueError("Tokenizer is not trained")
         # TODO how to make tokens from tensors

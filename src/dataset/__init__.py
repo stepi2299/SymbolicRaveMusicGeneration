@@ -6,17 +6,18 @@ from src.dataset.symbolic_music_dataset import (
     MidiDataset,
     AbcDataset,
 )
+from src.adapter.adapter import MusicAdapter
 
 
-def get_dataset(config: DictConfig) -> SymbolicMusicDataset:
-    dataset_path = Path.cwd() / "data" / config.data_dir
+def get_dataset(
+    dataset_config: DictConfig, adapter_config: DictConfig
+) -> SymbolicMusicDataset:
+    music_adapter = MusicAdapter(adapter_config)
+    dataset_path = Path.cwd() / "data" / dataset_config.data_dir
     dataset_path = dataset_path.resolve(True)
-    if config.extension == "mid" or config.extension == "midi":
-        return MidiDataset(dataset_path)
-    elif config.extension == "abc":
-        return AbcDataset(dataset_path)
+    if dataset_config.extension == "mid" or dataset_config.extension == "midi":
+        return MidiDataset(dataset_path, adapter=music_adapter)
+    elif dataset_config.extension == "abc":
+        return AbcDataset(dataset_path, adapter=music_adapter)
     else:
-        raise ValueError(f"Unknown dataset type: {config['dataset_type']}")
-
-
-base_dataset_path = Path.cwd() / "data"
+        raise ValueError(f"Unknown dataset type: {dataset_config['dataset_type']}")

@@ -12,7 +12,9 @@ class Encoder(nn.Module, ABC):
         self.latent_dim = latent_dim
 
     @abstractmethod
-    def forward(self, data: TokSequence) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, data: list[list[int]] | list[int]
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         # TODO check input data to encoder (symbolic music)
         # TODO Possible handle in some cases from symbolic to tensor (Tokenizer?)
         pass

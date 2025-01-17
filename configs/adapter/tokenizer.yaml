@@ -1,0 +1,6 @@
+name: tokenizer
+params:
+  tokenizer: tsd  # remi | midilike | tsd, structured | cpword | octuple | mumidi | mmm
+  training_model: BPE  # BPE | Unigram | WordPiece
+  vocab_size: 20000
+  dataset_name: maestro

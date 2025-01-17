@@ -1278,13 +1278,13 @@ test-code = ["pytest (>=7.4.0,<7.5.0)"]
 
 [[package]]
 name = "more-itertools"
-version = "10.5.0"
+version = "10.6.0"
 description = "More routines for operating on iterables, beyond itertools"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "more-itertools-10.5.0.tar.gz", hash = "sha256:5482bfef7849c25dc3c6dd53a6173ae4795da2a41a80faea6700d9f5846c5da6"},
-    {file = "more_itertools-10.5.0-py3-none-any.whl", hash = "sha256:037b0d3203ce90cca8ab1defbbdac29d5f993fc20131f3664dc8d6acfa872aef"},
+    {file = "more-itertools-10.6.0.tar.gz", hash = "sha256:2cd7fad1009c31cc9fb6a035108509e6547547a7a738374f10bd49a09eb3ee3b"},
+    {file = "more_itertools-10.6.0-py3-none-any.whl", hash = "sha256:6eb054cb4b6db1473f6e15fcc676a08e4732548acd47c708f0e179c2c7c01e89"},
 ]
 
 [[package]]
@@ -2743,13 +2743,13 @@ test = ["Cython", "array-api-strict (>=2.0,<2.1.1)", "asv", "gmpy2", "hypothesis
 
 [[package]]
 name = "sentry-sdk"
-version = "2.19.2"
+version = "2.20.0"
 description = "Python client for Sentry (https://sentry.io)"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "sentry_sdk-2.19.2-py2.py3-none-any.whl", hash = "sha256:ebdc08228b4d131128e568d696c210d846e5b9d70aa0327dec6b1272d9d40b84"},
-    {file = "sentry_sdk-2.19.2.tar.gz", hash = "sha256:467df6e126ba242d39952375dd816fbee0f217d119bf454a8ce74cf1e7909e8d"},
+    {file = "sentry_sdk-2.20.0-py2.py3-none-any.whl", hash = "sha256:c359a1edf950eb5e80cffd7d9111f3dbeef57994cb4415df37d39fda2cf22364"},
+    {file = "sentry_sdk-2.20.0.tar.gz", hash = "sha256:afa82713a92facf847df3c6f63cec71eb488d826a50965def3d7722aa6f0fdab"},
 ]
 
 [package.dependencies]
@@ -2794,6 +2794,7 @@ sqlalchemy = ["sqlalchemy (>=1.2)"]
 starlette = ["starlette (>=0.19.1)"]
 starlite = ["starlite (>=1.48)"]
 tornado = ["tornado (>=6)"]
+unleash = ["UnleashClient (>=6.0.1)"]
 
 [[package]]
 name = "setproctitle"
@@ -2953,56 +2954,64 @@ dev = ["hypothesis (>=6.70.0)", "pytest (>=7.1.0)"]
 
 [[package]]
 name = "symusic"
-version = "0.5.5"
+version = "0.5.6"
 description = "A high performance MIDI file parser with comprehensible interface."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "symusic-0.5.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:f155d0a5d6ff01a4ec60e46dd5c34b90370ad95108e741e02e1c287086f0106d"},
-    {file = "symusic-0.5.5-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:5d4528a09edc4ff9d71814f0df7c80789bfb2393c92fbd376df798101fdc6ed6"},
-    {file = "symusic-0.5.5-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e562595b30c98765b66b42d97da7da76d48e9d366fb7f97a90d241aa8bde220b"},
-    {file = "symusic-0.5.5-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f4aa46a6fe7583c51df0a59d5998fe6fd18b35b1acc60a999432a4319e5d810d"},
-    {file = "symusic-0.5.5-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:97404dbe12a7ed1e7b889f17e4836368763537bbeb50e767393f289e6e732a26"},
-    {file = "symusic-0.5.5-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:d2ce4d04ab57ccfcbec4596545b28d448cc041daf869cc23dd5c328ea214c76a"},
-    {file = "symusic-0.5.5-cp310-cp310-win32.whl", hash = "sha256:30251ddb41268b876ba53e0ad0cf41034fd663b275723a898acc78ac1a515c4b"},
-    {file = "symusic-0.5.5-cp310-cp310-win_amd64.whl", hash = "sha256:05ed0e43957a8197bf706fbccca7d7640a4a123c550fa21d8b00748b18e17555"},
-    {file = "symusic-0.5.5-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:2b0bb86e709502b2dda7da19d735f0a4973ae0fdd93b24aba38a624938e1601d"},
-    {file = "symusic-0.5.5-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:4f34ab4ae41d47c251a529c481272d77cc358ef000930888f53e1ac5bf0f94ff"},
-    {file = "symusic-0.5.5-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6f923a6168fb4d11bfb1af31e1663ca4b241dd291ce50c304dffbce7fda49331"},
-    {file = "symusic-0.5.5-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8d5964e360c11c25f5173948de10b1616601110a8c390d21d5e271a41c323421"},
-    {file = "symusic-0.5.5-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:e6e4aa64b5e4f3c63d8290884e06381c0b16a83af23f53c10b9d55acadedcb99"},
-    {file = "symusic-0.5.5-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:d58ebec3150b45e26aac8fbcf9b35cd9276003e8cd2698bd6b443cd8743c460b"},
-    {file = "symusic-0.5.5-cp311-cp311-win32.whl", hash = "sha256:84a86ad10823f5e0362982e77e3978fbdf1c92ae4b44fd2752432a741556b424"},
-    {file = "symusic-0.5.5-cp311-cp311-win_amd64.whl", hash = "sha256:802d50484fabd7cc9befa9cd2e57c6ce0db559e8052dead21fa9faf7bc3176f6"},
-    {file = "symusic-0.5.5-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:47c5093f71e9753935ee142029a7450ed8fc72449035b78e9db8e365a8968ade"},
-    {file = "symusic-0.5.5-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:7aad93185d2b710ceeb9440baf13f942c8a82c33bb00f9811cac7d9970546641"},
-    {file = "symusic-0.5.5-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:cba49a42b739a8126c1f18c104c2fa0728bd8fff2d21b5a69c0f59ea2317ae16"},
-    {file = "symusic-0.5.5-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:4afd053c7a09f2ba85e7e0f587b335f20cc2d98f193b68c15c4c42db29e3c1ff"},
-    {file = "symusic-0.5.5-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:81e01d58881f98afb2befb327812d6bcb24d7416bc408905c030e59b388805d2"},
-    {file = "symusic-0.5.5-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:671048146d8252f68203483e4e81e8fccc7e713bf0178b7d0211a9e7fc6e43f3"},
-    {file = "symusic-0.5.5-cp312-cp312-win32.whl", hash = "sha256:745b877db70b04696fe52c9720bc38ea3d0471968ea66109bdc90fae7cd2f763"},
-    {file = "symusic-0.5.5-cp312-cp312-win_amd64.whl", hash = "sha256:d02a10181fb402b2d482baa69bd8e83effb2d754b163a73b75433be4d10c1893"},
-    {file = "symusic-0.5.5-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:ed64104ead68766df36597a2f33568a5ccdb0e1bd18c1c8c773ac14899ec01b7"},
-    {file = "symusic-0.5.5-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:2721d80a9d3c77adb1201e761557f5ccdceb2af18fde28e7eabb3d840472e8e9"},
-    {file = "symusic-0.5.5-cp38-cp38-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:39524190b7553f26f7310b3f16c0d80df3c6691a1fa9c1a291867fedee62f7f4"},
-    {file = "symusic-0.5.5-cp38-cp38-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c722bfc60349239c7fb85b529df450eb71efa68f88eb70dcbf95a73eda0d26c3"},
-    {file = "symusic-0.5.5-cp38-cp38-musllinux_1_2_aarch64.whl", hash = "sha256:292c1ea0deb81d65543e9ed68e18a4596ec3b99825d8f4635e54cff01b99181b"},
-    {file = "symusic-0.5.5-cp38-cp38-musllinux_1_2_x86_64.whl", hash = "sha256:6ae679811954e32408aee1ae66722d11102e75fb350a2cd94e351f08a9235ba9"},
-    {file = "symusic-0.5.5-cp38-cp38-win32.whl", hash = "sha256:fddd329c314b084f480fc871e56156a1d69bfee7dd1383623fa7e759252884de"},
-    {file = "symusic-0.5.5-cp38-cp38-win_amd64.whl", hash = "sha256:e24b4776035f5853964f1f49a264509f053a0052d51158cc741f9dd0446d9129"},
-    {file = "symusic-0.5.5-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:a60f6b3430c60769df0305ba9fd9d861d09ac372810cbac99f6a39640da43e91"},
-    {file = "symusic-0.5.5-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:0c4e4953f055c3d24efc7478c084b75250bbfee7e48fc44099332826fe98b41d"},
-    {file = "symusic-0.5.5-cp39-cp39-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:52a6f8eb3da0295685b6cc23ae691be6befbc9d8833ae7d7cf5c226d58a83813"},
-    {file = "symusic-0.5.5-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f3ea40922f558c32a6f54e26b04a575702fea435360e6e7f8aa43b853f6d890c"},
-    {file = "symusic-0.5.5-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:96b124a4950fbf5058477b8bda0b8c7aca71cfc0414a5bbd36b72074c61a5120"},
-    {file = "symusic-0.5.5-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:2014bb422b039c94c56131fb18f44a65c6cec5ab378e41d7a95df6719074a4a7"},
-    {file = "symusic-0.5.5-cp39-cp39-win32.whl", hash = "sha256:fdc0c5e69f92d52478572df18893adbfc3e951c8d00fee73056c07fdce99ae28"},
-    {file = "symusic-0.5.5-cp39-cp39-win_amd64.whl", hash = "sha256:afc85c9d140b1ba68904c1c6beb2390d548edb3baf67c552e80cb91a23baf6a0"},
-    {file = "symusic-0.5.5-pp39-pypy39_pp73-macosx_10_9_x86_64.whl", hash = "sha256:b4a869f84e508f721358ee33f2e93a2834d2a12df17b21c8e9f0dfb968583a3e"},
-    {file = "symusic-0.5.5-pp39-pypy39_pp73-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:7a79cfd5f6b3731e67ce90c925ad466e49d01e6525807b1bf0bf158b0b668794"},
-    {file = "symusic-0.5.5-pp39-pypy39_pp73-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8ecd38559c9531d70f5822edece18f8064fc337bd09627bc6bc831fa174f0768"},
-    {file = "symusic-0.5.5-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:71f6754af0a0504a664a400c66f38503fa7b29e0d59c22bcf0c6214ed3cc8e19"},
-    {file = "symusic-0.5.5.tar.gz", hash = "sha256:564d657f1bb2c202498f4b720c5001283ce4a39a9679b743e92286a773a806bb"},
+    {file = "symusic-0.5.6-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:57739a6e5ead560267ad7f6d809a27a96d40b7b151f7d4e886dcde878ce3430a"},
+    {file = "symusic-0.5.6-cp310-cp310-macosx_11_0_x86_64.whl", hash = "sha256:1e4758aec2ced66011994c361dab90c1cfc53db5e9f4c25cf5fd5535c3656cdb"},
+    {file = "symusic-0.5.6-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:8f503c77fe97e965caad29eb3a7e7072a77f1155a51fc204eed3908d7354e1ba"},
+    {file = "symusic-0.5.6-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:2adc8ee6fcff051e2c8c02e143889c57cc2979b356ed714fb0c13df6acb07d56"},
+    {file = "symusic-0.5.6-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:0cd9ff29e1877a5a607e0191b3193551044275ea213239be7b3d1bf593d91bbd"},
+    {file = "symusic-0.5.6-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:66bd7090ac1044d3dc074f2744dde46a6dcd9ad3c92b036c307775b64561c04c"},
+    {file = "symusic-0.5.6-cp310-cp310-win32.whl", hash = "sha256:2baa1c698ae035515caca706ee31d0111675f0b80cc03e487b5da05354b0b920"},
+    {file = "symusic-0.5.6-cp310-cp310-win_amd64.whl", hash = "sha256:491dba98db399d6f7a53a88089dd177b25208ef6bf950b9a703f96bbfa33e8af"},
+    {file = "symusic-0.5.6-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:2e58db0d4099de303b994623f16cfc14590e449bbedaca673f049296d157782b"},
+    {file = "symusic-0.5.6-cp311-cp311-macosx_11_0_x86_64.whl", hash = "sha256:d3e2282a70e7b96f9d1c9d9fb4e8adc4d0b1cdb142abc8cc9a965b6f77003426"},
+    {file = "symusic-0.5.6-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:430dd47d9ef481a8461bea9a77041f1fbdb6afe017eee35741612b90b1dba83f"},
+    {file = "symusic-0.5.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:99713a092a72cb7e74db7c2bca6c89a4c5a324046c4ee7d861e88904f114f35b"},
+    {file = "symusic-0.5.6-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:5be399e0b488edd3abcf9140afae90dded274b56d03505f56534fa95e81ffd57"},
+    {file = "symusic-0.5.6-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:eb281ae598e0ad7e5f5d65e4e089ac0b2500f910f455a44f72d1e65e4be36bff"},
+    {file = "symusic-0.5.6-cp311-cp311-win32.whl", hash = "sha256:9bdeb4c9bc64e0b0cefc95b55bbe098928f1dc52878da4804ddeaf5871a05c83"},
+    {file = "symusic-0.5.6-cp311-cp311-win_amd64.whl", hash = "sha256:54077388545815479dd5914970d87ca655aab43078d20150d5443d096919a862"},
+    {file = "symusic-0.5.6-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:65a78475a1fb9bd0f51f22447b6b64f2fb0449dcecdce301df63fe8044afb681"},
+    {file = "symusic-0.5.6-cp312-cp312-macosx_11_0_x86_64.whl", hash = "sha256:ddbaafd125fcdd3e494a08acceb14a2d6a7fddee0e383d2f7db50421cf6ecc42"},
+    {file = "symusic-0.5.6-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:826b473345d8cbceb05f20ef862cf9f3182576486224d7ceba1c5d54e20d46e9"},
+    {file = "symusic-0.5.6-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a7a03536cb8c7c83e6f53764bc0008cac58c776f81f98fe6bc4aa27f437bc7d3"},
+    {file = "symusic-0.5.6-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:8f98b6c1bd87a9644431d4cefcbe95c5c502cc048d95db18e014f847406adf0f"},
+    {file = "symusic-0.5.6-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:37828fd1e68c664da53b6649bdf6bd9ef71cbf2bb54cce976a33e36db4bf8d00"},
+    {file = "symusic-0.5.6-cp312-cp312-win32.whl", hash = "sha256:0672e3c5b17c34a8ef84df7293f0006b0960dae01e1ea9513c18065357250142"},
+    {file = "symusic-0.5.6-cp312-cp312-win_amd64.whl", hash = "sha256:486f305bbbe210374d4488e3d52bc7986d128c65dcc2c618ef64efe7bf468731"},
+    {file = "symusic-0.5.6-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:f239bc6eb29c004a52322b5799018244723f2541034e0aef396f2d70d77b6ed5"},
+    {file = "symusic-0.5.6-cp313-cp313-macosx_11_0_x86_64.whl", hash = "sha256:77e3b73820ed2dc36d398b4e1cce9bfdbd491fb71aa6adc34443b212b50f596d"},
+    {file = "symusic-0.5.6-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:4cf5a944f45e034145f491247465aecc143c4a4988a38abaa678355514fee1da"},
+    {file = "symusic-0.5.6-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3a917a0e2937127790fb4be949a785a35e8fbcd4c615721d7420fcda465ea76f"},
+    {file = "symusic-0.5.6-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:76fbe70a79031ad7efefd380245149bdf0a00ede949b7ca489f0ae62c040816a"},
+    {file = "symusic-0.5.6-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:60efee8531f96598dcba502c69d4f215b2846ad4904f0fb05c39ea8498a1c3f7"},
+    {file = "symusic-0.5.6-cp313-cp313-win32.whl", hash = "sha256:b52b17320a524fb86849ea9b604e4a6075bc0814d8c5e63330b0d00dcaad5d51"},
+    {file = "symusic-0.5.6-cp313-cp313-win_amd64.whl", hash = "sha256:c4eedba976c80f8ee54adb87475d13c53c9d1c6585d71a5572b2b6ba574d0c1a"},
+    {file = "symusic-0.5.6-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:913648bae583d3ecb2e1825bfeaa301f5fb1315244658720cf29de847aa76362"},
+    {file = "symusic-0.5.6-cp38-cp38-macosx_11_0_x86_64.whl", hash = "sha256:5a09c6c1b0d95c2a6b02fe9b777d6e21fc65982d047c43dcb70c7c7aaa399625"},
+    {file = "symusic-0.5.6-cp38-cp38-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:5ba7e0c2b93c64ffb14e49df558de0d750dbacb2e26cd279c8139763e9d0fb20"},
+    {file = "symusic-0.5.6-cp38-cp38-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:97e3dec8fb7f03d341dc3fb92a135b2b452cc3b3053efb9cf42a3ca30ebfe32f"},
+    {file = "symusic-0.5.6-cp38-cp38-musllinux_1_2_aarch64.whl", hash = "sha256:3efd0a58373706dc0bb0e49e49b002e5fb3ed1f002a0403c3f0b0f3b17a799df"},
+    {file = "symusic-0.5.6-cp38-cp38-musllinux_1_2_x86_64.whl", hash = "sha256:6b063b21a3969c9b21c3ce518f72df9c99da3ca2fa66cfaaf3945ebfad200f96"},
+    {file = "symusic-0.5.6-cp38-cp38-win32.whl", hash = "sha256:a9041a23750858a8b786ed4acc57280371788d3cbd70943c3818aa6a44ac602c"},
+    {file = "symusic-0.5.6-cp38-cp38-win_amd64.whl", hash = "sha256:12e9f7609714c00a36b6574e583474df3f0ac94892288f115fd24f0e1314d9a0"},
+    {file = "symusic-0.5.6-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:33b932a5f5f889d764d7a6c652d94edfd2ec049d6376cab9d9e699a17906ca24"},
+    {file = "symusic-0.5.6-cp39-cp39-macosx_11_0_x86_64.whl", hash = "sha256:6f9999ee14e14e06a7d951e70af65fef454d3fd02ff9b616de5244854a3cd4b0"},
+    {file = "symusic-0.5.6-cp39-cp39-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6b33af2f58a68073bccfd319f0c22e91c2d2ee60931ec30fd0aedb17bb789f95"},
+    {file = "symusic-0.5.6-cp39-cp39-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:0807fc7dffd20f706e56c08e85eafecfbbf2c020dc90a612f6eca4ddcab5aef7"},
+    {file = "symusic-0.5.6-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:0db6377d96ac4d90a96e7f5c107a90104e1ecb524216d0d6886877c66879c748"},
+    {file = "symusic-0.5.6-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:f968ae7178f28985895b80e76cc7101ffe9d269d879cfe1338505f89f3ce33f3"},
+    {file = "symusic-0.5.6-cp39-cp39-win32.whl", hash = "sha256:687ca572c0f71c27fa70de994a170a670d9c2d8f0ce0b784a30f4a1b1b451fba"},
+    {file = "symusic-0.5.6-cp39-cp39-win_amd64.whl", hash = "sha256:f43ae9cac7fca41c2c51eb5a547ffacbe29ec58a4fd9d076415b5552a922fb68"},
+    {file = "symusic-0.5.6-pp39-pypy39_pp73-macosx_11_0_x86_64.whl", hash = "sha256:ff2579274751a6a10c0f3ed9c754eceb25674297eb38bfa62ded40b7dc2b1181"},
+    {file = "symusic-0.5.6-pp39-pypy39_pp73-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:984d2b4decf1b3a55bb93b2810dfabdfbb604131c955d987eaaae3dd66972eda"},
+    {file = "symusic-0.5.6-pp39-pypy39_pp73-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9bcb09e08e650f5deafc4f800e161ed628f2730242761472f2760cf56827b876"},
+    {file = "symusic-0.5.6-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:ae7ec8bbf6c9bf83afbafd63b64dae7d98d6ed2a958214ef4ab074ae6a3c6a3a"},
+    {file = "symusic-0.5.6.tar.gz", hash = "sha256:5aab48d9fd505528fb863ef4d55eb1073f82716460a8b105a59471576f0665d2"},
 ]
 
 [package.dependencies]
@@ -3278,22 +3287,22 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "wandb"
-version = "0.19.2"
+version = "0.19.4"
 description = "A CLI and library for interacting with the Weights & Biases API."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "wandb-0.19.2-py3-none-any.whl", hash = "sha256:e8ba6e575cbff0b82697524e4296af64dff84e1a6ff36ca12d03956b3aacbedb"},
-    {file = "wandb-0.19.2-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:bc3a7ab256cac5ae8ecc68a144c36062ce6c1ed509ce1ed0e850f65b77a9449e"},
-    {file = "wandb-0.19.2-py3-none-macosx_11_0_arm64.whl", hash = "sha256:534eb773908138af1d639b5b6313ad8489681bf8bc34073039bae91f5b8b9094"},
-    {file = "wandb-0.19.2-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:d34954b9ebb5cc660a8d88ed7bc4ae9c5f848c10ea3193a142d885f589e16d74"},
-    {file = "wandb-0.19.2-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9ce10417933b26c6f19a4d59ebd93fe301b16e4c116dabb99fda016908cdd211"},
-    {file = "wandb-0.19.2-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7fc9405a72cd5a36b9ed49cb6845b172996652990e99ba5da1eab167b06939db"},
-    {file = "wandb-0.19.2-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:93802a0e012169a5a3c73976bbc379a520bbb234203586d4428aaff964fd2f74"},
-    {file = "wandb-0.19.2-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:384af98b01a180b6e7c6d241eec2cef3f9316b7b11d22fd8fe05c3e0d4419008"},
-    {file = "wandb-0.19.2-py3-none-win32.whl", hash = "sha256:15ab6b056ae0ae83253a98973b94a3956846612188948d86204767b475ea6aca"},
-    {file = "wandb-0.19.2-py3-none-win_amd64.whl", hash = "sha256:3b8b3e1148773aa1ee7c139df94916533294a47e5706b5fa9075bf1746226a59"},
-    {file = "wandb-0.19.2.tar.gz", hash = "sha256:854dbe7c3aa7c0c436b56ac643d1df0cd5f14166b39176cba1788bdd245bd51a"},
+    {file = "wandb-0.19.4-py3-none-any.whl", hash = "sha256:22fd4504cdb1aae0b5715540e8e093a836648fabf1ba1c997524ff2dec932e97"},
+    {file = "wandb-0.19.4-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:afb69d1a0aafba16321b62215f81c05756c3bdb6b413cd34a6e74029ad33b2e0"},
+    {file = "wandb-0.19.4-py3-none-macosx_11_0_arm64.whl", hash = "sha256:708b6fd6ba52f65ed15f73f9af57030e82a9830db6fc6a3e60c7387baf08e51b"},
+    {file = "wandb-0.19.4-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:428ac899e517f8abd0df68071169ee84abaf303e26ebedfd39d6d4a35ac46c3b"},
+    {file = "wandb-0.19.4-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:934aa5f63125435e244b6f9dff31c3dae3eacf73991f2f09ec840dc25435197e"},
+    {file = "wandb-0.19.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:293f6d13d3668877ae206f9f46bf1f22c5df7748867e97d2f11faa27ef8c3cc6"},
+    {file = "wandb-0.19.4-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:670df4c0c6dd859c8beb92baabb4bd528a10a0f7312abce24340bebec1df6e50"},
+    {file = "wandb-0.19.4-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:3c6958f533e0f727fcc4bb77beb8b4ad1042eb940e51729bd4a69bd6531d81be"},
+    {file = "wandb-0.19.4-py3-none-win32.whl", hash = "sha256:e8b3652ef16718bb1cf5362238fd5bf24ed99bc69b02b0308868617558986177"},
+    {file = "wandb-0.19.4-py3-none-win_amd64.whl", hash = "sha256:14f33088ece77e7767c1873fba2ec80553db38bb61aa284e7abbf89df8d705bd"},
+    {file = "wandb-0.19.4.tar.gz", hash = "sha256:3df18f7f6c3fd66eefae7aa4e5010b4ecca4c55f688f3fb283fbe4c845cb33b2"},
 ]
 
 [package.dependencies]

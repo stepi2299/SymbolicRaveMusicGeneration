@@ -2,35 +2,38 @@ from pathlib import Path
 from typing import Callable
 from torch.utils.data import Dataset
 from abc import ABC, abstractmethod
+
 from src.dataset.utils import load_midi_song, load_abc_song
-from symusic import Score
+from src.adapter.adapter import MusicAdapter
 
 
 class SymbolicMusicDataset(Dataset, ABC):
     def __init__(
         self,
         dataset_path: Path,
+        adapter: MusicAdapter,
         load_music_function: Callable[[Path], str],
         transform: Callable[[str], str] | None = None,
     ) -> None:
         self.dataset_path = dataset_path
         self.load_music_function = load_music_function
         self.transform = transform
-        self.music_files_path = self.imread_music_files()
+        self.music_files_paths = self.imread_music_files()
+        self.music_adapter = adapter
 
     @abstractmethod
     def imread_music_files(self) -> list[Path]:
         pass
 
     def __len__(self):
-        return len(self.music_files_path)
+        return len(self.music_files_paths)
 
-    def __getitem__(self, idx: int) -> Score:
-        music_file_path = self.music_files_path[idx]
+    def __getitem__(self, idx: int) -> list[int] | list[list[int]]:
+        music_file_path = self.music_files_paths[idx]
         music_file = self.load_music_function(music_file_path)
         if self.transform:
             music_file = self.transform(music_file)
-        # TODO how to make Score obj!
+        music_file = self.music_adapter.encode(music_file)
         return music_file
 
 
@@ -38,10 +41,16 @@ class MidiDataset(SymbolicMusicDataset):
     def __init__(
         self,
         dataset_path: Path,
+        adapter: MusicAdapter,
         load_music_function: Callable[[Path], str] = load_midi_song,
         transform: Callable[[str], str] | None = None,
     ) -> None:
-        super(MidiDataset, self).__init__(dataset_path, load_music_function, transform)
+        super(MidiDataset, self).__init__(
+            dataset_path=dataset_path,
+            load_music_function=load_music_function,
+            adapter=adapter,
+            transform=transform,
+        )
 
     def imread_music_files(self) -> list[Path]:
         return list(self.dataset_path.glob("*.mid")) + list(
@@ -53,10 +62,16 @@ class AbcDataset(SymbolicMusicDataset):
     def __init__(
         self,
         dataset_path: Path,
+        adapter: MusicAdapter,
         load_music_function: Callable[[Path], str] = load_abc_song,
         transform: Callable[[str], str] | None = None,
     ) -> None:
-        super(AbcDataset, self).__init__(dataset_path, load_music_function, transform)
+        super(AbcDataset, self).__init__(
+            dataset_path=dataset_path,
+            load_music_function=load_music_function,
+            adapter=adapter,
+            transform=transform,
+        )
 
     def imread_music_files(self) -> list[Path]:
         return list(self.dataset_path.glob("*.abc"))
