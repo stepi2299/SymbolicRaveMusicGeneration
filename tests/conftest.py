@@ -45,7 +45,7 @@ def fixture_loaded_abc_song(abc_file: Path) -> str:
 
 @pytest.fixture(scope="session", name="patchilizer_config")
 def fixture_patchilizer_config() -> DictConfig:
-    config = {"name": "patchilizer", "params": {"patch_length": 64, "patch_size": 16}}
+    config = {"name": "patchilizer", "params": {"patch_length": 512, "patch_size": 64}}
     return DictConfig(config)
 
 

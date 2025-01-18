@@ -6,8 +6,9 @@ from src.adapter.tokenizer import Tokenizer
 
 class MusicAdapter:
     def __init__(self, adapter_config: DictConfig) -> None:
+        self.adapter_type = adapter_config.name
         self._adapter = self.get_preprocessor(
-            adapter_config.name, adapter_config.params
+            self.adapter_type, adapter_config.params
         )
 
     def encode(self, item: str) -> list[list[int]] | list[int]:
@@ -15,6 +16,12 @@ class MusicAdapter:
 
     def decode(self, item: list[list[int]] | list[str]) -> str:
         return self._adapter.decode(item)
+
+    @property
+    def patch_length(self) -> int | None:
+        if not self.adapter_type == "patchilizer":
+            return None
+        return self._adapter.patch_length
 
     @staticmethod
     def get_preprocessor(
