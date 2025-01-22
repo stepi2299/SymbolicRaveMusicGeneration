@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from src.dataset.utils import load_midi_song, load_abc_song
+from src.utils import load_midi_song, load_abc_song
 from src.adapter.adapter import MusicAdapter
 
 

@@ -2,7 +2,7 @@
 defaults:
   - dataset: maestro     # default dataset
   - adapter: patchilizer  # default adapter
-  - model: dummy_vae     # default model
+  - model: clamp2_vae     # default model
   - competitor: dummy_competitor  # default competitor config
   - _self_
 

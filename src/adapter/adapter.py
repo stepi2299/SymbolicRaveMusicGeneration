@@ -7,9 +7,7 @@ from src.adapter.tokenizer import Tokenizer
 class MusicAdapter:
     def __init__(self, adapter_config: DictConfig) -> None:
         self.adapter_type = adapter_config.name
-        self._adapter = self.get_preprocessor(
-            self.adapter_type, adapter_config.params
-        )
+        self._adapter = self.get_preprocessor(self.adapter_type, adapter_config.params)
 
     def encode(self, item: str) -> list[list[int]] | list[int]:
         return self._adapter.encode(item)

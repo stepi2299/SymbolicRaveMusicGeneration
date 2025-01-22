@@ -1,0 +1,21 @@
+name: clamp2_vae
+encoder:
+  name: clamp2
+  params:
+    vocab_size: 1
+    hidden_size: 768
+    weights_url: "https://huggingface.co/sander-wood/clamp2/resolve/main/weights_clamp2_h_size_768_lr_5e-05_batch_128_scale_1_t_length_128_t_model_FacebookAI_xlm-roberta-base_t_dropout_True_m3_True.pth"
+    num_hidden_layers: 12
+    patch_size: 64  # Size of each patch, MAKE SURE THAT THE PATCH SIZE IS THE SAME AS THE ONE USED IN THE ADAPTER
+    patch_length: 512  # Length of the patches, MAKE SURE THAT THE PATCH LENGTH IS THE SAME AS THE ONE USED IN THE ADAPTER
+    latent_dim: 200
+decoder:
+    name: clamp2
+    params:
+      vocab_size: 1
+      hidden_size: 768
+      num_hidden_layers: 12
+      patch_size: 64  # Size of each patch, MAKE SURE THAT THE PATCH SIZE IS THE SAME AS THE ONE USED IN THE ADAPTER
+      patch_length: 512  # Length of the patches, MAKE SURE THAT THE PATCH LENGTH IS THE SAME AS THE ONE USED IN THE ADAPTER
+      latent_dim: 200
+

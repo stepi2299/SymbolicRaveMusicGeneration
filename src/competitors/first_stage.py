@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 from src.loss.fmd import FmdLoss
 from src.models.vae import VAE
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
-from src.dataset.utils import split_dataset
+from src.utils import split_dataset
 from src.dataset.dataloader import get_dataloader
 
 

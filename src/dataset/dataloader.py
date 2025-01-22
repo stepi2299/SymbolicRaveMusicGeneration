@@ -1,5 +1,5 @@
 from torch.utils.data import DataLoader
-from src.dataset.utils import symbolic_collate_fn
+from src.utils import symbolic_collate_fn
 
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 
