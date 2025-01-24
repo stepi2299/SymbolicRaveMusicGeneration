@@ -22,12 +22,11 @@ class VAE(nn.Module):
 
     def forward(
         self, input_music: list[list[int]] | list[int]
-    ) -> tuple[Score, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, log_variance = self.encoder(input_music)
         latent_vector = self.reparameterize(mu, log_variance)
         tensor_reconstruction = self.decoder(latent_vector)
-        reconstruction = self.tokenizer.detokenize(tensor_reconstruction)
-        return reconstruction, mu, log_variance
+        return tensor_reconstruction, mu, log_variance
 
     def reparameterize(self, mu: torch.Tensor, log_var: torch.Tensor) -> torch.Tensor:
         std = torch.exp(0.5 * log_var)

@@ -7,7 +7,7 @@ import logging as lg
 
 from transformers import BertConfig
 from src.models.clamp2 import PatchEncoder, CLaMP2Model
-from src.utils import download_file
+from src.utils import download_file, get_possible_device
 
 logger = lg.getLogger(__name__)
 
@@ -89,6 +89,7 @@ class Clamp2Encoder(Encoder):
         weights_url: str,
     ) -> None:
         super(Clamp2Encoder, self).__init__(latent_dim=latent_dim, name="clamp2")
+        self.device = get_possible_device()
         self.weights_path = Path("weights/clamp2")
         self.weights_path.mkdir(parents=True, exist_ok=True)
         self.weights_path = self.weights_path / "clamp2.pth"
@@ -108,6 +109,8 @@ class Clamp2Encoder(Encoder):
         self.model = CLaMP2Model(
             patch_encoder=self.patch_encoder, latent_dim=latent_dim
         )
+        self.fc_mu = nn.Linear(latent_dim, latent_dim)
+        self.fc_logvar = nn.Linear(latent_dim, latent_dim)
         self.weights_url = weights_url
         self.patch_size = patch_size
         self.patch_length = patch_length
@@ -127,7 +130,8 @@ class Clamp2Encoder(Encoder):
         )
         download_file(self.weights_url, self.weights_path, verbose=True)
 
-    def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, data: list[list[str]]) -> Tuple[torch.Tensor, torch.Tensor]:
+        data = data[0]
         segment_list = []
         for i in range(0, len(data), self.patch_length):
             segment_list.append(data[i : i + self.patch_length])
@@ -141,8 +145,8 @@ class Clamp2Encoder(Encoder):
                 torch.ones(
                     (self.patch_length - input_segment.size(0), self.patch_size)
                 ).long()
-                * self.patchilizer.pad_token_id
-            )
+                * self.patch_encoder.pad_token_id
+            ).to(self.device)
             input_masks = torch.cat(
                 (input_masks, torch.zeros(self.patch_length - input_segment.size(0))), 0
             )
@@ -171,7 +175,13 @@ class Clamp2Encoder(Encoder):
             last_hidden_states_list.sum(dim=0) / feature_weights.sum()
         )
 
-        return last_hidden_states_list.unsqueeze(0).detach().cpu().numpy()
+        print(last_hidden_states_list.shape)
+        mu = self.fc_mu(last_hidden_states_list)
+        print(mu.shape)
+        logvar = self.fc_logvar(last_hidden_states_list)
+        print(logvar.shape)
+
+        return mu.unsqueeze(0), logvar.unsqueeze(0)
 
 
 def encoder_mapper(encoder_name: str) -> Type[Encoder]:

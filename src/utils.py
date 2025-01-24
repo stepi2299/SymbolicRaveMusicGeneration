@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Tuple
 import requests
+import torch
 from tqdm import tqdm
 
 import mido
@@ -95,3 +96,7 @@ def split_dataset(
 
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     return train_dataset, val_dataset
+
+
+def get_possible_device() -> torch.device:
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")

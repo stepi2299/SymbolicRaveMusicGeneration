@@ -3,7 +3,7 @@ from pathlib import Path
 from omegaconf import DictConfig
 
 from src.adapter.adapter import MusicAdapter
-from src.dataset.utils import load_midi_song, load_abc_song
+from src.utils import load_midi_song, load_abc_song
 from src.dataset.symbolic_music_dataset import MidiDataset
 
 

@@ -55,8 +55,8 @@ class MidiDataset(SymbolicMusicDataset):
         )
 
     def imread_music_files(self) -> list[Path]:
-        return list(self.dataset_path.glob("*.mid")) + list(
-            self.dataset_path.glob("*.midi")
+        return list(self.dataset_path.glob("**/*.mid")) + list(
+            self.dataset_path.glob("**/*.midi")
         )
 
 
@@ -76,4 +76,4 @@ class AbcDataset(SymbolicMusicDataset):
         )
 
     def imread_music_files(self) -> list[Path]:
-        return list(self.dataset_path.glob("*.abc"))
+        return list(self.dataset_path.glob("**/*.abc"))

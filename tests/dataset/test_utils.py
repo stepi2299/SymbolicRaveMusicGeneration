@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 from pathlib import Path
 import pytest
 
-from src.dataset.utils import (
+from src.utils import (
     midi_msg_to_str,
     load_midi_song,
     load_abc_song,

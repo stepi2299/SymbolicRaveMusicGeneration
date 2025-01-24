@@ -59,10 +59,10 @@ class FirstStage(pl.LightningModule):
 
     def val_dataloader(self):
         return get_dataloader(
-            self.train_dataset,
+            self.val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=True,
+            shuffle=False,
         )
 
     def configure_optimizers(self):
