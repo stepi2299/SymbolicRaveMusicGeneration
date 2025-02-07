@@ -7,7 +7,7 @@ from omegaconf import DictConfig
 from src.utils import load_midi_song, load_abc_song
 from src.adapter.adapter import MusicAdapter
 
-DATASET = 'maestro'  # maestro, midicaps
+DATASET = "maestro"  # maestro, midicaps
 base_path = Path.cwd() / "data"
 
 
@@ -31,9 +31,11 @@ def filter_music_files(filepath: Path, adapter: MusicAdapter) -> None:
 
         # Truncate or pad the encoded song to match the adapter's patch_length
         if len(song) > adapter.patch_length:
-            song = torch.tensor(song[:adapter.patch_length])
+            song = torch.tensor(song[: adapter.patch_length])
         else:
-            padded_song = song + [adapter.pad_token] * (adapter.patch_length - len(song))
+            padded_song = song + [adapter.pad_token] * (
+                adapter.patch_length - len(song)
+            )
             song = torch.tensor(padded_song)
     except Exception as e:
         print(f"Error processing file: {filepath}. Error: {e}, removing this file")
@@ -41,16 +43,18 @@ def filter_music_files(filepath: Path, adapter: MusicAdapter) -> None:
 
 
 def get_adapter_config():
-    return DictConfig({
-        "name": "patchilizer",
-        "params": {
-            "patch_size": 64,
-            "patch_length": 512,
-            "add_special_patches": False,
-            "truncate": True,
-            "random_truncate": False,
-        },
-    })
+    return DictConfig(
+        {
+            "name": "patchilizer",
+            "params": {
+                "patch_size": 64,
+                "patch_length": 512,
+                "add_special_patches": False,
+                "truncate": True,
+                "random_truncate": False,
+            },
+        }
+    )
 
 
 def main():

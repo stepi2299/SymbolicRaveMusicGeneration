@@ -100,29 +100,50 @@ def split_dataset(
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     return train_dataset, val_dataset
 
+
 def filter_abc(lines: list[str]) -> str:
     """
-        Filter out the metadata from the abc file
+    Filter out the metadata from the abc file
 
-        Args:
-            lines (list): List of lines in the abc file
+    Args:
+        lines (list): List of lines in the abc file
 
-        Returns:
-            music (str): Music string
-        """
+    Returns:
+        music (str): Music string
+    """
     music = ""
     for line in lines:
-        if line[:2] in ["A:", "B:", "C:", "D:", "F:", "G", "H:", "N:", "O:", "R:", "r:", "S:", "T:", "W:", "w:",
-                        "X:", "Z:"] \
-                or line == "\n" \
-                or (line.startswith("%") and not line.startswith("%%score")):
+        if (
+            line[:2]
+            in [
+                "A:",
+                "B:",
+                "C:",
+                "D:",
+                "F:",
+                "G",
+                "H:",
+                "N:",
+                "O:",
+                "R:",
+                "r:",
+                "S:",
+                "T:",
+                "W:",
+                "w:",
+                "X:",
+                "Z:",
+            ]
+            or line == "\n"
+            or (line.startswith("%") and not line.startswith("%%score"))
+        ):
             continue
         else:
             if "%" in line and not line.startswith("%%score"):
                 line = "%".join(line.split("%")[:-1])
                 music += line[:-1] + "\n"
             else:
-                music += line + '\n'
+                music += line + "\n"
     return music
 
 

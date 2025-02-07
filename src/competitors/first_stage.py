@@ -29,15 +29,23 @@ class FirstStage(pl.LightningModule):
         self.num_workers = num_workers
         self.learning_rate = learning_rate
         self.learning_patience = learning_patience
-        self.save_hyperparameters(ignore=['model'])
+        self.save_hyperparameters(ignore=["model"])
         # TODO make num classes as parameter!
 
-    def _compute_loss(self, data: torch.Tensor, reconstruction: torch.Tensor, mu: torch.Tensor, log_variance: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _compute_loss(
+        self,
+        data: torch.Tensor,
+        reconstruction: torch.Tensor,
+        mu: torch.Tensor,
+        log_variance: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         recon_loss = F.cross_entropy(
             reconstruction.view(-1, 128),  # Reshape to (batch*seq_len)
-            data.view(-1)  # Reshape to (batch*seq_len)
+            data.view(-1),  # Reshape to (batch*seq_len)
         )
-        kl_div = -0.5 * torch.sum(1 + log_variance - mu.pow(2) - log_variance.exp(), dim=1)
+        kl_div = -0.5 * torch.sum(
+            1 + log_variance - mu.pow(2) - log_variance.exp(), dim=1
+        )
         kl_div = torch.mean(kl_div)
         return recon_loss, kl_div
 
@@ -49,7 +57,9 @@ class FirstStage(pl.LightningModule):
         reconstruction, mu, log_variance = self.vae(data)
         recon_loss, kl_div = self._compute_loss(data, reconstruction, mu, log_variance)
         loss = recon_loss + kl_div
-        self.log("train_recon_loss", recon_loss, on_step=True, on_epoch=True, prog_bar=True)
+        self.log(
+            "train_recon_loss", recon_loss, on_step=True, on_epoch=True, prog_bar=True
+        )
         self.log("train_kl_div", kl_div, on_step=True, on_epoch=True, prog_bar=True)
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
@@ -59,7 +69,9 @@ class FirstStage(pl.LightningModule):
         reconstruction, mu, log_variance = self.vae(data)
         recon_loss, kl_div = self._compute_loss(data, reconstruction, mu, log_variance)
         loss = recon_loss + kl_div
-        self.log("val_recon_loss", recon_loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log(
+            "val_recon_loss", recon_loss, on_step=False, on_epoch=True, prog_bar=True
+        )
         self.log("val_kl_div", kl_div, on_step=False, on_epoch=True, prog_bar=True)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss

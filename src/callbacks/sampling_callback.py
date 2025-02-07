@@ -8,10 +8,7 @@ class SamplingCallback(Callback):
     Generates samples from the VAE's decoder at the end of each epoch.
     """
 
-    def __init__(self,
-                 latent_dim: int,
-                 sample_interval: int = 1,
-                 num_samples: int = 2):
+    def __init__(self, latent_dim: int, sample_interval: int = 1, num_samples: int = 2):
         """
         sample_interval: epochs between sample generations
         latent_dim: dimension of the VAE latent space
@@ -30,7 +27,9 @@ class SamplingCallback(Callback):
             pl_module.eval()
             with torch.no_grad():
                 # Sample random latent vectors
-                z = torch.randn(self.num_samples, self.latent_dim, device=pl_module.device)
+                z = torch.randn(
+                    self.num_samples, self.latent_dim, device=pl_module.device
+                )
                 generated = pl_module.decode(z)
 
             print(f"=== [SamplingCallback] Samples at epoch {current_epoch} ===")

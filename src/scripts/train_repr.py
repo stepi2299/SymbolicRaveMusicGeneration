@@ -15,12 +15,14 @@ from src.callbacks import get_callbacks
 
 @hydra.main(config_path="../../configs", config_name="config", version_base="1.3")
 def main(cfg: DictConfig) -> None:
-    wandb_logger = WandbLogger(project=cfg.wandb.project,
-                               entity=cfg.wandb.entity,
-                               group=cfg.wandb.group,
-                               log_model=False)
+    wandb_logger = WandbLogger(
+        project=cfg.wandb.project,
+        entity=cfg.wandb.entity,
+        group=cfg.wandb.group,
+        log_model=False,
+    )
     torch.cuda.empty_cache()
-    torch.set_float32_matmul_precision('medium')
+    torch.set_float32_matmul_precision("medium")
     lg.basicConfig(level=cfg.log_level)
     symbolic_music_dataset = get_dataset(cfg.dataset, cfg.adapter)
     vae_model = get_vae_model(cfg.model)
@@ -29,8 +31,12 @@ def main(cfg: DictConfig) -> None:
         symbolic_music_dataset=symbolic_music_dataset,
         **cfg.competitor.params,
     )
-    used_callbacks = get_callbacks(config=cfg.callbacks, latent_dim=vae_model.decoder.latent_dim)
-    trainer = Trainer(callbacks=used_callbacks, max_epochs=cfg.competitor.epochs, logger=wandb_logger)
+    used_callbacks = get_callbacks(
+        config=cfg.callbacks, latent_dim=vae_model.decoder.latent_dim
+    )
+    trainer = Trainer(
+        callbacks=used_callbacks, max_epochs=cfg.competitor.epochs, logger=wandb_logger
+    )
     trainer.fit(competitor)
     wandb.finish()
 

@@ -42,7 +42,13 @@ class PatchDecoder(PreTrainedModel):
     and projects them back to patch-space (patch_size * 128).
     """
 
-    def __init__(self, config: BertConfig, patch_size: int, projection_layer: int, vocab_size: int = 128) -> None:
+    def __init__(
+        self,
+        config: BertConfig,
+        patch_size: int,
+        projection_layer: int,
+        vocab_size: int = 128,
+    ) -> None:
         super().__init__(config)
         self.config = config
         self.patch_size = patch_size
@@ -54,7 +60,9 @@ class PatchDecoder(PreTrainedModel):
 
         # Inverse patch embedding:
         #   from 'projection_layer' -> 'patch_size * 128'
-        self.patch_embedding_inv = torch.nn.Linear(projection_layer, patch_size * vocab_size)
+        self.patch_embedding_inv = torch.nn.Linear(
+            projection_layer, patch_size * vocab_size
+        )
         torch.nn.init.normal_(self.patch_embedding_inv.weight, std=0.02)
 
     def forward(
@@ -113,7 +121,9 @@ class CLaMPModel(PreTrainedModel):
 
         return music_features
 
-    def _avg_pooling(self, input_features: torch.FloatTensor, input_masks: torch.LongTensor) -> torch.FloatTensor:
+    def _avg_pooling(
+        self, input_features: torch.FloatTensor, input_masks: torch.LongTensor
+    ) -> torch.FloatTensor:
         """
         Applies average pooling to the input features.
 
@@ -132,6 +142,7 @@ class CLaMPModel(PreTrainedModel):
         avg_pool = input_features.sum(dim=1) / input_masks.sum(dim=1)
 
         return avg_pool
+
 
 class CLaMPDecoderModel(PreTrainedModel):
     """
@@ -183,4 +194,3 @@ class CLaMPDecoderModel(PreTrainedModel):
         )
 
         return patch_logits
-

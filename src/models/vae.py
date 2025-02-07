@@ -19,7 +19,9 @@ class VAE(nn.Module):
                 f"got {self.encoder.latent_dim} for encoder and {self.decoder.latent_dim} for decoder"
             )
 
-    def forward(self, input_music: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self, input_music: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, log_variance = self.encoder(input_music)
         latent_vector = self.reparameterize(mu, log_variance)
         tensor_reconstruction = self.decoder(latent_vector)

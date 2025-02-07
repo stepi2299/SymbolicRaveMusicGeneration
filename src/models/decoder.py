@@ -90,9 +90,10 @@ class Clamp2Decoder(Decoder):
             latent_vector.size(0),  # batch_size
             self.patch_length,  # seq_length
             self.patch_size,
-            128
+            128,
         )
         return patch_logits
+
 
 class ClampDecoder(Decoder):
     """
@@ -149,7 +150,7 @@ class ClampDecoder(Decoder):
             latent_vector.size(0),  # batch_size
             self.patch_length,  # seq_length
             self.patch_size,
-            128
+            128,
         )
         return patch_logits
 

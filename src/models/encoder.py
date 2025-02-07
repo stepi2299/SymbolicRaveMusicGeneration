@@ -31,7 +31,6 @@ class Encoder(nn.Module, ABC):
         logger.info(f"There is not pretrained model for this: {self.__name__} encoder")
 
 
-
 class DummyEncoder(Encoder):
     def __init__(self, latent_dim: int) -> None:
         super(DummyEncoder, self).__init__(latent_dim=latent_dim)
@@ -69,9 +68,7 @@ class Clamp2Encoder(Encoder):
             patch_size=patch_size,
             projection_layer=hidden_size,
         )
-        self.model = CLaMPModel(
-            patch_encoder=self.patch_encoder, latent_dim=latent_dim
-        )
+        self.model = CLaMPModel(patch_encoder=self.patch_encoder, latent_dim=latent_dim)
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
         self.fc_logvar = nn.Linear(latent_dim, latent_dim)
         self.weights_url = weights_url
@@ -99,17 +96,19 @@ class Clamp2Encoder(Encoder):
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size, seq_len, patch_size = data.shape
 
-        masks = torch.ones((batch_size, seq_len), dtype=torch.long) # TODO FIXME to 0 when padded
+        masks = torch.ones(
+            (batch_size, seq_len), dtype=torch.long
+        )  # TODO FIXME to 0 when padded
 
         hidden_states = self.model.get_music_features(
-            music_inputs=data,
-            music_masks=masks
+            music_inputs=data, music_masks=masks
         )
 
         mu = self.fc_mu(hidden_states)
         logvar = self.fc_logvar(hidden_states)
 
         return mu, logvar
+
 
 class ClampEncoder(Encoder):
     def __init__(
@@ -118,8 +117,7 @@ class ClampEncoder(Encoder):
         patch_length: int,
         patch_size: int,
         latent_dim: int,
-        model_name: str = "sander-wood/clamp-small-1024"
-
+        model_name: str = "sander-wood/clamp-small-1024",
     ) -> None:
         super(ClampEncoder, self).__init__(latent_dim=latent_dim, name="clamp")
         self.device = get_possible_device()
@@ -130,9 +128,7 @@ class ClampEncoder(Encoder):
             patch_size=patch_size,
             projection_layer=patchilizer_config.hidden_size,
         )
-        self.model = CLaMPModel(
-            patch_encoder=self.patch_encoder, latent_dim=latent_dim
-        )
+        self.model = CLaMPModel(patch_encoder=self.patch_encoder, latent_dim=latent_dim)
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
         self.fc_logvar = nn.Linear(latent_dim, latent_dim)
         self.patch_size = patch_size
@@ -153,9 +149,13 @@ class ClampEncoder(Encoder):
 
     def _download_checkpoint(self) -> None:
         if not self.weights_path.exists():
-            logger.info(f"Downloading CLAMP V1 model from: {self.model_name} to local machine")
+            logger.info(
+                f"Downloading CLAMP V1 model from: {self.model_name} to local machine"
+            )
             self.weights_path.mkdir(parents=True, exist_ok=True)
-            config_url = f"https://huggingface.co/{self.model_name}/raw/main/config.json"
+            config_url = (
+                f"https://huggingface.co/{self.model_name}/raw/main/config.json"
+            )
             model_url = f"https://huggingface.co/{self.model_name}/resolve/main/pytorch_model.bin"
             chunk_size = 1024 * 1024  # 1MB
 
@@ -164,7 +164,12 @@ class ClampEncoder(Encoder):
                 r.raise_for_status()
                 total_size = int(r.headers.get("content-length", 0))
                 with open(self.weights_path / "config.json", "wb") as f:
-                    with tqdm(total=total_size, unit="B", unit_scale=True, desc="Downloading config") as pbar:
+                    with tqdm(
+                        total=total_size,
+                        unit="B",
+                        unit_scale=True,
+                        desc="Downloading config",
+                    ) as pbar:
                         for chunk in r.iter_content(chunk_size=chunk_size):
                             f.write(chunk)
                             pbar.update(len(chunk))
@@ -174,20 +179,25 @@ class ClampEncoder(Encoder):
                 r.raise_for_status()
                 total_size = int(r.headers.get("content-length", 0))
                 with open(self.weights_path / "pytorch_model.bin", "wb") as f:
-                    with tqdm(total=total_size, unit="B", unit_scale=True, desc="Downloading model") as pbar:
+                    with tqdm(
+                        total=total_size,
+                        unit="B",
+                        unit_scale=True,
+                        desc="Downloading model",
+                    ) as pbar:
                         for chunk in r.iter_content(chunk_size=chunk_size):
                             f.write(chunk)
                             pbar.update(len(chunk))
 
-
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         batch_size, seq_len, patch_size = data.shape
 
-        masks = torch.ones((batch_size, seq_len), dtype=torch.long) # TODO FIXME to 0 when padded
+        masks = torch.ones(
+            (batch_size, seq_len), dtype=torch.long
+        )  # TODO FIXME to 0 when padded
 
         hidden_states = self.model.get_music_features(
-            music_inputs=data,
-            music_masks=masks
+            music_inputs=data, music_masks=masks
         )
 
         mu = self.fc_mu(hidden_states)

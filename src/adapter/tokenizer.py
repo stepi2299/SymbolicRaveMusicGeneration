@@ -9,6 +9,7 @@ from src.utils import base_weights_path, base_dataset_path
 
 logger = lg.getLogger(__name__)
 
+
 # TODO  Fix to be like patchilizer!
 class Tokenizer:
     TOKENIZER_MAPPER = {
@@ -23,10 +24,7 @@ class Tokenizer:
     }
 
     def __init__(
-        self,
-        tokenizer_name: str,
-        training_model: str,
-        vocab_size: int
+        self, tokenizer_name: str, training_model: str, vocab_size: int
     ) -> None:
         self.tokenizer_name = tokenizer_name
         self.training_model = training_model

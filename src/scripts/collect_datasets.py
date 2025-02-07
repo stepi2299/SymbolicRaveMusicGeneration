@@ -9,6 +9,7 @@ import muspy
 lg.basicConfig(level=lg.INFO)
 logger = lg.getLogger(__name__)
 
+
 def download_from_url(url, save_path, verbose=False, **kwargs) -> Path:
     archive_path = save_path / "midicaps.tar.gz"
     logger.info(f"Downloading to {archive_path} ...")
