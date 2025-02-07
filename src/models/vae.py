@@ -40,3 +40,14 @@ class VAE(nn.Module):
         # TODO extract maxargs bor all tensors in patch_size dimension
         reconstruction = torch.argmax(reconstruction, dim=2)
         return reconstruction
+
+    def load_pretrained(self) -> None:
+        self.encoder.load_pretrained()
+
+    @property
+    def latent_dim(self) -> int:
+        return self.encoder.latent_dim
+
+    @property
+    def token_size(self) -> int:
+        return self.encoder.token_size

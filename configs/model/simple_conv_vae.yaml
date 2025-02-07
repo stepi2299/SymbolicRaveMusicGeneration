@@ -1,9 +1,0 @@
-name: simple_conv_vae
-encoder:
-  name: simple_conv
-  params:
-    latent_dim: 10
-decoder:
-    name: simple_conv
-    params:
-      latent_dim: 10

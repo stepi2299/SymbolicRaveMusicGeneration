@@ -29,8 +29,7 @@ class FirstStage(pl.LightningModule):
         self.num_workers = num_workers
         self.learning_rate = learning_rate
         self.learning_patience = learning_patience
-        self.save_hyperparameters(ignore=["model"])
-        # TODO make num classes as parameter!
+        self.save_hyperparameters(ignore=["vae"])
 
     def _compute_loss(
         self,
@@ -40,7 +39,7 @@ class FirstStage(pl.LightningModule):
         log_variance: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         recon_loss = F.cross_entropy(
-            reconstruction.view(-1, 128),  # Reshape to (batch*seq_len)
+            reconstruction.view(-1, self.vae.token_size),  # Reshape to (batch*seq_len)
             data.view(-1),  # Reshape to (batch*seq_len)
         )
         kl_div = -0.5 * torch.sum(

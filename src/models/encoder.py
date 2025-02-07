@@ -15,16 +15,14 @@ logger = lg.getLogger(__name__)
 
 
 class Encoder(nn.Module, ABC):
-    def __init__(self, latent_dim: int, name: str) -> None:
-        # TODO think about accelerator
+    def __init__(self, latent_dim: int, token_size: int, name: str) -> None:
         super().__init__()
         self.latent_dim = latent_dim
         self.name = name
+        self.token_size = token_size
 
     @abstractmethod
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        # TODO check input data to encoder (symbolic music)
-        # TODO Possible handle in some cases from symbolic to tensor (Tokenizer?)
         pass
 
     def load_pretrained(self) -> None:
@@ -32,8 +30,10 @@ class Encoder(nn.Module, ABC):
 
 
 class DummyEncoder(Encoder):
-    def __init__(self, latent_dim: int) -> None:
-        super(DummyEncoder, self).__init__(latent_dim=latent_dim)
+    def __init__(self, latent_dim: int, token_size: int) -> None:
+        super(DummyEncoder, self).__init__(
+            latent_dim=latent_dim, token_size=token_size, name="dummy"
+        )
 
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         return torch.zeros(len(data), self.latent_dim), torch.zeros(
@@ -50,9 +50,12 @@ class Clamp2Encoder(Encoder):
         patch_length: int,
         patch_size: int,
         latent_dim: int,
+        token_size: int,
         weights_url: str,
     ) -> None:
-        super(Clamp2Encoder, self).__init__(latent_dim=latent_dim, name="clamp2")
+        super(Clamp2Encoder, self).__init__(
+            latent_dim=latent_dim, name="clamp2", token_size=token_size
+        )
         self.device = get_possible_device()
         self.weights_path = base_weights_path / "clamp2.pth"
         patchilizer_config = BertConfig(
@@ -67,6 +70,7 @@ class Clamp2Encoder(Encoder):
             config=patchilizer_config,
             patch_size=patch_size,
             projection_layer=hidden_size,
+            token_size=self.token_size,
         )
         self.model = CLaMPModel(patch_encoder=self.patch_encoder, latent_dim=latent_dim)
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
@@ -117,9 +121,12 @@ class ClampEncoder(Encoder):
         patch_length: int,
         patch_size: int,
         latent_dim: int,
+        token_size: int,
         model_name: str = "sander-wood/clamp-small-1024",
     ) -> None:
-        super(ClampEncoder, self).__init__(latent_dim=latent_dim, name="clamp")
+        super(ClampEncoder, self).__init__(
+            latent_dim=latent_dim, name="clamp", token_size=token_size
+        )
         self.device = get_possible_device()
         self.weights_path = base_weights_path / "clamp"
         patchilizer_config = BertConfig(**patchilizer_config)
@@ -127,6 +134,7 @@ class ClampEncoder(Encoder):
             config=patchilizer_config,
             patch_size=patch_size,
             projection_layer=patchilizer_config.hidden_size,
+            token_size=self.token_size,
         )
         self.model = CLaMPModel(patch_encoder=self.patch_encoder, latent_dim=latent_dim)
         self.fc_mu = nn.Linear(latent_dim, latent_dim)

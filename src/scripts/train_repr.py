@@ -19,13 +19,19 @@ def main(cfg: DictConfig) -> None:
         project=cfg.wandb.project,
         entity=cfg.wandb.entity,
         group=cfg.wandb.group,
+        save_dir=cfg.wandb.logs_dir,
         log_model=False,
     )
+    wandb_logger.log_hyperparams(cfg)
     torch.cuda.empty_cache()
-    torch.set_float32_matmul_precision("medium")
+    torch.set_float32_matmul_precision(cfg.processing_precision)
     lg.basicConfig(level=cfg.log_level)
+
     symbolic_music_dataset = get_dataset(cfg.dataset, cfg.adapter)
     vae_model = get_vae_model(cfg.model)
+    if cfg.pretrained:
+        vae_model.load_pretrained()
+
     competitor = FirstStage(
         vae=vae_model,
         symbolic_music_dataset=symbolic_music_dataset,

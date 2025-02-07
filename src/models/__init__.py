@@ -6,7 +6,11 @@ from src.models.decoder import decoder_mapper
 
 
 def get_vae_model(cfg: DictConfig) -> VAE:
-    encoder_obj = encoder_mapper(cfg.encoder.name)(**cfg.encoder.params)
-    decoder_obj = decoder_mapper(cfg.decoder.name)(**cfg.decoder.params)
+    encoder_obj = encoder_mapper(cfg.encoder.name)(
+        latent_dim=cfg.latent_dim, token_size=cfg.token_size, **cfg.encoder.params
+    )
+    decoder_obj = decoder_mapper(cfg.decoder.name)(
+        latent_dim=cfg.latent_dim, token_size=cfg.token_size, **cfg.decoder.params
+    )
     model = VAE(encoder=encoder_obj, decoder=decoder_obj)
     return model

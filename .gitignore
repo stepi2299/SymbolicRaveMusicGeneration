@@ -172,7 +172,9 @@ cython_debug/
 .idea
 
 data/
-.tokenizers/
+.weights
 
 hydra_outputs/
 lightning_logs/
+wandb/
+outputs/

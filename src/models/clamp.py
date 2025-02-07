@@ -6,7 +6,11 @@ from transformers import BertConfig, PreTrainedModel, BertModel
 
 class PatchEncoder(PreTrainedModel):
     def __init__(
-        self, config: BertConfig, patch_size: int, projection_layer: int
+        self,
+        config: BertConfig,
+        patch_size: int,
+        projection_layer: int,
+        token_size: int,
     ) -> None:
         super().__init__(config)
         self.patch_embedding = torch.nn.Linear(patch_size * 128, projection_layer)
@@ -19,6 +23,7 @@ class PatchEncoder(PreTrainedModel):
         self.mask_token_id = 3
         self.patch_size = patch_size
         self.projection_layer = projection_layer
+        self.token_size = token_size
 
     def forward(
         self,
@@ -26,9 +31,11 @@ class PatchEncoder(PreTrainedModel):
         input_masks: torch.Tensor,  # [batch_size, seq_length]
     ) -> torch.Tensor:
         # Transform input_patches into embeddings
-        input_patches = torch.nn.functional.one_hot(input_patches, num_classes=128)
+        input_patches = torch.nn.functional.one_hot(
+            input_patches, num_classes=self.token_size
+        )
         input_patches = input_patches.reshape(
-            len(input_patches), -1, self.patch_size * 128
+            len(input_patches), -1, self.patch_size * self.token_size
         ).type(torch.FloatTensor)
         input_patches = self.patch_embedding(input_patches.to(self.device))
 
@@ -47,13 +54,13 @@ class PatchDecoder(PreTrainedModel):
         config: BertConfig,
         patch_size: int,
         projection_layer: int,
-        vocab_size: int = 128,
+        token_size: int,
     ) -> None:
         super().__init__(config)
         self.config = config
         self.patch_size = patch_size
         self.projection_layer = projection_layer
-        self.vocab_size = vocab_size
+        self.token_size = token_size
 
         # "Decode" backbone (like a BERT model).
         self.base = BertModel(config)
@@ -61,7 +68,7 @@ class PatchDecoder(PreTrainedModel):
         # Inverse patch embedding:
         #   from 'projection_layer' -> 'patch_size * 128'
         self.patch_embedding_inv = torch.nn.Linear(
-            projection_layer, patch_size * vocab_size
+            projection_layer, patch_size * token_size
         )
         torch.nn.init.normal_(self.patch_embedding_inv.weight, std=0.02)
 

@@ -1,4 +1,6 @@
 name: clamp_vae
+latent_dim: 768
+token_size: 128
 encoder:
   name: clamp
   params:
@@ -26,7 +28,6 @@ encoder:
       "vocab_size": 1
     patch_size: 64  # Size of each patch, MAKE SURE THAT THE PATCH SIZE IS THE SAME AS THE ONE USED IN THE ADAPTER
     patch_length: 512  # Length of the patches, MAKE SURE THAT THE PATCH LENGTH IS THE SAME AS THE ONE USED IN THE ADAPTER
-    latent_dim: 768
 decoder:
     name: clamp
     params:
@@ -54,5 +55,3 @@ decoder:
         "vocab_size": 1
       patch_size: 64  # Size of each patch, MAKE SURE THAT THE PATCH SIZE IS THE SAME AS THE ONE USED IN THE ADAPTER
       patch_length: 512  # Length of the patches, MAKE SURE THAT THE PATCH LENGTH IS THE SAME AS THE ONE USED IN THE ADAPTER
-      latent_dim: 768
-

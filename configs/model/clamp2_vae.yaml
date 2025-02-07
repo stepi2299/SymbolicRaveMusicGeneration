@@ -1,4 +1,6 @@
 name: clamp2_vae
+latent_dim: 768
+token_size: 128
 encoder:
   name: clamp2
   params:
@@ -8,7 +10,6 @@ encoder:
     num_hidden_layers: 12
     patch_size: 64  # Size of each patch, MAKE SURE THAT THE PATCH SIZE IS THE SAME AS THE ONE USED IN THE ADAPTER
     patch_length: 512  # Length of the patches, MAKE SURE THAT THE PATCH LENGTH IS THE SAME AS THE ONE USED IN THE ADAPTER
-    latent_dim: 768
 decoder:
     name: clamp2
     params:
@@ -17,5 +18,4 @@ decoder:
       num_hidden_layers: 12
       patch_size: 64  # Size of each patch, MAKE SURE THAT THE PATCH SIZE IS THE SAME AS THE ONE USED IN THE ADAPTER
       patch_length: 512  # Length of the patches, MAKE SURE THAT THE PATCH LENGTH IS THE SAME AS THE ONE USED IN THE ADAPTER
-      latent_dim: 768
 
