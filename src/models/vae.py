@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from symusic import Score
 
 from src.models.encoder import Encoder
 from src.models.decoder import Decoder
@@ -20,9 +19,7 @@ class VAE(nn.Module):
                 f"got {self.encoder.latent_dim} for encoder and {self.decoder.latent_dim} for decoder"
             )
 
-    def forward(
-        self, input_music: list[list[int]] | list[int]
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, input_music: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, log_variance = self.encoder(input_music)
         latent_vector = self.reparameterize(mu, log_variance)
         tensor_reconstruction = self.decoder(latent_vector)
@@ -36,4 +33,8 @@ class VAE(nn.Module):
     @torch.no_grad()
     def generate(self, latent_vector: torch.Tensor) -> torch.Tensor:
         self.decoder.eval()
-        return self.decoder(latent_vector)
+        # TODO check if latent vector has right shape
+        reconstruction = self.decoder(latent_vector)
+        # TODO extract maxargs bor all tensors in patch_size dimension
+        reconstruction = torch.argmax(reconstruction, dim=2)
+        return reconstruction

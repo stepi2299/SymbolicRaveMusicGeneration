@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import torch
 from transformers import BertConfig, PreTrainedModel, BertModel
 
@@ -40,18 +42,19 @@ class PatchDecoder(PreTrainedModel):
     and projects them back to patch-space (patch_size * 128).
     """
 
-    def __init__(self, config: BertConfig, patch_size: int, projection_layer: int):
+    def __init__(self, config: BertConfig, patch_size: int, projection_layer: int, vocab_size: int = 128) -> None:
         super().__init__(config)
         self.config = config
         self.patch_size = patch_size
         self.projection_layer = projection_layer
+        self.vocab_size = vocab_size
 
         # "Decode" backbone (like a BERT model).
         self.base = BertModel(config)
 
         # Inverse patch embedding:
         #   from 'projection_layer' -> 'patch_size * 128'
-        self.patch_embedding_inv = torch.nn.Linear(projection_layer, patch_size * 128)
+        self.patch_embedding_inv = torch.nn.Linear(projection_layer, patch_size * vocab_size)
         torch.nn.init.normal_(self.patch_embedding_inv.weight, std=0.02)
 
     def forward(
@@ -81,12 +84,12 @@ class PatchDecoder(PreTrainedModel):
         # Project back to patch space (logits)
         patch_logits = self.patch_embedding_inv(
             hidden_states
-        )  # [batch_size, seq_length, patch_size*128]
+        )  # [batch_size, seq_length, patch_size*vocab_size]
 
         return patch_logits
 
 
-class CLaMP2Model(PreTrainedModel):
+class CLaMPModel(PreTrainedModel):
     def __init__(self, patch_encoder: PatchEncoder, latent_dim: int) -> None:
         super().__init__(patch_encoder.config)
         self.patch_encoder = patch_encoder
@@ -97,19 +100,6 @@ class CLaMP2Model(PreTrainedModel):
             self.music_proj.weight, std=0.02
         )  # Initialize weights with normal distribution
 
-    def avg_pooling(
-        self, input_features: torch.Tensor, input_masks: torch.Tensor
-    ) -> torch.Tensor:
-        input_masks = input_masks.unsqueeze(-1).to(
-            self.device
-        )  # add a dimension to match the feature dimension
-        input_features = input_features * input_masks  # apply mask to input_features
-        avg_pool = input_features.sum(dim=1) / input_masks.sum(
-            dim=1
-        )  # calculate average pooling
-
-        return avg_pool
-
     def get_music_features(
         self, music_inputs: torch.Tensor, music_masks: torch.Tensor
     ) -> torch.Tensor:
@@ -118,13 +108,32 @@ class CLaMP2Model(PreTrainedModel):
         )["last_hidden_state"]
 
         # Normalize features (Reduce Temporal Dimension)
-        music_features = self.avg_pooling(music_features, music_masks)
+        music_features = self._avg_pooling(music_features, music_masks)
         music_features = self.music_proj(music_features)
 
         return music_features
 
+    def _avg_pooling(self, input_features: torch.FloatTensor, input_masks: torch.LongTensor) -> torch.FloatTensor:
+        """
+        Applies average pooling to the input features.
 
-class CLaMP2DecoderModel(PreTrainedModel):
+        Args:
+            input_features (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, seq_length, hidden_size)`):
+                Tensor containing the input features.
+            input_masks (:obj:`torch.LongTensor` of shape :obj:`(batch_size, seq_length)`):
+                Tensor containing the attention masks for the input features.
+
+        Returns:
+            :obj:`torch.FloatTensor` of shape :obj:`(batch_size, hidden_size)`:
+                The pooled features.
+        """
+        input_masks = input_masks.unsqueeze(-1).to(self.device)
+        input_features = input_features * input_masks
+        avg_pool = input_features.sum(dim=1) / input_masks.sum(dim=1)
+
+        return avg_pool
+
+class CLaMPDecoderModel(PreTrainedModel):
     """
     Mirrors CLaMP2Model but goes from latent space -> patch decoder.
     """
@@ -163,8 +172,7 @@ class CLaMP2DecoderModel(PreTrainedModel):
         attention_mask: torch.Tensor = None,
     ) -> torch.Tensor:
         """
-        Goes from [batch_size, latent_dim] -> [batch_size, seq_length, patch_size*128]
-        (or any other shape you prefer, e.g., [batch_size, seq_length, patch_size, 128]).
+        Goes from [batch_size, latent_dim] -> [batch_size, seq_length, patch_size*vocab_size]
         """
         # Expand latent vector to match the sequence dimension
         inputs_embeds = self.expand_latent(latent_vectors, seq_length)
@@ -173,6 +181,6 @@ class CLaMP2DecoderModel(PreTrainedModel):
         patch_logits = self.patch_decoder(
             inputs_embeds=inputs_embeds, attention_mask=attention_mask
         )
-        # shape: [batch_size, seq_length, patch_size*128]
 
         return patch_logits
+

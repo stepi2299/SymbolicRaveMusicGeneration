@@ -1,6 +1,6 @@
 epochs: 10
 params:
-  batch_size: 1
+  batch_size: 4
   num_workers: 16
   train_split: 0.8
   learning_rate: 0.001

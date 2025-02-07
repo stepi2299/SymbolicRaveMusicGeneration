@@ -21,6 +21,12 @@ class MusicAdapter:
             return None
         return self._adapter.patch_length
 
+    @property
+    def pad_token(self) -> int | None:
+        if not self.adapter_type == "tokenizer":
+            return None
+        return self._adapter.pad_token_id
+
     @staticmethod
     def get_preprocessor(
         preprocessor_name: str, preprocessor_config: DictConfig

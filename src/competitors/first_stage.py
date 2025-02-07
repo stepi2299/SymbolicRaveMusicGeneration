@@ -1,8 +1,8 @@
-from typing import Any
+from typing import Any, Tuple
 import torch
 import pytorch_lightning as pl
+import torch.nn.functional as F
 
-from src.loss.fmd import FmdLoss
 from src.models.vae import VAE
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 from src.utils import split_dataset
@@ -22,7 +22,6 @@ class FirstStage(pl.LightningModule):
     ) -> None:
         super(FirstStage, self).__init__()
         self.vae = vae
-        self.fmd_loss = FmdLoss()
         self.train_dataset, self.val_dataset = split_dataset(
             symbolic_music_dataset, train_split
         )
@@ -30,24 +29,40 @@ class FirstStage(pl.LightningModule):
         self.num_workers = num_workers
         self.learning_rate = learning_rate
         self.learning_patience = learning_patience
+        self.save_hyperparameters(ignore=['model'])
+        # TODO make num classes as parameter!
+
+    def _compute_loss(self, data: torch.Tensor, reconstruction: torch.Tensor, mu: torch.Tensor, log_variance: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        recon_loss = F.cross_entropy(
+            reconstruction.view(-1, 128),  # Reshape to (batch*seq_len)
+            data.view(-1)  # Reshape to (batch*seq_len)
+        )
+        kl_div = -0.5 * torch.sum(1 + log_variance - mu.pow(2) - log_variance.exp(), dim=1)
+        kl_div = torch.mean(kl_div)
+        return recon_loss, kl_div
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.vae(*args, **kwargs)
 
     def training_step(self, batch: Any, batch_idx: int) -> Any:
-        print("AAAAAAAAAAaa", batch)
         data = batch
         reconstruction, mu, log_variance = self.vae(data)
-        # kld_loss = self.kld_loss(mu, log_variance)
-        # fmd_loss = self.fmd_loss(reconstruction, y)
-        # TODO Compare normal Loss calculation for vae with FMD
-        raise NotImplementedError("Validation step not implemented")
+        recon_loss, kl_div = self._compute_loss(data, reconstruction, mu, log_variance)
+        loss = recon_loss + kl_div
+        self.log("train_recon_loss", recon_loss, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("train_kl_div", kl_div, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        return loss
 
-    def validation_step(self, batch: Any, batch_idx: int) -> Any:
+    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> Any:
         data = batch
         reconstruction, mu, log_variance = self.vae(data)
-        kld_loss = self.kld_loss(mu, log_variance)
-        raise NotImplementedError("Validation step not implemented")
+        recon_loss, kl_div = self._compute_loss(data, reconstruction, mu, log_variance)
+        loss = recon_loss + kl_div
+        self.log("val_recon_loss", recon_loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val_kl_div", kl_div, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        return loss
 
     def train_dataloader(self):
         return get_dataloader(

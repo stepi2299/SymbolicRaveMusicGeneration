@@ -7,9 +7,13 @@ from tqdm import tqdm
 import mido
 from mido.messages.messages import Message
 from torch.utils.data import Dataset, random_split
+from torch.nn.utils.rnn import pad_sequence
 
 KB = 1024
 MB = 1024 * KB
+
+base_weights_path = Path.cwd() / ".weights"
+base_dataset_path = Path.cwd() / "data"
 
 
 def download_file(
@@ -82,9 +86,8 @@ def load_abc_song(filepath: Path) -> str:
     return data
 
 
-def symbolic_collate_fn(batch: list[str]) -> list[str]:
-    # TODO Think if we need to do something here: for example padding to make strings of the same length
-    return batch
+def symbolic_collate_fn(batch: list[torch.Tensor]) -> torch.Tensor:
+    return pad_sequence(batch, batch_first=True, padding_value=0)
 
 
 def split_dataset(
@@ -96,6 +99,31 @@ def split_dataset(
 
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     return train_dataset, val_dataset
+
+def filter_abc(lines: list[str]) -> str:
+    """
+        Filter out the metadata from the abc file
+
+        Args:
+            lines (list): List of lines in the abc file
+
+        Returns:
+            music (str): Music string
+        """
+    music = ""
+    for line in lines:
+        if line[:2] in ["A:", "B:", "C:", "D:", "F:", "G", "H:", "N:", "O:", "R:", "r:", "S:", "T:", "W:", "w:",
+                        "X:", "Z:"] \
+                or line == "\n" \
+                or (line.startswith("%") and not line.startswith("%%score")):
+            continue
+        else:
+            if "%" in line and not line.startswith("%%score"):
+                line = "%".join(line.split("%")[:-1])
+                music += line[:-1] + "\n"
+            else:
+                music += line + '\n'
+    return music
 
 
 def get_possible_device() -> torch.device:

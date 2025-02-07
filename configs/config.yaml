@@ -2,7 +2,7 @@
 defaults:
   - dataset: maestro     # default dataset
   - adapter: patchilizer  # default adapter
-  - model: clamp2_vae     # default model
+  - model: clamp_vae     # default model
   - competitor: dummy_competitor  # default competitor config
   - _self_
 
@@ -16,3 +16,22 @@ project_name: "Symbolic RAVE"
 seed: 42
 log_level: INFO
 processing_precision: medium  # possible values: medium | high
+
+wandb:
+  project: "SymbolicRave"
+  entity: "wut-zzsn"
+  group: "first_stage"
+
+callbacks:
+  model_checkpoint: true
+  model_checkpoint_params:
+    monitor: "val_loss"
+    dirpath: "checkpoints"
+    filename: "vae-{epoch:02d}-{val_loss:.2f}"
+  sampling: false
+  sampling_params:
+    sample_interval: 1
+    num_samples: 2
+  early_stopping: true
+  early_stopping_params:
+    patience: 5

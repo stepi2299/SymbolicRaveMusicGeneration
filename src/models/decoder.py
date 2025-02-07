@@ -1,10 +1,10 @@
 import torch
 from torch import nn
 from abc import ABC, abstractmethod
-from typing import Type
+from typing import Type, Dict
 
 from transformers import BertConfig
-from src.models.clamp2 import CLaMP2DecoderModel, PatchDecoder
+from src.models.clamp import CLaMPDecoderModel, PatchDecoder
 
 
 class Decoder(nn.Module, ABC):
@@ -25,60 +25,10 @@ class DummyDecoder(Decoder):
         return torch.zeros(latent_vector.shape[0], 3, 64, 64)
 
 
-# class SimpleConvDecoder(Decoder):
-#     def __init__(
-#         self,
-#         latent_dim: int,
-#         input_shape: Tuple[int, int, int],
-#         output_channels: int,
-#         hidden_dim: int = 128,
-#     ) -> None:
-#         super(SimpleConvDecoder, self).__init__(latent_dim=latent_dim)
-#         self.latent_dim = latent_dim
-#         self.input_shape = input_shape
-#         self.output_channels = output_channels
-#         self.hidden_dim = hidden_dim
-#
-#         self.fc = nn.Linear(
-#             latent_dim, self.hidden_dim * input_shape[0] * input_shape[1]
-#         )
-#         self.conv1 = nn.Conv2d(
-#             in_channels=self.hidden_dim,
-#             out_channels=64,
-#             kernel_size=3,
-#             stride=1,
-#             padding=1,
-#         )
-#         self.conv2 = nn.Conv2d(
-#             in_channels=64, out_channels=32, kernel_size=3, stride=1, padding=1
-#         )
-#         self.conv3 = nn.Conv2d(
-#             in_channels=32,
-#             out_channels=output_channels,
-#             kernel_size=3,
-#             stride=1,
-#             padding=1,
-#         )
-#         self.relu = nn.ReLU()
-#         self.sigmoid = nn.Sigmoid()
-#
-#     def forward(self, latent_vector: torch.Tensor) -> torch.Tensor:
-#         x = self.fc(latent_vector)
-#         x = x.view(-1, self.hidden_dim, self.input_shape[0], self.input_shape[1])
-#         x = self.relu(x)
-#         x = self.conv1(x)
-#         x = self.relu(x)
-#         x = self.conv2(x)
-#         x = self.relu(x)
-#         x = self.conv3(x)
-#         x = self.sigmoid(x)
-#         return x
-
-
 class Clamp2Decoder(Decoder):
     """
-    A higher-level "Decoder" that wraps CLaMP2DecoderModel, similarly to how
-    Clamp2Encoder wraps CLaMP2Model. It receives a 1D latent vector and
+    A higher-level "Decoder" that wraps CLaMPDecoderModel, similarly to how
+    ClampEncoder wraps CLaMPModel. It receives a 1D latent vector and
     returns a 2D (or 3D) sequence of patch logits (or tokens).
     """
 
@@ -112,7 +62,7 @@ class Clamp2Decoder(Decoder):
         )
 
         # Wrap in CLaMP2DecoderModel
-        self.model = CLaMP2DecoderModel(
+        self.model = CLaMPDecoderModel(
             patch_decoder=self.patch_decoder, latent_dim=latent_dim
         )
 
@@ -121,8 +71,7 @@ class Clamp2Decoder(Decoder):
         Args:
             latent_vector: [batch_size, latent_dim]
         Returns:
-            patch_logits: [batch_size, patch_length, patch_size*128]
-                (2D if you flatten the patch dimension, or 3D/4D if you reshape further)
+            patch_logits: [batch_size, patch_length, patch_size, vocab_size]
         """
         # Construct an attention mask if desired. For a full-sequence decode, use all 1’s:
         attention_mask = torch.ones(
@@ -137,21 +86,79 @@ class Clamp2Decoder(Decoder):
             seq_length=self.patch_length,
             attention_mask=attention_mask,
         )
-        # patch_logits shape: [batch_size, patch_length, patch_size*128]
+        patch_logits = patch_logits.view(
+            latent_vector.size(0),  # batch_size
+            self.patch_length,  # seq_length
+            self.patch_size,
+            128
+        )
+        return patch_logits
 
-        # Optionally reshape to: [batch_size, patch_length, patch_size, 128]
-        # patch_logits = patch_logits.view(
-        #     patch_logits.size(0), patch_logits.size(1), self.patch_size, 128
-        # )
+class ClampDecoder(Decoder):
+    """
+    A higher-level "Decoder" that wraps CLaMPDecoderModel, similarly to how
+    ClampEncoder wraps CLaMPModel. It receives a 1D latent vector and
+    returns a 2D (or 3D) sequence of patch logits (or tokens).
+    """
 
+    def __init__(
+        self,
+        patchilizer_config: Dict,
+        patch_length: int,
+        patch_size: int,
+        latent_dim: int,
+    ) -> None:
+        super().__init__(latent_dim=latent_dim)
+        self.patch_length = patch_length
+        self.patch_size = patch_size
+        self.latent_dim = latent_dim
+
+        patchilizer_config = BertConfig(**patchilizer_config)
+        self.patch_decoder = PatchDecoder(
+            config=patchilizer_config,
+            patch_size=patch_size,
+            projection_layer=patchilizer_config.hidden_size,
+        )
+
+        # Wrap in CLaMP2DecoderModel
+        self.model = CLaMPDecoderModel(
+            patch_decoder=self.patch_decoder, latent_dim=latent_dim
+        )
+
+    def forward(self, latent_vector: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            latent_vector: [batch_size, latent_dim]
+        Returns:
+            patch_logits: [batch_size, patch_length, patch_size, vocab_size]
+        """
+        # Construct an attention mask if desired. For a full-sequence decode, use all 1’s:
+        attention_mask = torch.ones(
+            (latent_vector.size(0), self.patch_length),
+            dtype=torch.long,
+            device=latent_vector.device,
+        )
+
+        # Forward through the model
+        patch_logits = self.model(
+            latent_vectors=latent_vector,
+            seq_length=self.patch_length,
+            attention_mask=attention_mask,
+        )
+        patch_logits = patch_logits.view(
+            latent_vector.size(0),  # batch_size
+            self.patch_length,  # seq_length
+            self.patch_size,
+            128
+        )
         return patch_logits
 
 
 def decoder_mapper(decoder_name: str) -> Type[Decoder]:
     if decoder_name == "clamp2":
         return Clamp2Decoder
-    # elif decoder_name == "simple_conv":
-    #     return SimpleConvDecoder
+    elif decoder_name == "clamp":
+        return ClampDecoder
     elif decoder_name == "dummy":
         return DummyDecoder
     else:

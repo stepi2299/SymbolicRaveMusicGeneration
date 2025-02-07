@@ -5,10 +5,9 @@ import logging as lg
 import torch
 from miditok import REMI, MIDILike, TSD, Structured, CPWord, Octuple, MuMIDI, MMM
 
+from src.utils import base_weights_path, base_dataset_path
+
 logger = lg.getLogger(__name__)
-
-base_dataset_path = Path.cwd() / "data"
-
 
 # TODO  Fix to be like patchilizer!
 class Tokenizer:
@@ -27,13 +26,12 @@ class Tokenizer:
         self,
         tokenizer_name: str,
         training_model: str,
-        vocab_size: int,
-        tokenizer_base_path: Path = base_dataset_path.parent / ".tokenizers",
+        vocab_size: int
     ) -> None:
         self.tokenizer_name = tokenizer_name
         self.training_model = training_model
         self.vocab_size = vocab_size
-        self.tokenizer_base_path = tokenizer_base_path
+        self.tokenizer_base_path = base_weights_path / "tokenizers"
         if tokenizer_name not in self.TOKENIZER_MAPPER:
             raise ValueError(
                 f"Tokenizer {tokenizer_name} not supported, supported tokenizers "
