@@ -4,6 +4,7 @@ token_size: 128
 encoder:
   name: clamp
   params:
+    model_name: "clamp-small-1024"  # model name from the Hugging Face model hub, possible values: "clamp-small-1024", "clamp-small-512"
     patchilizer_config:
       "architectures": [ "CLaMP" ]
       "attention_probs_dropout_prob": 0.1
@@ -26,8 +27,6 @@ encoder:
       "type_vocab_size": 2
       "use_cache": true
       "vocab_size": 1
-    patch_size: 64  # Size of each patch, MAKE SURE THAT THE PATCH SIZE IS THE SAME AS THE ONE USED IN THE ADAPTER
-    patch_length: 512  # Length of the patches, MAKE SURE THAT THE PATCH LENGTH IS THE SAME AS THE ONE USED IN THE ADAPTER
 decoder:
     name: clamp
     params:
@@ -53,5 +52,3 @@ decoder:
         "type_vocab_size": 2
         "use_cache": true
         "vocab_size": 1
-      patch_size: 64  # Size of each patch, MAKE SURE THAT THE PATCH SIZE IS THE SAME AS THE ONE USED IN THE ADAPTER
-      patch_length: 512  # Length of the patches, MAKE SURE THAT THE PATCH LENGTH IS THE SAME AS THE ONE USED IN THE ADAPTER

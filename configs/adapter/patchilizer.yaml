@@ -1,7 +1,7 @@
 name: patchilizer
 params:
   patch_size : 64  # Size of each patch
-  patch_length : 512  # Length of the patches
+  patch_length : 1024  # Length of the patches
   add_special_patches : False  # Add special patches to the input
   truncate : True  # Truncate the input to the patch length
   random_truncate : False  # Randomly truncate the input to the patch length

@@ -15,11 +15,20 @@ logger = lg.getLogger(__name__)
 
 
 class Encoder(nn.Module, ABC):
-    def __init__(self, latent_dim: int, token_size: int, name: str) -> None:
+    def __init__(
+        self,
+        latent_dim: int,
+        token_size: int,
+        patch_len: int,
+        patch_size: int,
+        name: str,
+    ) -> None:
         super().__init__()
         self.latent_dim = latent_dim
         self.name = name
         self.token_size = token_size
+        self.patch_len = patch_len
+        self.patch_size = patch_size
 
     @abstractmethod
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -32,7 +41,11 @@ class Encoder(nn.Module, ABC):
 class DummyEncoder(Encoder):
     def __init__(self, latent_dim: int, token_size: int) -> None:
         super(DummyEncoder, self).__init__(
-            latent_dim=latent_dim, token_size=token_size, name="dummy"
+            latent_dim=latent_dim,
+            token_size=token_size,
+            name="dummy",
+            patch_size=64,
+            patch_len=64,
         )
 
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -47,14 +60,18 @@ class Clamp2Encoder(Encoder):
         vocab_size: int,
         hidden_size: int,
         num_hidden_layers: int,
-        patch_length: int,
+        patch_len: int,
         patch_size: int,
         latent_dim: int,
         token_size: int,
         weights_url: str,
     ) -> None:
         super(Clamp2Encoder, self).__init__(
-            latent_dim=latent_dim, name="clamp2", token_size=token_size
+            latent_dim=latent_dim,
+            name="clamp2",
+            token_size=token_size,
+            patch_len=patch_len,
+            patch_size=patch_size,
         )
         self.device = get_possible_device()
         self.weights_path = base_weights_path / "clamp2.pth"
@@ -62,7 +79,7 @@ class Clamp2Encoder(Encoder):
             vocab_size=vocab_size,
             hidden_size=hidden_size,
             num_hidden_layers=num_hidden_layers,
-            max_position_embeddings=patch_length,
+            max_position_embeddings=patch_len,
             num_attention_heads=hidden_size // 64,
             intermediate_size=hidden_size * 4,
         )
@@ -76,8 +93,6 @@ class Clamp2Encoder(Encoder):
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
         self.fc_logvar = nn.Linear(latent_dim, latent_dim)
         self.weights_url = weights_url
-        self.patch_size = patch_size
-        self.patch_length = patch_length
 
     def load_pretrained(self) -> None:
         try:
@@ -98,11 +113,7 @@ class Clamp2Encoder(Encoder):
         download_file(self.weights_url, self.weights_path, verbose=True)
 
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        batch_size, seq_len, patch_size = data.shape
-
-        masks = torch.ones(
-            (batch_size, seq_len), dtype=torch.long
-        )  # TODO FIXME to 0 when padded
+        masks = (data != 0).any(dim=-1).long()
 
         hidden_states = self.model.get_music_features(
             music_inputs=data, music_masks=masks
@@ -118,14 +129,18 @@ class ClampEncoder(Encoder):
     def __init__(
         self,
         patchilizer_config: Dict,
-        patch_length: int,
+        patch_len: int,
         patch_size: int,
         latent_dim: int,
         token_size: int,
-        model_name: str = "sander-wood/clamp-small-1024",
+        model_name: str | None = None,
     ) -> None:
         super(ClampEncoder, self).__init__(
-            latent_dim=latent_dim, name="clamp", token_size=token_size
+            latent_dim=latent_dim,
+            name="clamp",
+            token_size=token_size,
+            patch_len=patch_len,
+            patch_size=patch_size,
         )
         self.device = get_possible_device()
         self.weights_path = base_weights_path / "clamp"
@@ -139,16 +154,14 @@ class ClampEncoder(Encoder):
         self.model = CLaMPModel(patch_encoder=self.patch_encoder, latent_dim=latent_dim)
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
         self.fc_logvar = nn.Linear(latent_dim, latent_dim)
-        self.patch_size = patch_size
-        self.patch_length = patch_length
         self.model_name = model_name
 
     def load_pretrained(self) -> None:
-        try:
+        if self.weights_path.exists():
             self.checkpoint = torch.load(
                 self.weights_path, map_location="cpu", weights_only=True
             )
-        except Exception:
+        else:
             self._download_checkpoint()
             self.checkpoint = torch.load(
                 self.weights_path, map_location="cpu", weights_only=True
@@ -156,15 +169,15 @@ class ClampEncoder(Encoder):
         # TODO load this checkpoint to the model!
 
     def _download_checkpoint(self) -> None:
+        if self.model_name is None:
+            raise ValueError("Model name is not provided for CLAMP encoder")
         if not self.weights_path.exists():
             logger.info(
                 f"Downloading CLAMP V1 model from: {self.model_name} to local machine"
             )
             self.weights_path.mkdir(parents=True, exist_ok=True)
-            config_url = (
-                f"https://huggingface.co/{self.model_name}/raw/main/config.json"
-            )
-            model_url = f"https://huggingface.co/{self.model_name}/resolve/main/pytorch_model.bin"
+            config_url = f"https://huggingface.co/sander-wood/{self.model_name}/raw/main/config.json"
+            model_url = f"https://huggingface.co/sander-wood/{self.model_name}/resolve/main/pytorch_model.bin"
             chunk_size = 1024 * 1024  # 1MB
 
             # Download config file
@@ -198,11 +211,7 @@ class ClampEncoder(Encoder):
                             pbar.update(len(chunk))
 
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        batch_size, seq_len, patch_size = data.shape
-
-        masks = torch.ones(
-            (batch_size, seq_len), dtype=torch.long
-        )  # TODO FIXME to 0 when padded
+        masks = (data != 0).any(dim=-1).long()
 
         hidden_states = self.model.get_music_features(
             music_inputs=data, music_masks=masks

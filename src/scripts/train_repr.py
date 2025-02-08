@@ -30,7 +30,7 @@ def main(cfg: DictConfig) -> None:
     lg.basicConfig(level=cfg.log_level)
 
     symbolic_music_dataset = get_dataset(cfg.dataset, cfg.adapter)
-    vae_model = get_vae_model(cfg.model)
+    vae_model = get_vae_model(cfg.model, cfg.adapter)
     if cfg.pretrained:
         vae_model.load_pretrained()
 

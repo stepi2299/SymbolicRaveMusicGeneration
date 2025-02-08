@@ -13,7 +13,7 @@ class MusicAdapter:
         return self._adapter.encode(item)
 
     def decode(self, item: list[list[int]] | list[str]) -> str:
-        return self._adapter.decode(item)
+        return self._adapter.decode(i2048tem)
 
     @property
     def patch_length(self) -> int | None:
@@ -23,9 +23,15 @@ class MusicAdapter:
 
     @property
     def pad_token(self) -> int | None:
-        if not self.adapter_type == "tokenizer":
+        if not self.adapter_type == "patchilizer":
             return None
         return self._adapter.pad_token_id
+
+    @property
+    def patch_size(self) -> int | None:
+        if not self.adapter_type == "patchilizer":
+            return None
+        return self._adapter.patch_size
 
     @staticmethod
     def get_preprocessor(

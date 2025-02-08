@@ -39,11 +39,11 @@ class SymbolicMusicDataset(Dataset, ABC):
         return self._get_padded_tensor(music_file)
 
     def _get_padded_tensor(self, music_file: list[list[int]]) -> torch.Tensor:
-        if len(music_file) > self.music_adapter.patch_length:
-            return torch.tensor(music_file[: self.music_adapter.patch_length])
-        new_music_file = music_file + [self.music_adapter.pad_token] * (
+        padded_bar = [self.music_adapter.pad_token] * self.music_adapter.patch_size
+        padded_music_file = [padded_bar] * (
             self.music_adapter.patch_length - len(music_file)
         )
+        new_music_file = music_file + padded_music_file
         return torch.tensor(new_music_file)
 
 

@@ -8,11 +8,20 @@ from src.models.clamp import CLaMPDecoderModel, PatchDecoder
 
 
 class Decoder(nn.Module, ABC):
-    def __init__(self, latent_dim: int, token_size: int, name: str) -> None:
+    def __init__(
+        self,
+        latent_dim: int,
+        token_size: int,
+        name: str,
+        patch_len: int,
+        patch_size: int,
+    ) -> None:
         super().__init__()
         self.latent_dim = latent_dim
         self.name = name
         self.token_size = token_size
+        self.patch_len = patch_len
+        self.patch_size = patch_size
 
     @abstractmethod
     def forward(self, latent_vector: torch.Tensor) -> torch.Tensor:
@@ -22,7 +31,11 @@ class Decoder(nn.Module, ABC):
 class DummyDecoder(Decoder):
     def __init__(self, latent_dim: int, token_size: int) -> None:
         super(DummyDecoder, self).__init__(
-            latent_dim=latent_dim, name="dummy", token_size=token_size
+            latent_dim=latent_dim,
+            name="dummy",
+            token_size=token_size,
+            patch_len=64,
+            patch_size=64,
         )
 
     def forward(self, latent_vector: torch.Tensor) -> torch.Tensor:
@@ -41,21 +54,25 @@ class Clamp2Decoder(Decoder):
         vocab_size: int,
         hidden_size: int,
         num_hidden_layers: int,
-        patch_length: int,
+        patch_len: int,
         patch_size: int,
         latent_dim: int,
         token_size: int,
     ) -> None:
-        super().__init__(latent_dim=latent_dim, token_size=token_size, name="clamp2")
-        self.patch_length = patch_length
-        self.patch_size = patch_size
+        super().__init__(
+            latent_dim=latent_dim,
+            token_size=token_size,
+            name="clamp2",
+            patch_len=patch_len,
+            patch_size=patch_size,
+        )
 
         # Build a BERT config to match the "decode" dimension
         decoder_config = BertConfig(
             vocab_size=vocab_size,  # Typically same as the encoder’s
             hidden_size=hidden_size,
             num_hidden_layers=num_hidden_layers,
-            max_position_embeddings=patch_length,
+            max_position_embeddings=patch_len,
             num_attention_heads=hidden_size // 64,
             intermediate_size=hidden_size * 4,
         )
@@ -78,11 +95,11 @@ class Clamp2Decoder(Decoder):
         Args:
             latent_vector: [batch_size, latent_dim]
         Returns:
-            patch_logits: [batch_size, patch_length, patch_size, vocab_size]
+            patch_logits: [batch_size, patch_len, patch_size, vocab_size]
         """
         # Construct an attention mask if desired. For a full-sequence decode, use all 1’s:
         attention_mask = torch.ones(
-            (latent_vector.size(0), self.patch_length),
+            (latent_vector.size(0), self.patch_len),
             dtype=torch.long,
             device=latent_vector.device,
         )
@@ -90,12 +107,12 @@ class Clamp2Decoder(Decoder):
         # Forward through the model
         patch_logits = self.model(
             latent_vectors=latent_vector,
-            seq_length=self.patch_length,
+            seq_length=self.patch_len,
             attention_mask=attention_mask,
         )
         patch_logits = patch_logits.view(
             latent_vector.size(0),  # batch_size
-            self.patch_length,  # seq_length
+            self.patch_len,  # seq_length
             self.patch_size,
             self.token_size,
         )
@@ -112,14 +129,18 @@ class ClampDecoder(Decoder):
     def __init__(
         self,
         patchilizer_config: Dict,
-        patch_length: int,
+        patch_len: int,
         patch_size: int,
         latent_dim: int,
         token_size: int,
     ) -> None:
-        super().__init__(latent_dim=latent_dim, token_size=token_size, name="clamp")
-        self.patch_length = patch_length
-        self.patch_size = patch_size
+        super().__init__(
+            latent_dim=latent_dim,
+            token_size=token_size,
+            name="clamp",
+            patch_len=patch_len,
+            patch_size=patch_size,
+        )
 
         patchilizer_config = BertConfig(**patchilizer_config)
         self.patch_decoder = PatchDecoder(
@@ -139,11 +160,11 @@ class ClampDecoder(Decoder):
         Args:
             latent_vector: [batch_size, latent_dim]
         Returns:
-            patch_logits: [batch_size, patch_length, patch_size, vocab_size]
+            patch_logits: [batch_size, patch_len, patch_size, vocab_size]
         """
         # Construct an attention mask if desired. For a full-sequence decode, use all 1’s:
         attention_mask = torch.ones(
-            (latent_vector.size(0), self.patch_length),
+            (latent_vector.size(0), self.patch_len),
             dtype=torch.long,
             device=latent_vector.device,
         )
@@ -151,12 +172,12 @@ class ClampDecoder(Decoder):
         # Forward through the model
         patch_logits = self.model(
             latent_vectors=latent_vector,
-            seq_length=self.patch_length,
+            seq_length=self.patch_len,
             attention_mask=attention_mask,
         )
         patch_logits = patch_logits.view(
             latent_vector.size(0),  # batch_size
-            self.patch_length,  # seq_length
+            self.patch_len,  # seq_length
             self.patch_size,
             self.token_size,
         )

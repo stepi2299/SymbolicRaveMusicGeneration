@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Any, Tuple
-from pathlib import Path
 
 import torch
 import pytorch_lightning as pl
