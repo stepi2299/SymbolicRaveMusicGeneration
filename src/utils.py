@@ -14,7 +14,7 @@ MB = 1024 * KB
 
 base_weights_path = Path.cwd() / ".weights"
 base_dataset_path = Path.cwd() / "data"
-output_songs_path = Path.cwd() / "output" / "generated"
+output_songs_path = Path.cwd() / "outputs" / "generated"
 
 
 def download_file(
@@ -150,3 +150,76 @@ def filter_abc(lines: list[str]) -> str:
 
 def get_possible_device() -> torch.device:
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def str_to_msg(str_msg: str) -> mido.Message:
+    type = str_msg.split(" ")[0]
+    try:
+        msg = mido.Message(type)
+    except:
+        msg = mido.MetaMessage(type)
+
+    if type in [
+        "text",
+        "copyright",
+        "track_name",
+        "instrument_name",
+        "lyrics",
+        "marker",
+        "cue_marker",
+        "device_name",
+    ]:
+        values = [
+            type,
+            " ".join(str_msg.split(" ")[1:-1]).encode("utf-8").decode("unicode_escape"),
+            str_msg.split(" ")[-1],
+        ]
+    elif "[" in str_msg or "(" in str_msg:
+        is_bracket = "[" in str_msg
+        left_idx = str_msg.index("[") if is_bracket else str_msg.index("(")
+        right_idx = str_msg.index("]") if is_bracket else str_msg.index(")")
+        list_str = [int(num) for num in str_msg[left_idx + 1 : right_idx].split(", ")]
+        if not is_bracket:
+            list_str = tuple(list_str)
+        values = (
+            str_msg[:left_idx].split(" ")
+            + [list_str]
+            + str_msg[right_idx + 1 :].split(" ")
+        )
+        values = [value for value in values if value != ""]
+    else:
+        values = str_msg.split(" ")
+
+    if len(values) != 1:
+        for idx, (key, content) in enumerate(msg.__dict__.items()):
+            if key == "type":
+                continue
+            value = values[idx]
+            if isinstance(content, int) or isinstance(content, float):
+                float_value = float(value)
+                value = float_value
+                if value % 1 == 0:
+                    value = int(value)
+            setattr(msg, key, value)
+    return msg
+
+
+def convert_mtf2midi(mtf_text: str) -> mido.MidiFile:
+    # TODO FIXME
+    mtf_lines = mtf_text.strip().split("\n")
+
+    # Clean up and discard any empty lines
+    mtf_lines = [line.strip() for line in mtf_lines if line.strip()]
+    new_mid = mido.MidiFile()
+    # new_mid.ticks_per_beat = int(mtf_lines[0].split(" ")[1])
+
+    track = mido.MidiTrack()
+    new_mid.tracks.append(track)
+
+    for msg in mtf_lines[1:]:
+        if "unknown_meta" in msg:
+            continue
+        new_msg = str_to_msg(msg)
+        track.append(new_msg)
+
+    return new_mid

@@ -40,7 +40,7 @@ def main(cfg: DictConfig) -> None:
         **cfg.competitor,
     )
     used_callbacks = get_callbacks(
-        config=cfg.callbacks, latent_dim=vae_model.decoder.latent_dim
+        cfg=cfg.callbacks, latent_dim=vae_model.decoder.latent_dim
     )
     trainer = Trainer(
         callbacks=used_callbacks, max_epochs=cfg.epochs, logger=wandb_logger

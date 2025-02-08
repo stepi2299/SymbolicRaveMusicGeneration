@@ -13,7 +13,7 @@ class MusicAdapter:
         return self._adapter.encode(item)
 
     def decode(self, item: list[list[int]] | list[str]) -> str:
-        return self._adapter.decode(i2048tem)
+        return self._adapter.decode(item)
 
     @property
     def patch_length(self) -> int | None:
