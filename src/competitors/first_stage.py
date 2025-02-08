@@ -1,4 +1,7 @@
+from __future__ import annotations
 from typing import Any, Tuple
+from pathlib import Path
+
 import torch
 import pytorch_lightning as pl
 import torch.nn.functional as F
@@ -29,7 +32,8 @@ class FirstStage(pl.LightningModule):
         self.num_workers = num_workers
         self.learning_rate = learning_rate
         self.learning_patience = learning_patience
-        self.save_hyperparameters(ignore=["vae"])
+        self.adapter = symbolic_music_dataset.music_adapter
+        self.save_hyperparameters()
 
     def _compute_loss(
         self,
@@ -101,3 +105,10 @@ class FirstStage(pl.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss",
         }
+
+    def generate(self, z: torch.Tensor) -> list[str]:
+        tokenized_songs = self.vae.generate(z)
+        songs = []
+        for tokenized_song in tokenized_songs:
+            songs.append(self.adapter.decode(tokenized_song))
+        return songs

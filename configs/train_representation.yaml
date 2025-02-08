@@ -2,26 +2,34 @@
 defaults:
   - dataset: maestro     # default dataset
   - adapter: patchilizer  # default adapter
-  - model: clamp2_vae     # default model
-  - competitor: dummy_competitor  # default competitor config
+  - model: clamp_vae     # default model
   - _self_
 
 # You can add any additional high-level settings or Hydra settings below
 # For instance, setting up multi-run sweeps or general project parameters:
 hydra:
   run:
-    dir: outputs/hydra_outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: outputs/hydra_train_repr/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
-seed: 42
-log_level: INFO
+
+competitor:
+  batch_size: 4
+  num_workers: 16
+  train_split: 0.8
+  learning_rate: 0.001
+  learning_patience: 5
+
+epochs: 10  # number of epochs to train the model
+seed: 42  # random seed for reproducibility
+log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
-pretrained: true
+pretrained: false  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
 
 wandb:
   project: "SymbolicRave"
   entity: "wut-zzsn"
   group: "first_stage"
-  logs_dir: "outputs/wandb_logs"
+  logs_dir: "./outputs/wandb_logs"
 
 callbacks:
   model_checkpoint: true
@@ -29,7 +37,7 @@ callbacks:
     monitor: "val_loss"
     dirpath: "outputs/checkpoints"
     filename: "vae-{epoch:02d}-{val_loss:.2f}"
-  sampling: false
+  sampling: true
   sampling_params:
     sample_interval: 1
     num_samples: 2

@@ -13,7 +13,9 @@ from src.competitors.first_stage import FirstStage
 from src.callbacks import get_callbacks
 
 
-@hydra.main(config_path="../../configs", config_name="config", version_base="1.3")
+@hydra.main(
+    config_path="../../configs", config_name="train_representation", version_base="1.3"
+)
 def main(cfg: DictConfig) -> None:
     wandb_logger = WandbLogger(
         project=cfg.wandb.project,
@@ -35,13 +37,13 @@ def main(cfg: DictConfig) -> None:
     competitor = FirstStage(
         vae=vae_model,
         symbolic_music_dataset=symbolic_music_dataset,
-        **cfg.competitor.params,
+        **cfg.competitor,
     )
     used_callbacks = get_callbacks(
         config=cfg.callbacks, latent_dim=vae_model.decoder.latent_dim
     )
     trainer = Trainer(
-        callbacks=used_callbacks, max_epochs=cfg.competitor.epochs, logger=wandb_logger
+        callbacks=used_callbacks, max_epochs=cfg.epochs, logger=wandb_logger
     )
     trainer.fit(competitor)
     wandb.finish()

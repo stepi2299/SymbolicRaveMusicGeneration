@@ -14,6 +14,7 @@ MB = 1024 * KB
 
 base_weights_path = Path.cwd() / ".weights"
 base_dataset_path = Path.cwd() / "data"
+output_songs_path = Path.cwd() / "output" / "generated"
 
 
 def download_file(

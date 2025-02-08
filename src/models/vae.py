@@ -33,12 +33,15 @@ class VAE(nn.Module):
         return mu + eps * std
 
     @torch.no_grad()
-    def generate(self, latent_vector: torch.Tensor) -> torch.Tensor:
+    def generate(self, latent_vector: torch.Tensor) -> list[list[list[int]]]:
         self.decoder.eval()
-        # TODO check if latent vector has right shape
+        if latent_vector.shape[1] != self.latent_dim:
+            raise ValueError(
+                f"Latent vector must have shape (batch_size, {self.latent_dim}), got {latent_vector.shape}"
+            )
         reconstruction = self.decoder(latent_vector)
-        # TODO extract maxargs bor all tensors in patch_size dimension
-        reconstruction = torch.argmax(reconstruction, dim=2)
+        reconstruction = reconstruction.argmax(dim=-1)
+        reconstruction = reconstruction.cpu().numpy().tolist()
         return reconstruction
 
     def load_pretrained(self) -> None:

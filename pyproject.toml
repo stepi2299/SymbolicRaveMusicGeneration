@@ -29,6 +29,7 @@ ruff = "ruff check --fix-only src/"
 mypy = "mypy src/"
 test = "pytest tests/"
 train-repr = "python src/scripts/train_repr.py"
+generate-song = "python src/scripts/generate_song.py"
 
 
 
