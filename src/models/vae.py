@@ -32,6 +32,14 @@ class VAE(nn.Module):
         eps = torch.randn_like(std)
         return mu + eps * std
 
+    def freeze_encoder(self) -> None:
+        for param in self.encoder.parameters():
+            param.requires_grad = False
+
+    def unfreeze_encoder(self) -> None:
+        for param in self.encoder.parameters():
+            param.requires_grad = True
+
     @torch.no_grad()
     def generate(self, latent_vector: torch.Tensor) -> list[list[list[int]]]:
         self.decoder.eval()

@@ -3,6 +3,7 @@ from omegaconf import DictConfig
 from src.models.vae import VAE
 from src.models.encoder import encoder_mapper
 from src.models.decoder import decoder_mapper
+from src.models.discriminator import discriminator_mapper, Discriminator
 
 
 def get_vae_model(model_cfg: DictConfig, adapter_cfg: DictConfig) -> VAE:
@@ -22,3 +23,10 @@ def get_vae_model(model_cfg: DictConfig, adapter_cfg: DictConfig) -> VAE:
     )
     model = VAE(encoder=encoder_obj, decoder=decoder_obj)
     return model
+
+
+def get_discriminator(discriminator_cfg: DictConfig) -> Discriminator:
+    discriminator_obj = discriminator_mapper(discriminator_cfg.name)(
+        **discriminator_cfg.params
+    )
+    return discriminator_obj
