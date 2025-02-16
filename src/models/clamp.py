@@ -13,7 +13,9 @@ class PatchEncoder(PreTrainedModel):
         token_size: int,
     ) -> None:
         super().__init__(config)
-        self.patch_embedding = torch.nn.Linear(patch_size * 128, projection_layer)
+        self.patch_embedding = torch.nn.Linear(
+            patch_size * token_size, projection_layer
+        )
         torch.nn.init.normal_(self.patch_embedding.weight, std=0.02)
         self.config = config
         self.base = BertModel(config=config)

@@ -9,7 +9,13 @@ from tqdm import tqdm
 
 from transformers import BertConfig
 from src.models.clamp import PatchEncoder, CLaMPModel
-from src.utils import download_file, get_possible_device, base_weights_path
+from src.utils import (
+    download_file,
+    get_possible_device,
+    base_weights_path,
+    remove_state_dict_keys,
+    rename_state_dict_keys,
+)
 
 logger = lg.getLogger(__name__)
 
@@ -35,7 +41,7 @@ class Encoder(nn.Module, ABC):
         pass
 
     def load_pretrained(self) -> None:
-        logger.info(f"There is not pretrained model for this: {self.__name__} encoder")
+        logger.info(f"There is not pretrained model for this: {self.name} encoder")
 
 
 class DummyEncoder(Encoder):
@@ -95,16 +101,31 @@ class Clamp2Encoder(Encoder):
         self.weights_url = weights_url
 
     def load_pretrained(self) -> None:
-        try:
-            self.checkpoint = torch.load(
+        if self.weights_path.exists():
+            checkpoint = torch.load(
                 self.weights_path, map_location="cpu", weights_only=True
             )
-        except Exception:
+        else:
             self._download_checkpoint()
-            self.checkpoint = torch.load(
+            checkpoint = torch.load(
                 self.weights_path, map_location="cpu", weights_only=True
             )
-        # TODO load this checkpoint to the model!
+        model_checkpoint = checkpoint["model"]
+        model_checkpoint = remove_state_dict_keys(
+            model_checkpoint, ["text_model", "text_proj"]
+        )
+        model_checkpoint = rename_state_dict_keys(
+            model_checkpoint, "music_model", "patch_encoder"
+        )
+        try:
+            self.model.load_state_dict(model_checkpoint)
+            logger.info(f"Successfully loaded the checkpoint to the model: {self.name}")
+        except RuntimeError as e:
+            logger.warning(
+                "Could not load the checkpoint to the patch encoder model in strict way. "
+                f"Received error: {e}. Loading in non-strict way."
+            )
+            self.model.load_state_dict(model_checkpoint, strict=False)
 
     def _download_checkpoint(self) -> None:
         logger.info(
@@ -142,8 +163,8 @@ class ClampEncoder(Encoder):
             patch_len=patch_len,
             patch_size=patch_size,
         )
-        self.device = get_possible_device()
-        self.weights_path = base_weights_path / "clamp"
+        self.device = get_possible_device()  #  TODO probbly to remove
+        self.weights_path = base_weights_path / "clamp.bin"
         patchilizer_config = BertConfig(**patchilizer_config)
         self.patch_encoder = PatchEncoder(
             config=patchilizer_config,
@@ -157,16 +178,9 @@ class ClampEncoder(Encoder):
         self.model_name = model_name
 
     def load_pretrained(self) -> None:
-        if self.weights_path.exists():
-            self.checkpoint = torch.load(
-                self.weights_path, map_location="cpu", weights_only=True
-            )
-        else:
-            self._download_checkpoint()
-            self.checkpoint = torch.load(
-                self.weights_path, map_location="cpu", weights_only=True
-            )
-        # TODO load this checkpoint to the model!
+        raise NotImplementedError(
+            "Think i there is possibility to use pretrained but for MIDI (so different input shape"
+        )
 
     def _download_checkpoint(self) -> None:
         if self.model_name is None:
@@ -180,11 +194,10 @@ class ClampEncoder(Encoder):
             model_url = f"https://huggingface.co/sander-wood/{self.model_name}/resolve/main/pytorch_model.bin"
             chunk_size = 1024 * 1024  # 1MB
 
-            # Download config file
             with requests.get(config_url, stream=True) as r:
                 r.raise_for_status()
                 total_size = int(r.headers.get("content-length", 0))
-                with open(self.weights_path / "config.json", "wb") as f:
+                with open(self.weights_path.parent / "clamp_config.json", "wb") as f:
                     with tqdm(
                         total=total_size,
                         unit="B",
@@ -199,7 +212,7 @@ class ClampEncoder(Encoder):
             with requests.get(model_url, stream=True) as r:
                 r.raise_for_status()
                 total_size = int(r.headers.get("content-length", 0))
-                with open(self.weights_path / "pytorch_model.bin", "wb") as f:
+                with open(self.weights_path, "wb") as f:
                     with tqdm(
                         total=total_size,
                         unit="B",

@@ -19,7 +19,8 @@ class FirstStage(pl.LightningModule):
         batch_size: int,
         num_workers: int = 0,
         train_split: float = 0.8,
-        learning_rate: float = 1e-3,
+        encoder_learning_rate: float = 1e-3,
+        decoder_learning_rate: float = 1e-3,
         learning_patience: int = 5,
     ) -> None:
         super(FirstStage, self).__init__()
@@ -29,7 +30,8 @@ class FirstStage(pl.LightningModule):
         )
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.learning_rate = learning_rate
+        self.encoder_learning_rate = encoder_learning_rate
+        self.decoder_learning_rate = decoder_learning_rate
         self.learning_patience = learning_patience
         self.adapter = symbolic_music_dataset.music_adapter
         self.save_hyperparameters()
@@ -95,7 +97,18 @@ class FirstStage(pl.LightningModule):
         )
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(
+            [
+                {
+                    "params": self.vae.encoder.parameters(),
+                    "lr": self.encoder_learning_rate,
+                },
+                {
+                    "params": self.vae.decoder.parameters(),
+                    "lr": self.decoder_learning_rate,
+                },
+            ]
+        )
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, "min", patience=self.learning_patience
         )

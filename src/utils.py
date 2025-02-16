@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Dict
 import requests
 import torch
 from tqdm import tqdm
@@ -223,3 +223,42 @@ def convert_mtf2midi(mtf_text: str) -> mido.MidiFile:
         track.append(new_msg)
 
     return new_mid
+
+
+def filter_state_dict_keys(state_dict: Dict[str, torch.Tensor], old_name: str):
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        if old_name in key:
+            new_key = key.replace(old_name, "")[1:]
+            new_state_dict[new_key] = value
+    return new_state_dict
+
+
+def rename_state_dict_keys(
+    state_dict: Dict[str, torch.Tensor], substring_to_rename: str, new_name: str
+) -> Dict[str, torch.Tensor]:
+    new_state_dict = {}
+    for keys in state_dict.keys():
+        separated_keys = keys.split(".")
+        if substring_to_rename in separated_keys:
+            for idx, key in enumerate(separated_keys):
+                if key == substring_to_rename:
+                    separated_keys[idx] = new_name
+            new_key = ".".join(separated_keys)
+            new_state_dict[new_key] = state_dict[keys]
+        else:
+            new_state_dict[keys] = state_dict[keys]
+    return new_state_dict
+
+
+def remove_state_dict_keys(
+    state_dict: Dict[str, torch.Tensor], keys_to_remove: list
+) -> Dict[str, torch.Tensor]:
+    new_state_dict = {}
+    for keys_string in state_dict.keys():
+        list_of_keys = keys_string.split(".")
+        for key in list_of_keys:
+            if key in keys_to_remove:
+                break
+            new_state_dict[keys_string] = state_dict[keys_string]
+    return new_state_dict
