@@ -2,6 +2,7 @@ import hydra
 import logging as lg
 import wandb
 from omegaconf import DictConfig
+from pathlib import Path
 
 import torch
 from pytorch_lightning import Trainer
@@ -11,6 +12,7 @@ from src.dataset import get_dataset
 from src.models import get_vae_model, get_discriminator
 from src.competitors.second_stage import SecondStage
 from src.callbacks import get_callbacks
+from src.utils import filter_state_dict_keys
 
 
 @hydra.main(
@@ -31,8 +33,11 @@ def main(cfg: DictConfig) -> None:
 
     symbolic_music_dataset = get_dataset(cfg.dataset, cfg.adapter)
     vae_model = get_vae_model(cfg.model, cfg.adapter)
-    discriminator = get_discriminator(cfg.discriminator)
-    vae_model.load_state_dict(torch.load(cfg.vae_weights_path))
+    discriminator = get_discriminator(cfg.discriminator, cfg.adapter)
+    checkpoint_path = Path(cfg.vae_weights_path).resolve(True)
+    vae_checkpoint = torch.load(checkpoint_path.as_posix())["state_dict"]
+    vae_checkpoint = filter_state_dict_keys(vae_checkpoint, "vae")
+    vae_model.load_state_dict(vae_checkpoint)
 
     competitor = SecondStage(
         vae=vae_model,

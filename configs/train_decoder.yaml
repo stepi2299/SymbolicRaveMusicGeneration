@@ -3,7 +3,7 @@ defaults:
   - dataset: maestro     # default dataset
   - adapter: patchilizer  # default adapter
   - model: clamp_vae     # default model
-  - discriminator: dummy  # default discriminator
+  - discriminator: clamp2_discriminator  # default discriminator
   - _self_
 
 # You can add any additional high-level settings or Hydra settings below
@@ -16,14 +16,15 @@ hydra:
 competitor:
   batch_size: 1
   num_workers: 16
-  learning_rate: 0.001
+  discriminator_learning_rate: 0.001
+  decoder_learning_rate: 0.001
 
 epochs: 10  # number of epochs to train the model
 seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
 pretrained: false  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-vae_weights_path: "outputs/checkpoints/train_repr/{unique_suffix}/model-{epoch:02d}-{val_loss:.2f}.ckpt"
+vae_weights_path: "outputs/checkpoints/train_repr/2025-02-17_23-01-27/model-epoch=02-val_loss=1.50.ckpt"
 
 wandb:
   project: "SymbolicRave"
@@ -37,6 +38,10 @@ callbacks:
     monitor: "val_loss"
     dirpath: "outputs/checkpoints/second_stage/{unique_suffix}"
     filename: "model_{epoch:02d}-{val_loss:.2f}"
+  sampling: true
+  sampling_params:
+    sample_interval: 1
+    num_samples: 2
   early_stopping: true
   early_stopping_params:
     patience: 5

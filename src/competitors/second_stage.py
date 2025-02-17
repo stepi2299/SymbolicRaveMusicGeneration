@@ -10,7 +10,6 @@ from src.models.discriminator import Discriminator
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 from src.dataset.dataloader import get_dataloader
 
-
 class SecondStage(pl.LightningModule):
     def __init__(
         self,
@@ -33,6 +32,7 @@ class SecondStage(pl.LightningModule):
         self.decoder_learning_rate = decoder_learning_rate
         self.adapter = symbolic_music_dataset.music_adapter
         self.save_hyperparameters()
+        self.automatic_optimization = False  # Disable automatic optimization
 
     def _compute_loss(
         self,
@@ -54,41 +54,47 @@ class SecondStage(pl.LightningModule):
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.vae(*args, **kwargs)
 
-    def training_step(self, batch: Any, batch_idx: int, optimizer_idx: int) -> Any:
+    def training_step(self, batch: Any, batch_idx: int) -> Any:
         data = batch
-        if optimizer_idx == 0:
-            # Discriminator
-            z = self.vae.reparameterize(*self.vae.encoder(data))
-            real = self.discriminator(z)
-            fake = self.discriminator(torch.randn_like(z))
-            fake_loss = F.binary_cross_entropy(fake, torch.zeros_like(fake))
-            real_loss = F.binary_cross_entropy(real, torch.ones_like(real))
-            loss = fake_loss + real_loss
-            self.log(
-                "train_discriminator_loss",
-                loss,
-                on_step=True,
-                on_epoch=True,
-                prog_bar=True,
-            )
-            return loss
-        elif optimizer_idx == 1:
-            # Decoder
-            reconstruction, mu, log_variance = self.vae(data)
-            recon_loss, kl_div = self._compute_loss(
-                data, reconstruction, mu, log_variance
-            )
-            loss = recon_loss + kl_div
-            self.log(
-                "train_recon_loss",
-                recon_loss,
-                on_step=True,
-                on_epoch=True,
-                prog_bar=True,
-            )
-            self.log("train_kl_div", kl_div, on_step=True, on_epoch=True, prog_bar=True)
-            self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
-            return loss
+
+        # Discriminator step
+        opt_discriminator = self.optimizers()[0]
+        opt_discriminator.zero_grad()
+        z = self.vae.reparameterize(*self.vae.encoder(data))
+        real = self.discriminator(z)
+        fake = self.discriminator(torch.randn_like(z))
+        fake_loss = F.binary_cross_entropy(fake, torch.zeros_like(fake))
+        real_loss = F.binary_cross_entropy(real, torch.ones_like(real))
+        loss_discriminator = fake_loss + real_loss
+        self.manual_backward(loss_discriminator)
+        opt_discriminator.step()
+        self.log(
+            "train_discriminator_loss",
+            loss_discriminator,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+        )
+
+        # Decoder step
+        opt_decoder = self.optimizers()[1]
+        opt_decoder.zero_grad()
+        reconstruction, mu, log_variance = self.vae(data)
+        recon_loss, kl_div = self._compute_loss(data, reconstruction, mu, log_variance)
+        loss_decoder = recon_loss + kl_div
+        self.manual_backward(loss_decoder)
+        opt_decoder.step()
+        self.log(
+            "train_recon_loss",
+            recon_loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+        )
+        self.log("train_kl_div", kl_div, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("train_loss", loss_decoder, on_step=True, on_epoch=True, prog_bar=True)
+
+        return loss_discriminator + loss_decoder
 
     def train_dataloader(self):
         return get_dataloader(
@@ -100,10 +106,10 @@ class SecondStage(pl.LightningModule):
 
     def configure_optimizers(self):
         discriminator_optimizer = torch.optim.Adam(
-            self.discriminator.parameters(), lr=self.learning_rate
+            self.discriminator.parameters(), lr=self.discriminator_learning_rate
         )
         decoder_optimizer = torch.optim.Adam(
-            self.vae.decoder.parameters(), lr=self.learning_rate
+            self.vae.decoder.parameters(), lr=self.decoder_learning_rate
         )
         return [discriminator_optimizer, decoder_optimizer], []
 
