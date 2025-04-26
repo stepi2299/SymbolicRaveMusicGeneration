@@ -25,10 +25,13 @@ def get_vae_model(model_cfg: DictConfig, adapter_cfg: DictConfig) -> VAE:
     return model
 
 
-def get_discriminator(discriminator_cfg: DictConfig, adapter_cfg: DictConfig) -> Discriminator:
+def get_discriminator(
+    discriminator_cfg: DictConfig, adapter_cfg: DictConfig, vocab_size: int
+) -> Discriminator:
     discriminator_obj = discriminator_mapper(discriminator_cfg.name)(
         patch_len=adapter_cfg.params.patch_length,
         patch_size=adapter_cfg.params.patch_size,
-        **discriminator_cfg.params
+        vocab_size=vocab_size,
+        **discriminator_cfg.params,
     )
     return discriminator_obj

@@ -1,0 +1,4 @@
+name: simple_conv
+params: {
+    projection_layer: 768
+}

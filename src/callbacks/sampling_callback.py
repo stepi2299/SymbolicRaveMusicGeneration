@@ -1,6 +1,9 @@
 import torch
+import logging as lg
 
 from pytorch_lightning.callbacks import Callback
+
+logger = lg.getLogger(__name__)
 
 
 class SamplingCallback(Callback):
@@ -32,8 +35,8 @@ class SamplingCallback(Callback):
                 )
                 generated = pl_module.decode(z)
 
-            print(f"=== [SamplingCallback] Samples at epoch {current_epoch} ===")
-            print("Generated shape:", generated.shape)
+            logger.info(f"=== [SamplingCallback] Samples at epoch {current_epoch} ===")
+            logger.info("Generated shape:", generated.shape)
             # TODO do sth with this generation
             # Switch back to train mode if needed
             pl_module.train()

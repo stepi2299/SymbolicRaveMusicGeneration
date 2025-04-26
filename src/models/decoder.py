@@ -24,8 +24,22 @@ class Decoder(nn.Module, ABC):
         self.patch_size = patch_size
 
     @abstractmethod
-    def forward(self, latent_vector: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, latent_vector: torch.Tensor, recv_in_music_form: bool = False
+    ) -> torch.Tensor:
         pass
+
+    @staticmethod
+    def transform_to_music_form(recv_tokens: torch.Tensor) -> torch.Tensor:
+        """
+        Transform the received tokens to the music form.
+        Args:
+            recv_tokens: [batch_size, patch_len, patch_size, vocab_size]
+        Returns:
+            music_form: [batch_size, patch_len, patch_size]
+        """
+
+        return recv_tokens.argmax(dim=-1)
 
 
 class DummyDecoder(Decoder):
@@ -38,7 +52,9 @@ class DummyDecoder(Decoder):
             patch_size=64,
         )
 
-    def forward(self, latent_vector: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, latent_vector: torch.Tensor, recv_in_music_form: bool = False
+    ) -> torch.Tensor:
         return torch.zeros(latent_vector.shape[0], 3, 64, 64)
 
 
@@ -90,10 +106,13 @@ class Clamp2Decoder(Decoder):
             patch_decoder=self.patch_decoder, latent_dim=latent_dim
         )
 
-    def forward(self, latent_vector: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, latent_vector: torch.Tensor, recv_in_music_form: bool = False
+    ) -> torch.Tensor:
         """
         Args:
             latent_vector: [batch_size, latent_dim]
+
         Returns:
             patch_logits: [batch_size, patch_len, patch_size, vocab_size]
         """
@@ -102,7 +121,7 @@ class Clamp2Decoder(Decoder):
             (latent_vector.size(0), self.patch_len),
             dtype=torch.long,
             device=latent_vector.device,
-        )
+        )  # TODO think about removing this or use to teach the model to ignore padding
 
         # Forward through the model
         patch_logits = self.model(
@@ -116,6 +135,8 @@ class Clamp2Decoder(Decoder):
             self.patch_size,
             self.token_size,
         )
+        if recv_in_music_form:
+            patch_logits = self.transform_to_music_form(patch_logits)
         return patch_logits
 
 
@@ -155,19 +176,20 @@ class ClampDecoder(Decoder):
             patch_decoder=self.patch_decoder, latent_dim=latent_dim
         )
 
-    def forward(self, latent_vector: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, latent_vector: torch.Tensor, recv_in_music_form: bool = False
+    ) -> torch.Tensor:
         """
         Args:
             latent_vector: [batch_size, latent_dim]
         Returns:
             patch_logits: [batch_size, patch_len, patch_size, vocab_size]
         """
-        # Construct an attention mask if desired. For a full-sequence decode, use all 1’s:
         attention_mask = torch.ones(
             (latent_vector.size(0), self.patch_len),
             dtype=torch.long,
             device=latent_vector.device,
-        )
+        )  # TODO think about removing this or use to teach the model to ignore padding
 
         # Forward through the model
         patch_logits = self.model(
@@ -181,6 +203,8 @@ class ClampDecoder(Decoder):
             self.patch_size,
             self.token_size,
         )
+        if recv_in_music_form:
+            patch_logits = self.transform_to_music_form(patch_logits)
         return patch_logits
 
 

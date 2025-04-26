@@ -33,11 +33,21 @@ def main(cfg: DictConfig) -> None:
 
     symbolic_music_dataset = get_dataset(cfg.dataset, cfg.adapter)
     vae_model = get_vae_model(cfg.model, cfg.adapter)
-    discriminator = get_discriminator(cfg.discriminator, cfg.adapter)
+    discriminator = get_discriminator(
+        cfg.discriminator, cfg.adapter, vocab_size=vae_model.token_size
+    )
     checkpoint_path = Path(cfg.vae_weights_path).resolve(True)
-    vae_checkpoint = torch.load(checkpoint_path.as_posix())["state_dict"]
+    vae_checkpoint = torch.load(checkpoint_path.as_posix(), weights_only=False)[
+        "state_dict"
+    ]
     vae_checkpoint = filter_state_dict_keys(vae_checkpoint, "vae")
-    vae_model.load_state_dict(vae_checkpoint)
+    try:
+        vae_model.load_state_dict(vae_checkpoint)
+    except RuntimeError as e:
+        raise RuntimeError(
+            f"Could not load {checkpoint_path.as_posix()} for decoder training! "
+            "Probably pretrained representation differ than discriminator in terms of parameters"
+        ) from e
 
     competitor = SecondStage(
         vae=vae_model,
@@ -46,7 +56,9 @@ def main(cfg: DictConfig) -> None:
         **cfg.competitor,
     )
     used_callbacks = get_callbacks(
-        cfg=cfg.callbacks, latent_dim=vae_model.decoder.latent_dim
+        cfg=cfg.callbacks,
+        latent_dim=vae_model.decoder.latent_dim,
+        model_name=cfg.discriminator.name,
     )
     trainer = Trainer(
         callbacks=used_callbacks, max_epochs=cfg.epochs, logger=wandb_logger

@@ -10,6 +10,7 @@ from src.models.discriminator import Discriminator
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 from src.dataset.dataloader import get_dataloader
 
+
 class SecondStage(pl.LightningModule):
     def __init__(
         self,
@@ -57,14 +58,21 @@ class SecondStage(pl.LightningModule):
     def training_step(self, batch: Any, batch_idx: int) -> Any:
         data = batch
 
-        # Discriminator step
+        # ---------------------
+        # Train Discriminator
+        # ---------------------
+
         opt_discriminator = self.optimizers()[0]
         opt_discriminator.zero_grad()
-        z = self.vae.reparameterize(*self.vae.encoder(data))
-        real = self.discriminator(z)
-        fake = self.discriminator(torch.randn_like(z))
-        fake_loss = F.binary_cross_entropy(fake, torch.zeros_like(fake))
-        real_loss = F.binary_cross_entropy(real, torch.ones_like(real))
+        real_labels = torch.ones(self.batch_size, 1).to(self.device)
+        real = self.discriminator(data)
+        real_loss = F.binary_cross_entropy(real, real_labels)
+
+        fake_labels = torch.zeros(self.batch_size, 1).to(self.device)
+        create_music_vector = self.vae(data, recv_in_music_form=True)[0]
+        fake = self.discriminator(create_music_vector)
+        fake_loss = F.binary_cross_entropy(fake, fake_labels)
+
         loss_discriminator = fake_loss + real_loss
         self.manual_backward(loss_discriminator)
         opt_discriminator.step()
@@ -76,25 +84,27 @@ class SecondStage(pl.LightningModule):
             prog_bar=True,
         )
 
-        # Decoder step
+        # ---------------------
+        # Train Decoder
+        # ---------------------
+
         opt_decoder = self.optimizers()[1]
         opt_decoder.zero_grad()
-        reconstruction, mu, log_variance = self.vae(data)
-        recon_loss, kl_div = self._compute_loss(data, reconstruction, mu, log_variance)
-        loss_decoder = recon_loss + kl_div
-        self.manual_backward(loss_decoder)
+        reconstruction = self.vae(data, recv_in_music_form=True)[0]
+        gen_labels = torch.ones(self.batch_size, 1).to(self.device)
+        music_authenticity = self.discriminator(reconstruction)
+        generated_loss = F.binary_cross_entropy(music_authenticity, gen_labels)
+        self.manual_backward(generated_loss)
         opt_decoder.step()
         self.log(
-            "train_recon_loss",
-            recon_loss,
+            "train_decoder_loss",
+            generated_loss,
             on_step=True,
             on_epoch=True,
             prog_bar=True,
         )
-        self.log("train_kl_div", kl_div, on_step=True, on_epoch=True, prog_bar=True)
-        self.log("train_loss", loss_decoder, on_step=True, on_epoch=True, prog_bar=True)
 
-        return loss_discriminator + loss_decoder
+        return generated_loss + loss_discriminator
 
     def train_dataloader(self):
         return get_dataloader(

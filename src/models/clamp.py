@@ -29,16 +29,16 @@ class PatchEncoder(PreTrainedModel):
 
     def forward(
         self,
-        input_patches: torch.Tensor,  # [batch_size, seq_length, hidden_size]
-        input_masks: torch.Tensor,  # [batch_size, seq_length]
-    ) -> torch.Tensor:
+        input_patches: torch.Tensor,  # [batch_size, patch_len, patch_size]
+        input_masks: torch.Tensor,  # [batch_size, patch_len]
+    ) -> torch.Tensor:  # [batch_size, patch_len, projection_layer]
         # Transform input_patches into embeddings
         input_patches = torch.nn.functional.one_hot(
             input_patches, num_classes=self.token_size
-        )
+        )  # [batch_size, patch_len, patch_size, token_size]
         input_patches = input_patches.reshape(
             len(input_patches), -1, self.patch_size * self.token_size
-        ).type(torch.FloatTensor)
+        ).type(torch.FloatTensor)  # [batch_size, patch_len, patch_size * token_size]
         input_patches = self.patch_embedding(input_patches.to(self.device))
 
         # Apply BERT model to input_patches and input_masks

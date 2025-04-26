@@ -1,7 +1,0 @@
-name: clamp2
-params:
-  vocab_size: 1
-  hidden_size: 768
-  num_hidden_layers: 12
-  token_size: 128
-
