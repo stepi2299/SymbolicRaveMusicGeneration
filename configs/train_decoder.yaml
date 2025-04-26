@@ -3,7 +3,7 @@ defaults:
   - dataset: maestro     # default dataset
   - adapter: patchilizer  # default adapter
   - model: clamp2_vae     # default model
-  - discriminator: simple_conv  # default discriminator
+  - discriminator: dense  # default discriminator
   - _self_
 
 # You can add any additional high-level settings or Hydra settings below

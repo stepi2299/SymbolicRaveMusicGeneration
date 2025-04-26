@@ -1,0 +1,6 @@
+name: dense
+params: {
+    projection_layer: 768,
+    first_layer: 128,
+    second_layer: 64
+}
