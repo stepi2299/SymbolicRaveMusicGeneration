@@ -186,10 +186,9 @@ class CLaMPDecoderModel(PreTrainedModel):
             latent_vectors
         )  # [batch_size, projection_layer * patch_count]
 
-        # shape -> [batch_size, patch_count, projection_layer]
         projected = projected.view(
             batch_size, patch_count, self.patch_decoder.projection_layer
-        )
+        )  # [batch_size, patch_count, projection_layer]
         return projected
 
     def forward(
