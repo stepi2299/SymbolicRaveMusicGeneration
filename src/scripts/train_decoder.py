@@ -34,7 +34,7 @@ def main(cfg: DictConfig) -> None:
     symbolic_music_dataset = get_dataset(cfg.dataset, cfg.adapter)
     vae_model = get_vae_model(cfg.model, cfg.adapter)
     discriminator = get_discriminator(
-        cfg.discriminator, cfg.adapter, vocab_size=vae_model.token_size
+        cfg.discriminator, cfg.adapter, vocab_size=vae_model.vocab_size
     )
     checkpoint_path = Path(cfg.vae_weights_path).resolve(True)
     vae_checkpoint = torch.load(checkpoint_path.as_posix(), weights_only=False)[

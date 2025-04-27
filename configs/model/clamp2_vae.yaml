@@ -1,17 +1,17 @@
 name: clamp2_vae
 latent_dim: 768
-token_size: 128
+vocab_size: 128
 encoder:
   name: clamp2
   params:
-    vocab_size: 1
+    clamp2_vocab_size: 1
     hidden_size: 768
     weights_url: "https://huggingface.co/sander-wood/clamp2/resolve/main/weights_clamp2_h_size_768_lr_5e-05_batch_128_scale_1_t_length_128_t_model_FacebookAI_xlm-roberta-base_t_dropout_True_m3_True.pth"
     num_hidden_layers: 12
 decoder:
     name: clamp2
     params:
-      vocab_size: 1
+      clamp2_vocab_size: 1
       hidden_size: 768
       num_hidden_layers: 12
 

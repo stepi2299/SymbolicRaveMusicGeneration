@@ -16,10 +16,10 @@ class MusicAdapter:
         return self._adapter.decode(item)
 
     @property
-    def patch_length(self) -> int | None:
+    def patch_count(self) -> int | None:
         if not self.adapter_type == "patchilizer":
             return None
-        return self._adapter.patch_length
+        return self._adapter.patch_count
 
     @property
     def pad_token(self) -> int | None:

@@ -44,8 +44,10 @@ class FirstStage(pl.LightningModule):
         log_variance: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         recon_loss = F.cross_entropy(
-            reconstruction.view(-1, self.vae.token_size),  # Reshape to (batch*seq_len)
-            data.view(-1),  # Reshape to (batch*seq_len)
+            reconstruction.view(
+                -1, self.vae.vocab_size
+            ),  # Reshape to (batch*patch_count)
+            data.view(-1),  # Reshape to (batch*patch_count)
         )
         kl_div = -0.5 * torch.sum(
             1 + log_variance - mu.pow(2) - log_variance.exp(), dim=1

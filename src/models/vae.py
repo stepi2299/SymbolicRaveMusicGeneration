@@ -60,5 +60,5 @@ class VAE(nn.Module):
         return self.encoder.latent_dim
 
     @property
-    def token_size(self) -> int:
-        return self.encoder.token_size
+    def vocab_size(self) -> int:
+        return self.encoder.vocab_size

@@ -9,7 +9,7 @@ class MusicPatchilizer:
     def __init__(
         self,
         patch_size: int,
-        patch_length: int,
+        patch_count: int,
         add_special_patches: bool = False,
         truncate: bool = False,
         random_truncate: bool = False,
@@ -21,7 +21,7 @@ class MusicPatchilizer:
         self.eos_token_id = 2
         self.mask_token_id = 3
         self.patch_size = patch_size
-        self.patch_length = patch_length
+        self.patch_count = patch_count
         self.add_special_patches = add_special_patches
         self.truncate = truncate
         self.random_truncate = random_truncate
@@ -64,16 +64,16 @@ class MusicPatchilizer:
             eos_patch = chr(self.eos_token_id) * self.patch_size
             patches = [bos_patch] + patches + [eos_patch]
 
-        if len(patches) > self.patch_length and self.truncate:
+        if len(patches) > self.patch_count and self.truncate:
             choices = ["head", "tail", "middle"]
             choice = random.choice(choices)
             if choice == "head" or self.random_truncate is False:
-                patches = patches[: self.patch_length]
+                patches = patches[: self.patch_count]
             elif choice == "tail":
-                patches = patches[-self.patch_length :]
+                patches = patches[-self.patch_count :]
             else:
-                start = random.randint(1, len(patches) - self.patch_length)
-                patches = patches[start : start + self.patch_length]
+                start = random.randint(1, len(patches) - self.patch_count)
+                patches = patches[start : start + self.patch_count]
 
         patches = [self._bar2patch(patch) for patch in patches]
 

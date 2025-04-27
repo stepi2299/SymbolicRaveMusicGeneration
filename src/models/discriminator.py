@@ -9,14 +9,14 @@ class Discriminator(nn.Module, ABC):
     def __init__(
         self,
         name: str,
-        patch_len: int,
+        patch_count: int,
         patch_size: int,
         vocab_size: int,
     ) -> None:
         super().__init__()
         self.name = name
         self.patch_size = patch_size
-        self.patch_len = patch_len
+        self.patch_count = patch_count
         self.vocab_size = vocab_size
 
     @abstractmethod
@@ -30,7 +30,7 @@ class Discriminator(nn.Module, ABC):
 
 class DummyDiscriminator(Discriminator):
     def __init__(self, name: str = "dummy") -> None:
-        super().__init__(name=name, patch_len=64, patch_size=64, vocab_size=128)
+        super().__init__(name=name, patch_count=64, patch_size=64, vocab_size=128)
         self.model = nn.Sequential(
             nn.Linear(100, 100), nn.ReLU(), nn.Linear(100, 1), nn.Sigmoid()
         )
@@ -40,11 +40,18 @@ class DummyDiscriminator(Discriminator):
 
 
 class DenseDiscriminator(Discriminator):
-    def __init__(self, patch_size: int, patch_len: int, vocab_size: int, projection_layer: int, first_layer: int,
-                 second_layer: int) -> None:
+    def __init__(
+        self,
+        patch_size: int,
+        patch_count: int,
+        vocab_size: int,
+        projection_layer: int,
+        first_layer: int,
+        second_layer: int,
+    ) -> None:
         super().__init__(
             name="dense",
-            patch_len=patch_len,
+            patch_count=patch_count,
             patch_size=patch_size,
             vocab_size=vocab_size,
         )
@@ -54,7 +61,7 @@ class DenseDiscriminator(Discriminator):
             patch_size * vocab_size, projection_layer
         )
         torch.nn.init.normal_(self.patch_embedding.weight, std=0.02)
-        self.dense1 = nn.Linear(projection_layer*patch_len, first_layer)
+        self.dense1 = nn.Linear(projection_layer * patch_count, first_layer)
         self.leaky_relu_1 = nn.LeakyReLU(0.2)
         self.dense2 = nn.Linear(first_layer, second_layer)
         self.leaky_relu_2 = nn.LeakyReLU(0.2)
@@ -62,18 +69,16 @@ class DenseDiscriminator(Discriminator):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, music_tensor: torch.Tensor) -> torch.Tensor:
-        # Input shape: [batch_size, patch_length, patch_size]
+        # Input shape: [batch_size, patch_count, patch_size]
         # Convert to embeddings
         music_embedding = torch.nn.functional.one_hot(
             music_tensor, num_classes=self.vocab_size
-        ) # [batch_size, patch_len, patch_size, token_size]
+        )  # [batch_size, patch_count, patch_size, vocab_size]
         music_embedding = music_embedding.reshape(
             len(music_embedding), -1, self.patch_size * self.vocab_size
         ).type(torch.FloatTensor)
         music_embedding = self.patch_embedding(music_embedding.to(self.device))
-        music_embedding = music_embedding.view(
-            music_embedding.size(0), -1
-        )
+        music_embedding = music_embedding.view(music_embedding.size(0), -1)
         music_embedding = self.dense1(music_embedding)
         music_embedding = self.leaky_relu_1(music_embedding)
         music_embedding = self.dense2(music_embedding)
@@ -85,13 +90,21 @@ class DenseDiscriminator(Discriminator):
 
 class SimpleConvDiscriminator(Discriminator):
     def __init__(
-        self, patch_size: int, patch_len: int, vocab_size: int, projection_layer: int,
-            kernel_size: int , stride: int , padding: int , linear_layer: int,
-            out_conv_size: int, inner_conv_size: int
+        self,
+        patch_size: int,
+        patch_count: int,
+        vocab_size: int,
+        projection_layer: int,
+        kernel_size: int,
+        stride: int,
+        padding: int,
+        linear_layer: int,
+        out_conv_size: int,
+        inner_conv_size: int,
     ) -> None:
         super().__init__(
             name="simple_conv",
-            patch_len=patch_len,
+            patch_count=patch_count,
             patch_size=patch_size,
             vocab_size=vocab_size,
         )
@@ -103,7 +116,7 @@ class SimpleConvDiscriminator(Discriminator):
         torch.nn.init.normal_(self.patch_embedding.weight, std=0.02)
 
         self.conv1 = nn.Conv1d(
-            in_channels=patch_len,
+            in_channels=patch_count,
             out_channels=inner_conv_size,
             kernel_size=kernel_size,
             stride=stride,
@@ -129,8 +142,12 @@ class SimpleConvDiscriminator(Discriminator):
             return (input_length + 2 * p - k) // s + 1
 
         # Compute sequence lengths
-        conv1_output_length = conv_output_length(projection_layer, kernel_size, stride, padding)
-        conv2_output_length = conv_output_length(conv1_output_length, kernel_size, stride, padding)
+        conv1_output_length = conv_output_length(
+            projection_layer, kernel_size, stride, padding
+        )
+        conv2_output_length = conv_output_length(
+            conv1_output_length, kernel_size, stride, padding
+        )
 
         # Flattened features = channels * final_sequence_length
         self.flattened_features = out_conv_size * conv2_output_length
@@ -145,14 +162,14 @@ class SimpleConvDiscriminator(Discriminator):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, music_tensor: torch.Tensor) -> torch.Tensor:
-        # Input shape: [batch_size, patch_length, patch_size]
+        # Input shape: [batch_size, patch_count, patch_size]
         # Convert to embeddings
         music_embedding = torch.nn.functional.one_hot(
             music_tensor, num_classes=self.vocab_size
-        )  # [batch_size, patch_len, patch_size, token_size]
+        )  # [batch_size, patch_count, patch_size, vocab_size]
         music_embedding = music_embedding.reshape(
             len(music_embedding), -1, self.patch_size * self.vocab_size
-        ).type(torch.FloatTensor)  # [batch_size, patch_len, patch_size * token_size]
+        ).type(torch.FloatTensor)  # [batch_size, patch_count, patch_size * vocab_size]
         music_embedding = self.patch_embedding(music_embedding.to(self.device))
 
         input_processing_tensor = self.conv1(music_embedding)

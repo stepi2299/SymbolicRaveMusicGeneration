@@ -24,16 +24,16 @@ class Encoder(nn.Module, ABC):
     def __init__(
         self,
         latent_dim: int,
-        token_size: int,
-        patch_len: int,
+        vocab_size: int,
+        patch_count: int,
         patch_size: int,
         name: str,
     ) -> None:
         super().__init__()
         self.latent_dim = latent_dim
         self.name = name
-        self.token_size = token_size
-        self.patch_len = patch_len
+        self.vocab_size = vocab_size
+        self.patch_count = patch_count
         self.patch_size = patch_size
 
     @abstractmethod
@@ -45,13 +45,13 @@ class Encoder(nn.Module, ABC):
 
 
 class DummyEncoder(Encoder):
-    def __init__(self, latent_dim: int, token_size: int) -> None:
+    def __init__(self, latent_dim: int, vocab_size: int) -> None:
         super(DummyEncoder, self).__init__(
             latent_dim=latent_dim,
-            token_size=token_size,
+            vocab_size=vocab_size,
             name="dummy",
             patch_size=64,
-            patch_len=64,
+            patch_count=64,
         )
 
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -63,29 +63,29 @@ class DummyEncoder(Encoder):
 class Clamp2Encoder(Encoder):
     def __init__(
         self,
-        vocab_size: int,
+        clamp2_vocab_size: int,
         hidden_size: int,
         num_hidden_layers: int,
-        patch_len: int,
+        patch_count: int,
         patch_size: int,
         latent_dim: int,
-        token_size: int,
+        vocab_size: int,
         weights_url: str,
     ) -> None:
         super(Clamp2Encoder, self).__init__(
             latent_dim=latent_dim,
             name="clamp2",
-            token_size=token_size,
-            patch_len=patch_len,
+            vocab_size=vocab_size,
+            patch_count=patch_count,
             patch_size=patch_size,
         )
         self.device = get_possible_device()
         self.weights_path = base_weights_path / "clamp2.pth"
         patchilizer_config = BertConfig(
-            vocab_size=vocab_size,
+            vocab_size=clamp2_vocab_size,
             hidden_size=hidden_size,
             num_hidden_layers=num_hidden_layers,
-            max_position_embeddings=patch_len,
+            max_position_embeddings=patch_count,
             num_attention_heads=hidden_size // 64,
             intermediate_size=hidden_size * 4,
         )
@@ -93,7 +93,7 @@ class Clamp2Encoder(Encoder):
             config=patchilizer_config,
             patch_size=patch_size,
             projection_layer=hidden_size,
-            token_size=self.token_size,
+            vocab_size=self.vocab_size,
         )
         self.model = CLaMPModel(patch_encoder=self.patch_encoder, latent_dim=latent_dim)
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
@@ -150,17 +150,17 @@ class ClampEncoder(Encoder):
     def __init__(
         self,
         patchilizer_config: Dict,
-        patch_len: int,
+        patch_count: int,
         patch_size: int,
         latent_dim: int,
-        token_size: int,
+        vocab_size: int,
         model_name: str | None = None,
     ) -> None:
         super(ClampEncoder, self).__init__(
             latent_dim=latent_dim,
             name="clamp",
-            token_size=token_size,
-            patch_len=patch_len,
+            vocab_size=vocab_size,
+            patch_count=patch_count,
             patch_size=patch_size,
         )
         self.device = get_possible_device()  #  TODO probbly to remove
@@ -170,7 +170,7 @@ class ClampEncoder(Encoder):
             config=patchilizer_config,
             patch_size=patch_size,
             projection_layer=patchilizer_config.hidden_size,
-            token_size=self.token_size,
+            vocab_size=self.vocab_size,
         )
         self.model = CLaMPModel(patch_encoder=self.patch_encoder, latent_dim=latent_dim)
         self.fc_mu = nn.Linear(latent_dim, latent_dim)
