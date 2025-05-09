@@ -45,3 +45,4 @@ callbacks:
   early_stopping: true
   early_stopping_params:
     patience: 5
+    monitor: "val_loss"
