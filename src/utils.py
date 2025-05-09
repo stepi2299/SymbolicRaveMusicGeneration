@@ -3,6 +3,7 @@ from typing import Tuple, Dict
 import requests
 import torch
 from tqdm import tqdm
+import logging as lg
 
 import mido
 from mido.messages.messages import Message
@@ -15,6 +16,8 @@ MB = 1024 * KB
 base_weights_path = Path.cwd() / ".weights"
 base_dataset_path = Path.cwd() / "data"
 output_songs_path = Path.cwd() / "outputs" / "generated"
+
+logger = lg.getLogger(__name__)
 
 
 def download_file(
@@ -40,7 +43,7 @@ def download_file(
                 progress_bar.close()
 
     except requests.exceptions.RequestException as e:
-        print(f"Error downloading the file from url: {url}. Error: {e}")
+        logger.error(f"Error downloading the file from url: {url}. Error: {e}")
 
 
 def midi_msg_to_str(msg: Message) -> str:
@@ -204,17 +207,20 @@ def str_to_msg(str_msg: str) -> mido.Message:
     return msg
 
 
-def convert_mtf2midi(mtf_text: str) -> mido.MidiFile:
-    # TODO FIXME
+def save_midi_song_from_string(mtf_text: str, output_path: Path) -> None:
     mtf_lines = mtf_text.strip().split("\n")
 
-    # Clean up and discard any empty lines
-    mtf_lines = [line.strip() for line in mtf_lines if line.strip()]
-    new_mid = mido.MidiFile()
-    # new_mid.ticks_per_beat = int(mtf_lines[0].split(" ")[1])
-
+    ticks_per_beat_line = mtf_lines[0]
+    if not ticks_per_beat_line.startswith("ticks_per_beat "):
+        logger.warning(
+            "Lack of important information about ticks_per_beat when creating midifile from string"
+        )
+        mid = mido.MidiFile()
+    else:
+        ticks_per_beat = int(ticks_per_beat_line.split()[1])
+        mid = mido.MidiFile(ticks_per_beat=ticks_per_beat)
     track = mido.MidiTrack()
-    new_mid.tracks.append(track)
+    mid.tracks.append(track)
 
     for msg in mtf_lines[1:]:
         if "unknown_meta" in msg:
@@ -222,7 +228,7 @@ def convert_mtf2midi(mtf_text: str) -> mido.MidiFile:
         new_msg = str_to_msg(msg)
         track.append(new_msg)
 
-    return new_mid
+    mid.save(str(output_path))
 
 
 def filter_state_dict_keys(state_dict: Dict[str, torch.Tensor], old_name: str):

@@ -1,5 +1,6 @@
 from omegaconf import DictConfig
 import pytest
+
 from src.adapter.adapter import MusicAdapter, MusicPatchilizer, Tokenizer
 
 
@@ -44,3 +45,14 @@ class TestMusicAdapter:
             assert isinstance(patch, list)
             for value in patch:
                 assert isinstance(value, int)
+
+
+class TestAdapterFunc:
+    @staticmethod
+    def test_adapter_func_masetro(patchilizer_adapter, loaded_midi_song):
+        encoded = patchilizer_adapter.encode(loaded_midi_song)
+        decoded = patchilizer_adapter.decode(encoded)
+        assert isinstance(decoded, str)  # Assuming the decode method returns a string
+        assert (
+            decoded == loaded_midi_song
+        )  # Assuming the decode method should return the original song

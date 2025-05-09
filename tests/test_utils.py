@@ -13,6 +13,7 @@ from src.utils import (
     filter_state_dict_keys,
     rename_state_dict_keys,
     remove_state_dict_keys,
+    save_midi_song_from_string,
 )
 
 
@@ -75,6 +76,12 @@ class TestDatasetUtils:
         """
         with pytest.raises(OSError):
             load_abc_song(Path("non_existent_file.abc"))
+
+    @staticmethod
+    def test_save_midi_song_from_string(loaded_midi_song, tmp_path):
+        new_file_path = tmp_path / "new_file.mid"
+        save_midi_song_from_string(loaded_midi_song, new_file_path)
+        assert new_file_path.exists(), "The new MIDI file should exist"
 
     # @staticmethod
     # def test_symbolic_collate_fn():

@@ -24,7 +24,7 @@ epochs: 10  # number of epochs to train the model
 seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
-pretrained: true  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
+pretrained: false  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
 
 wandb:
   project: "SymbolicRave"
@@ -33,10 +33,10 @@ wandb:
   logs_dir: "./outputs/wandb_logs"
 
 callbacks:
+  output_dirpath: "outputs/checkpoints/train_repr/{unique_suffix}"
   model_checkpoint: true
   model_checkpoint_params:
     monitor: "val_loss"
-    dirpath: "outputs/checkpoints/train_repr/{unique_suffix}"
     filename: "model-{epoch:02d}-{val_loss:.2f}"
   sampling: true
   sampling_params:

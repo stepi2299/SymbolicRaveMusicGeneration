@@ -24,7 +24,7 @@ seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
 pretrained: false  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-vae_weights_path: "outputs/checkpoints/train_repr/clamp2_vae_2025-04-26_15-55-14/model-epoch=00-val_loss=1.52.ckpt"
+vae_weights_path: "outputs/checkpoints/train_repr/clamp2_vae_maestro_2025-05-08_18-02-29/model-epoch=01-val_loss=1.52.ckpt"
 
 wandb:
   project: "SymbolicRave"
@@ -34,10 +34,10 @@ wandb:
 
 callbacks:
   model_checkpoint: true
+  output_dirpath: "outputs/checkpoints/train_decoder/{unique_suffix}"
   model_checkpoint_params:
-    monitor: "val_loss"
-    dirpath: "outputs/checkpoints/second_stage/{unique_suffix}"
-    filename: "discriminator_{epoch:02d}-{val_loss:.2f}"
+    monitor: "train_discriminator_loss"
+    filename: "finetuned_model-{epoch:02d}-{train_discriminator_loss:.2f}"
   sampling: true
   sampling_params:
     sample_interval: 1
@@ -45,3 +45,5 @@ callbacks:
   early_stopping: true
   early_stopping_params:
     patience: 5
+    monitor: "train_discriminator_loss"
+

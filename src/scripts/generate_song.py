@@ -7,7 +7,7 @@ from datetime import datetime
 import torch
 
 from src.competitors.first_stage import FirstStage
-from src.utils import output_songs_path, convert_mtf2midi
+from src.utils import output_songs_path, save_midi_song_from_string
 
 
 @hydra.main(
@@ -30,9 +30,9 @@ def main(cfg: DictConfig) -> None:
     current_output_songs_path.mkdir(parents=True, exist_ok=False)
     logger.info(f"Generated songs will be saved in {current_output_songs_path}")
     for i, song in enumerate(songs):
-        midi_song = convert_mtf2midi(song)
         file_path = current_output_songs_path / f"{i}.mid"
-        midi_song.save(file_path)
+        save_midi_song_from_string(song, file_path)
+        logger.info(f"Saved song {i + 1} to {file_path} with length {len(song)} notes")
     logger.info(f"Successfully saved {len(songs)} songs in {current_output_songs_path}")
 
 

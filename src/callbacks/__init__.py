@@ -8,27 +8,33 @@ from src.callbacks.sampling_callback import SamplingCallback
 
 
 def get_callbacks(
-    cfg: DictConfig, latent_dim: int, model_name: str = "model"
+    cfg: DictConfig, latent_dim: int, model_name: str, dataset_name: str
 ) -> List[Callback]:
     used_callbacks = []
+    timestamp_with_name = (
+        model_name
+        + "_"
+        + dataset_name
+        + "_"
+        + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    )
+    output_dir = cfg.output_dirpath.replace(
+        "{unique_suffix}",
+        timestamp_with_name,
+    )
     if cfg.model_checkpoint:
-        timestamp_with_name = (
-            model_name + "_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        )
         checkpoint_params = dict(cfg.model_checkpoint_params)
-        checkpoint_params["dirpath"] = checkpoint_params["dirpath"].replace(
-            "{unique_suffix}",
-            timestamp_with_name,
-        )
         used_callbacks.append(
-            ModelCheckpoint(save_top_k=1, mode="min", **checkpoint_params)
+            ModelCheckpoint(
+                save_top_k=1, mode="min", dirpath=output_dir, **checkpoint_params
+            )
         )
     if cfg.sampling:
         used_callbacks.append(
-            SamplingCallback(latent_dim=latent_dim, **cfg.sampling_params)
+            SamplingCallback(
+                latent_dim=latent_dim, output_dir=output_dir, **cfg.sampling_params
+            )
         )
     if cfg.early_stopping:
-        used_callbacks.append(
-            EarlyStopping(monitor="val_loss", mode="min", **cfg.early_stopping_params)
-        )
+        used_callbacks.append(EarlyStopping(mode="min", **cfg.early_stopping_params))
     return used_callbacks

@@ -43,6 +43,7 @@ def main(cfg: DictConfig) -> None:
         cfg=cfg.callbacks,
         latent_dim=vae_model.decoder.latent_dim,
         model_name=cfg.model.name,
+        dataset_name=cfg.dataset.name,
     )
     trainer = Trainer(
         callbacks=used_callbacks, max_epochs=cfg.epochs, logger=wandb_logger
