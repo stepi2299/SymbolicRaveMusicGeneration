@@ -20,7 +20,7 @@ competitor:
   decoder_learning_rate: 0.001
   learning_patience: 5
 
-epochs: 10  # number of epochs to train the model
+epochs: 100  # number of epochs to train the model
 seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
