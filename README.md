@@ -15,4 +15,10 @@ Poligon for master thesis on symbolic gen music model
 `poe test` - run tests
 `poe ruff` - format code
 `poe mypy` - check types
+`poe collect-dataset` - collect dataset
 
+## Usage
+
+```sh
+export PYTHONPATH="/home/kuba/repo/music/Symbolic_rave:$PYTHONPATH"
+```

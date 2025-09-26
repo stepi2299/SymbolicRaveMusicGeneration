@@ -31,6 +31,7 @@ test = "pytest tests/"
 train-repr = "python src/scripts/train_repr.py"
 train-decoder = "python src/scripts/train_decoder.py"
 generate-song = "python src/scripts/generate_song.py"
+collect-dataset = "python src/scripts/collect_datasets.py"
 
 
 
