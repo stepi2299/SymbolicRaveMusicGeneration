@@ -63,7 +63,9 @@ class FirstStage(pl.LightningModule):
             mu=mu,
             logvar=log_variance,
         )
-
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
+        return loss
     def train_dataloader(self):
         return get_dataloader(
             self.train_dataset,
