@@ -22,3 +22,6 @@ Poligon for master thesis on symbolic gen music model
 ```sh
 export PYTHONPATH="/home/kuba/repo/music/Symbolic_rave:$PYTHONPATH"
 ```
+## Knowledge
+
+- Elbo explained: [link](docs/elbo_docs.md)

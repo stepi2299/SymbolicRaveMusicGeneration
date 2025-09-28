@@ -49,7 +49,7 @@ class TestMusicAdapter:
 
 class TestAdapterFunc:
     @staticmethod
-    def test_adapter_func_masetro(patchilizer_adapter, loaded_midi_song):
+    def test_adapter_func_maestro(patchilizer_adapter, loaded_midi_song):
         encoded = patchilizer_adapter.encode(loaded_midi_song)
         decoded = patchilizer_adapter.decode(encoded)
         assert isinstance(decoded, str)  # Assuming the decode method returns a string

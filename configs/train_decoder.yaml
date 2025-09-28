@@ -24,7 +24,7 @@ seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
 pretrained: false  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-vae_weights_path: "outputs/checkpoints/train_repr/clamp2_vae_maestro_2025-05-08_18-02-29/model-epoch=01-val_loss=1.52.ckpt"
+vae_weights_path: "outputs/checkpoints/train_repr/clamp2_vae_maestro_2025-05-08_18-14-22/model-epoch=00-val_loss=1.52.ckpt"
 
 wandb:
   project: "SymbolicRave"
