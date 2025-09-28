@@ -11,6 +11,7 @@ from src.dataset import get_dataset
 from src.models import get_vae_model
 from src.competitors.first_stage import FirstStage
 from src.callbacks import get_callbacks
+from src.loss import get_loss_function
 
 
 @hydra.main(
@@ -33,10 +34,14 @@ def main(cfg: DictConfig) -> None:
     vae_model = get_vae_model(cfg.model, cfg.adapter)
     if cfg.pretrained:
         vae_model.load_pretrained()
+    loss_function = get_loss_function(
+        loss_name=cfg.loss, vocab_size=vae_model.vocab_size
+    )
 
     competitor = FirstStage(
         vae=vae_model,
         symbolic_music_dataset=symbolic_music_dataset,
+        loss_function=loss_function,
         **cfg.competitor,
     )
     used_callbacks = get_callbacks(

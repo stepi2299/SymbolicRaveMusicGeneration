@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Tuple
+from typing import Any
 
 import torch
 import pytorch_lightning as pl
@@ -34,25 +34,6 @@ class SecondStage(pl.LightningModule):
         self.adapter = symbolic_music_dataset.music_adapter
         self.save_hyperparameters()
         self.automatic_optimization = False  # Disable automatic optimization
-
-    def _compute_loss(
-        self,
-        data: torch.Tensor,
-        reconstruction: torch.Tensor,
-        mu: torch.Tensor,
-        log_variance: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        recon_loss = F.cross_entropy(
-            reconstruction.view(
-                -1, self.vae.vocab_size
-            ),  # Reshape to (batch*patch_count)
-            data.view(-1),  # Reshape to (batch*patch_count)
-        )
-        kl_div = -0.5 * torch.sum(
-            1 + log_variance - mu.pow(2) - log_variance.exp(), dim=1
-        )
-        kl_div = torch.mean(kl_div)
-        return recon_loss, kl_div
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.vae(*args, **kwargs)

@@ -25,7 +25,7 @@ poethepoet = "^0.32.0"
 pytest = "^8.3.4"
 
 [tool.poe.tasks]
-ruff = "ruff check --fix-only src/"
+ruff = "ruff format src/"
 mypy = "mypy src/"
 test = "pytest tests/"
 train-repr = "python src/scripts/train_repr.py"

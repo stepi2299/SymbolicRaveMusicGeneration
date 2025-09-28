@@ -1,14 +1,14 @@
 from __future__ import annotations
-from typing import Any, Tuple
+from typing import Any
 
 import torch
 import pytorch_lightning as pl
-import torch.nn.functional as F
 
 from src.models.vae import VAE
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 from src.utils import split_dataset
 from src.dataset.dataloader import get_dataloader
+from src.loss import BaseVaeLoss
 
 
 class FirstStage(pl.LightningModule):
@@ -16,6 +16,7 @@ class FirstStage(pl.LightningModule):
         self,
         vae: VAE,
         symbolic_music_dataset: SymbolicMusicDataset,
+        loss_function: BaseVaeLoss,
         batch_size: int,
         num_workers: int = 0,
         train_split: float = 0.8,
@@ -34,26 +35,8 @@ class FirstStage(pl.LightningModule):
         self.decoder_learning_rate = decoder_learning_rate
         self.learning_patience = learning_patience
         self.adapter = symbolic_music_dataset.music_adapter
+        self.loss_function = loss_function
         self.save_hyperparameters()
-
-    def _compute_loss(
-        self,
-        data: torch.Tensor,
-        reconstruction: torch.Tensor,
-        mu: torch.Tensor,
-        log_variance: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        recon_loss = F.cross_entropy(
-            reconstruction.view(
-                -1, self.vae.vocab_size
-            ),  # Reshape to (batch*patch_count)
-            data.view(-1),  # Reshape to (batch*patch_count)
-        )
-        kl_div = -0.5 * torch.sum(
-            1 + log_variance - mu.pow(2) - log_variance.exp(), dim=1
-        )
-        kl_div = torch.mean(kl_div)
-        return recon_loss, kl_div
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.vae(*args, **kwargs)
@@ -61,26 +44,25 @@ class FirstStage(pl.LightningModule):
     def training_step(self, batch: Any, batch_idx: int) -> Any:
         data = batch
         reconstruction, mu, log_variance = self.vae(data)
-        recon_loss, kl_div = self._compute_loss(data, reconstruction, mu, log_variance)
-        loss = recon_loss + kl_div
-        self.log(
-            "train_recon_loss", recon_loss, on_step=True, on_epoch=True, prog_bar=True
+        loss, loss_metadata = self.loss_function(
+            org_data=data,
+            reconstruction=reconstruction,
+            mu=mu,
+            logvar=log_variance,
         )
-        self.log("train_kl_div", kl_div, on_step=True, on_epoch=True, prog_bar=True)
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> Any:
         data = batch
         reconstruction, mu, log_variance = self.vae(data)
-        recon_loss, kl_div = self._compute_loss(data, reconstruction, mu, log_variance)
-        loss = recon_loss + kl_div
-        self.log(
-            "val_recon_loss", recon_loss, on_step=False, on_epoch=True, prog_bar=True
+        loss, loss_metadata = self.loss_function(
+            org_data=data,
+            reconstruction=reconstruction,
+            mu=mu,
+            logvar=log_variance,
         )
-        self.log("val_kl_div", kl_div, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        return loss
 
     def train_dataloader(self):
         return get_dataloader(

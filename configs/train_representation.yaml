@@ -26,6 +26,8 @@ log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
 pretrained: false  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
 
+loss: elbo  # name of the loss function to use, possible: elbo
+
 wandb:
   project: "SymbolicRave"
   entity: "wut-zzsn"
