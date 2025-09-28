@@ -28,6 +28,8 @@ class ElboLoss(BaseVaeLoss):
 
         recon_loss is computed using cross-entropy loss between the original data and the reconstruction.
         kl_div is computed as the KL divergence between the learned latent distribution and a standard normal distribution
+
+        Elbo explanation in documentation
         """
         recon_loss = torch.nn.functional.cross_entropy(
             reconstruction.view(

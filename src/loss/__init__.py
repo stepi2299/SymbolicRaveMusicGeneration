@@ -14,4 +14,4 @@ def get_loss_function(loss_name: str, vocab_size: int) -> BaseVaeLoss:
     return loss_mapper[loss_name](vocab_size)
 
 
-__all__ = ["BaseVaeLoss", "get_loss_function"]
+__all__ = ["BaseVaeLoss", "get_loss_function", "ElboLoss"]
