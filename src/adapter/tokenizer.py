@@ -1,14 +1,19 @@
 from pathlib import Path
 from omegaconf import DictConfig
 import logging as lg
-from io import BytesIO
 
 from miditok import REMI, MIDILike, TSD, Structured, CPWord, Octuple, MuMIDI, MMM
 from mido import MidiFile as MidoMidiFile
 
-from src.utils import base_weights_path, base_dataset_path, convert_mido_to_score
+from src.utils import (
+    base_weights_path,
+    base_dataset_path,
+    convert_mido_to_score,
+    export_to_wav,
+)
 from src.constants import SymbolicMusicFormat
 from src.constants import ExportFormat
+
 
 logger = lg.getLogger(__name__)
 
@@ -55,7 +60,7 @@ class Tokenizer:
         if symbolic_format == SymbolicMusicFormat.ABC:
             raise ValueError("ABC format is not supported for tokenizer")
         if not self._is_trained:
-            raise ValueError(f"Tokenizer is not trained")
+            logger.warning(f"Tokenizer is not trained")
         midi_score = convert_mido_to_score(
             music_file
         )  # Change from mido into symusic.Score
@@ -69,12 +74,10 @@ class Tokenizer:
         output_path: Path,
         export_format: ExportFormat = ExportFormat.WAV,
     ) -> Path:
-        from src.utils import export_to_wav
-
         if symbolic_format == SymbolicMusicFormat.ABC:
             raise ValueError("ABC format is not supported for tokenizer")
         if not self._is_trained:
-            raise ValueError(f"Tokenizer is not trained")
+            logger.warning(f"Tokenizer is not trained")
         score = self.tokenizer.decode(tensor_tokens)
         match export_format:
             case ExportFormat.SYMBOLIC:
@@ -106,7 +109,7 @@ class Tokenizer:
         logger.info(
             f"Saving tokenizer {self.tokenizer_name} to {self.cache_tokenizer_path}"
         )
-        self.tokenizer.save_params(out_path=self.cache_tokenizer_path)
+        self.tokenizer.save(out_path=self.cache_tokenizer_path)
 
     @property
     def is_trained(self):

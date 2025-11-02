@@ -8,6 +8,7 @@ from mido import MidiFile as MidoMidiFile
 from src.adapter import MusicAdapter, Tokenizer, MusicPatchilizer
 from src.utils import load_midi_song, load_abc_song, convert_midi_to_string
 from src.dataset.symbolic_music_dataset import MidiDataset
+from tempfile import TemporaryDirectory
 
 def prepare_test_results_dir():
     test_result_path = Path("tests") / "results"
@@ -114,6 +115,7 @@ def fixture_remi_tokenizer() -> Tokenizer:
         "vocab_size": 1000,
     }
     return Tokenizer(**tokenizer_config)
+
 
 @pytest.fixture(scope="function", name="patchilizer")
 def fixture_patchilizer() -> MusicPatchilizer:
