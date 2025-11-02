@@ -5,8 +5,11 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from src.utils import load_midi_song, load_abc_song
-from src.adapter.adapter import MusicAdapter
+from miditoolkit import MidiFile
+
+from src.utils import load_midi_song, load_abc_song, convert_mido_to_score
+from src.adapter import MusicAdapter
+from src.constants import SymbolicMusicFormat
 
 
 class SymbolicMusicDataset(Dataset, ABC):
@@ -14,7 +17,8 @@ class SymbolicMusicDataset(Dataset, ABC):
         self,
         dataset_path: Path,
         adapter: MusicAdapter,
-        load_music_function: Callable[[Path], str],
+        music_format: SymbolicMusicFormat,
+        load_music_function: Callable[[Path], str | MidiFile],
         transform: Callable[[str], str] | None = None,
     ) -> None:
         self.dataset_path = dataset_path
@@ -22,9 +26,13 @@ class SymbolicMusicDataset(Dataset, ABC):
         self.transform = transform
         self.music_files_paths = self.imread_music_files()
         self.music_adapter = adapter
+        self.music_format = music_format
 
     @abstractmethod
     def imread_music_files(self) -> list[Path]:
+        pass
+
+    def _preprocess_music_file(self) -> str | MidiFile:
         pass
 
     def __len__(self):
@@ -58,6 +66,7 @@ class MidiDataset(SymbolicMusicDataset):
         super(MidiDataset, self).__init__(
             dataset_path=dataset_path,
             load_music_function=load_music_function,
+            music_format=SymbolicMusicFormat.MIDI,
             adapter=adapter,
             transform=transform,
         )
@@ -79,6 +88,7 @@ class AbcDataset(SymbolicMusicDataset):
         super(AbcDataset, self).__init__(
             dataset_path=dataset_path,
             load_music_function=load_music_function,
+            music_format=SymbolicMusicFormat.ABC,
             adapter=adapter,
             transform=transform,
         )

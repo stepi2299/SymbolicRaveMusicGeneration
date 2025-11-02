@@ -5,16 +5,16 @@ from src.dataset.symbolic_music_dataset import MidiDataset, AbcDataset
 
 class TestMidiDataset:
     @staticmethod
-    def test_basic_creation(midi_data_path, patchilizer_adapter):
-        dataset = MidiDataset(midi_data_path, patchilizer_adapter)
+    def test_basic_creation(midi_data_path, patchilizer_adapter_midi):
+        dataset = MidiDataset(midi_data_path, patchilizer_adapter_midi)
         assert (
             len(dataset.music_files_paths) == 3
         ), "MidiDataset should have 3 music files"
         assert len(dataset) == 3, "MidiDataset should have 3 item"
 
     @staticmethod
-    def test_getitem(midi_data_path, patchilizer_adapter):
-        dataset = MidiDataset(midi_data_path, patchilizer_adapter)
+    def test_getitem(midi_data_path, patchilizer_adapter_midi):
+        dataset = MidiDataset(midi_data_path, patchilizer_adapter_midi)
         for i in range(len(dataset)):
             item = dataset[i]
             assert len(item.shape) == 2, "MidiDataset should return a 2D tensor"
@@ -33,16 +33,16 @@ class TestMidiDataset:
 
 class TestAbcDataset:
     @staticmethod
-    def test_basic_creation(abc_data_path, patchilizer_adapter):
-        dataset = AbcDataset(abc_data_path, patchilizer_adapter)
+    def test_basic_creation(abc_data_path, patchilizer_adapter_abc):
+        dataset = AbcDataset(abc_data_path, patchilizer_adapter_abc)
         assert (
             len(dataset.music_files_paths) == 3
         ), "MidiDataset should have 3 music files"
         assert len(dataset) == 3, "MidiDataset should have 3 item"
 
     @staticmethod
-    def test_getitem(abc_data_path, patchilizer_adapter):
-        dataset = AbcDataset(abc_data_path, patchilizer_adapter)
+    def test_getitem(abc_data_path, patchilizer_adapter_abc):
+        dataset = AbcDataset(abc_data_path, patchilizer_adapter_abc)
         for i in range(len(dataset)):
             item = dataset[i]
             assert len(item.shape) == 2, "MidiDataset should return a 2D tensor"

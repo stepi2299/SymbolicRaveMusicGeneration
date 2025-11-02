@@ -1,16 +1,36 @@
 import pytest
 from pathlib import Path
 from omegaconf import DictConfig
+import shutil
 
-from src.adapter.adapter import MusicAdapter
-from src.utils import load_midi_song, load_abc_song
+from mido import MidiFile as MidoMidiFile
+
+from src.adapter import MusicAdapter, Tokenizer, MusicPatchilizer
+from src.utils import load_midi_song, load_abc_song, convert_midi_to_string
 from src.dataset.symbolic_music_dataset import MidiDataset
+
+def prepare_test_results_dir():
+    test_result_path = Path("tests") / "results"
+    if test_result_path.exists():
+        shutil.rmtree(test_result_path)
+    test_result_path.mkdir(parents=True, exist_ok=True)
+
+prepare_test_results_dir()
 
 
 @pytest.fixture(scope="session", name="test_data_path")
 def fixture_test_data_path() -> Path:
     base_path = Path.cwd() / "tests" / "data"
     return base_path.resolve(True)
+
+
+@pytest.fixture(scope="session", name="test_results_path")
+def fixture_test_results_path(test_data_path) -> Path:
+    results_path = Path("tests") / "results"
+    if not results_path.exists():
+        raise FileNotFoundError(results_path)
+    return results_path
+
 
 
 @pytest.fixture(scope="session", name="midi_data_path")
@@ -34,8 +54,13 @@ def fixture_abc_file(abc_data_path) -> Path:
 
 
 @pytest.fixture(scope="session", name="loaded_midi_song")
-def fixture_loaded_midi_song(midi_file: Path) -> str:
+def fixture_loaded_midi_song(midi_file: Path) -> MidoMidiFile:
     return load_midi_song(midi_file)
+
+@pytest.fixture(scope="session", name="midi_song_as_string")
+def fixture_midi_song_as_string(loaded_midi_song) -> str:
+    # Convert the loaded MIDI song to a string representation
+    return convert_midi_to_string(loaded_midi_song)
 
 
 @pytest.fixture(scope="session", name="loaded_abc_song")
@@ -54,24 +79,43 @@ def fixture_tokenizer_config() -> DictConfig:
     config = {
         "name": "tokenizer",
         "params": {
-            "tokenizer_name": "tsd",
+            "tokenizer": "tsd",
             "training_model": "BPE",
             "vocab_size": 1000,
+            "dataset_name": "maestro"
         },
     }
     return DictConfig(config)
 
 
-@pytest.fixture(scope="session", name="patchilizer_adapter")
-def fixture_patchilizer_adapter(patchilizer_config) -> MusicAdapter:
-    return MusicAdapter(patchilizer_config)
+@pytest.fixture(scope="session", name="patchilizer_adapter_midi")
+def fixture_patchilizer_adapter_midi(patchilizer_config) -> MusicAdapter:
+    return MusicAdapter(patchilizer_config, "midi")
+
+@pytest.fixture(scope="session", name="patchilizer_adapter_abc")
+def fixture_patchilizer_adapter_abc(patchilizer_config) -> MusicAdapter:
+    return MusicAdapter(patchilizer_config, "abc")
 
 
-@pytest.fixture(scope="session", name="tokenizer_adapter")
-def fixture_tokenizer_adapter(tokenizer_config) -> MusicAdapter:
-    return MusicAdapter(tokenizer_config)
+@pytest.fixture(scope="session", name="tokenizer_adapter_midi")
+def fixture_tokenizer_adapter_midi(tokenizer_config) -> MusicAdapter:
+    return MusicAdapter(tokenizer_config, "midi")
 
 
 @pytest.fixture(scope="session", name="midi_symbolic_dataset")
-def fixture_midi_symbolic_dataset(midi_data_path, patchilizer_adapter) -> MidiDataset:
-    return MidiDataset(dataset_path=midi_data_path, adapter=patchilizer_adapter)
+def fixture_midi_symbolic_dataset(midi_data_path, patchilizer_adapter_midi) -> MidiDataset:
+    return MidiDataset(dataset_path=midi_data_path, adapter=patchilizer_adapter_midi)
+
+@pytest.fixture(scope="function", name="remi_tokenizer")
+def fixture_remi_tokenizer() -> Tokenizer:
+    tokenizer_config = {
+        "tokenizer_name": "remi",
+        "training_model": "BPE",
+        "vocab_size": 1000,
+    }
+    return Tokenizer(**tokenizer_config)
+
+@pytest.fixture(scope="function", name="patchilizer")
+def fixture_patchilizer() -> MusicPatchilizer:
+    tokenizer_config = {"patch_count": 512, "patch_size": 64}
+    return MusicPatchilizer(**tokenizer_config)

@@ -2,7 +2,18 @@ import random
 import re
 from typing import Iterable
 
+from mido import MidiFile as MidoMidiFile
+from pathlib import Path
+from src.constants import ExportFormat
+
 from unidecode import unidecode
+from src.constants import SymbolicMusicFormat
+from src.utils import (
+    convert_midi_to_string,
+    create_midi_file_from_string,
+    convert_mido_to_score,
+    export_to_wav,
+)
 
 
 class MusicPatchilizer:
@@ -26,7 +37,48 @@ class MusicPatchilizer:
         self.truncate = truncate
         self.random_truncate = random_truncate
 
-    def encode(self, item: str) -> list[list[int]]:
+    def encode(
+        self,
+        loaded_music_file: str | MidoMidiFile,
+        symbolic_format: SymbolicMusicFormat,
+    ) -> list[list[int]]:
+        if symbolic_format == SymbolicMusicFormat.MIDI:
+            loaded_music_file = convert_midi_to_string(loaded_music_file)
+        return self._convert_into_patches(loaded_music_file)
+
+    def decode(
+        self,
+        patches: list[list[int]],
+        symbolic_format: SymbolicMusicFormat,
+        output_path: Path,
+        export_format: ExportFormat = ExportFormat.WAV,
+    ) -> Path:
+        ret_music = "".join(self._patch2bar(patch) for patch in patches)
+        if symbolic_format == SymbolicMusicFormat.MIDI:
+            match export_format:
+                case ExportFormat.SYMBOLIC:
+                    midi_file = create_midi_file_from_string(ret_music)
+                    midi_file.save(output_path)
+                case ExportFormat.WAV:
+                    score = convert_mido_to_score(
+                        create_midi_file_from_string(ret_music)
+                    )
+                    export_to_wav(score, output_path)
+                case _:
+                    raise ValueError(f"Export format {export_format} is not supported")
+        if symbolic_format == SymbolicMusicFormat.ABC:
+            match export_format:
+                case ExportFormat.SYMBOLIC:
+                    with open(output_path, "w") as f:
+                        f.write(ret_music)
+                    return output_path
+                case ExportFormat.WAV:
+                    raise NotImplemented("ABC to WAV export is not implemented yet")
+                case _:
+                    raise ValueError(f"Export format {export_format} is not supported")
+        return output_path
+
+    def _convert_into_patches(self, item: str) -> list[list[int]]:
         item = unidecode(item)
         lines = re.findall(r".*?\n|.*$", item)
         lines = list(filter(None, lines))  # remove empty lines
@@ -78,9 +130,6 @@ class MusicPatchilizer:
         patches = [self._bar2patch(patch) for patch in patches]
 
         return patches
-
-    def decode(self, patches: list[list[int]]) -> str:
-        return "".join(self._patch2bar(patch) for patch in patches)
 
     def _split_bars(self, body: Iterable[str]) -> list[str]:
         bars = re.split(self.regexPattern, "".join(body))

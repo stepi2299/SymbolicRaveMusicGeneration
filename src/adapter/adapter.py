@@ -1,45 +1,60 @@
 from omegaconf import DictConfig
 
 from src.adapter.patchilizer import MusicPatchilizer
-from src.adapter.tokenizer import Tokenizer
+from src.adapter.tokenizer import Tokenizer, get_tokenizer
+
+from mido import MidiFile as MidoMidiFile
+from pathlib import Path
+
+from src.constants import SymbolicMusicFormat, MusicAdapterType, ExportFormat
 
 
 class MusicAdapter:
-    def __init__(self, adapter_config: DictConfig) -> None:
-        self.adapter_type = adapter_config.name
+    def __init__(self, adapter_config: DictConfig, symbolic_format: str) -> None:
+        self.adapter_type = MusicAdapterType(adapter_config.name)
         self._adapter = self.get_preprocessor(self.adapter_type, adapter_config.params)
+        if symbolic_format == "mid":
+            symbolic_format = "midi"
+        self.symbolic_format = SymbolicMusicFormat(symbolic_format)
 
-    def encode(self, item: str) -> list[list[int]] | list[int]:
-        return self._adapter.encode(item)
+    def encode(self, item: MidoMidiFile | str) -> list[list[int]]:
+        return self._adapter.encode(item, self.symbolic_format)
 
-    def decode(self, item: list[list[int]] | list[str]) -> str:
-        return self._adapter.decode(item)
+    def decode(
+        self, item: list[list[int]], output_path: Path, export_format: ExportFormat
+    ) -> Path:
+        ret_music = self._adapter.decode(
+            item, self.symbolic_format, output_path, export_format
+        )
+        if isinstance(ret_music, str):
+            ret_music = ret_music.strip()
+        return ret_music
 
     @property
     def patch_count(self) -> int | None:
-        if not self.adapter_type == "patchilizer":
+        if not self.adapter_type == MusicAdapterType.PATCHILIZER:
             return None
         return self._adapter.patch_count
 
     @property
     def pad_token(self) -> int | None:
-        if not self.adapter_type == "patchilizer":
+        if not self.adapter_type == MusicAdapterType.PATCHILIZER:
             return None
         return self._adapter.pad_token_id
 
     @property
     def patch_size(self) -> int | None:
-        if not self.adapter_type == "patchilizer":
+        if not self.adapter_type == MusicAdapterType.PATCHILIZER:
             return None
         return self._adapter.patch_size
 
     @staticmethod
     def get_preprocessor(
-        preprocessor_name: str, preprocessor_config: DictConfig
+        preprocessor_name: MusicAdapterType, preprocessor_config: DictConfig
     ) -> MusicPatchilizer | Tokenizer:
-        if preprocessor_name == "patchilizer":
+        if preprocessor_name == MusicAdapterType.PATCHILIZER:
             return MusicPatchilizer(**preprocessor_config)
-        elif preprocessor_name == "tokenizer":
-            return Tokenizer(**preprocessor_config)
+        elif preprocessor_name == MusicAdapterType.TOKENIZER:
+            return get_tokenizer(preprocessor_config)
         else:
             raise ValueError(f"Unknown preprocessor: {preprocessor_name}")

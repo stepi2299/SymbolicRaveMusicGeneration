@@ -1,14 +1,18 @@
 from pathlib import Path
 from typing import Tuple, Dict
 import requests
+import symusic
 import torch
 from tqdm import tqdm
 import logging as lg
 
 import mido
 from mido.messages.messages import Message
+from symusic import Score, Track, Note
 from torch.utils.data import Dataset, random_split
 from torch.nn.utils.rnn import pad_sequence
+from symusic import Synthesizer, dump_wav
+from pathlib import Path
 
 KB = 1024
 MB = 1024 * KB
@@ -54,7 +58,54 @@ def midi_msg_to_str(msg: Message) -> str:
     return str_msg.strip().encode("unicode_escape").decode("utf-8")
 
 
-def load_midi_song(filepath: Path) -> str:
+def load_midi_song(filepath: Path) -> mido.MidiFile:
+    try:
+        midi_file = mido.MidiFile(filepath)
+    except Exception as e:
+        msg = f"Could not load midi file: {filepath}"
+        raise OSError(msg) from e
+
+    return midi_file
+
+
+def convert_mido_to_score(midi_file: mido.MidiFile) -> Score:
+    score = Score()
+    tpb = midi_file.ticks_per_beat
+
+    for mido_track in midi_file.tracks:
+        track = Track()
+        current_time = 0
+        notes_on = {}  # key: (channel, note), value: start_time
+
+        for msg in mido_track:
+            current_time += msg.time
+
+            if msg.type == "note_on" and msg.velocity > 0:
+                notes_on[(msg.channel, msg.note)] = (current_time, msg.velocity)
+
+            elif (msg.type == "note_off") or (
+                msg.type == "note_on" and msg.velocity == 0
+            ):
+                key = (msg.channel, msg.note)
+                if key in notes_on:
+                    start_time, velocity = notes_on.pop(key)
+                    dur = current_time - start_time
+
+                    track.notes.append(
+                        Note(
+                            time=start_time,
+                            duration=dur,
+                            pitch=msg.note,
+                            velocity=velocity,
+                        )
+                    )
+
+        if len(track.notes) > 0:
+            score.tracks.append(track)
+    return score
+
+
+def convert_midi_to_string(midi_file: mido.MidiFile) -> str:
     skip_elements = {
         "text",
         "copyright",
@@ -67,18 +118,15 @@ def load_midi_song(filepath: Path) -> str:
         "sequencer_specific",
     }
     try:
-        # Load a MIDI file
-        mid = mido.MidiFile(str(filepath))
-        msg_list = ["ticks_per_beat " + str(mid.ticks_per_beat)]
-
+        msg_list = ["ticks_per_beat " + str(midi_file.ticks_per_beat)]
         # Traverse the MIDI file
-        for msg in mid.merged_track:
+        for msg in midi_file.merged_track:
             if msg.type != "sysex" and not (msg.is_meta and msg.type in skip_elements):
                 str_msg = midi_msg_to_str(msg)
                 msg_list.append(str_msg)
     except Exception as e:
-        msg = f"Could not load file: {filepath}"
-        raise OSError(msg) from e
+        msg = f"Could not convert midi file into string: {midi_file.filename}"
+        raise ValueError(msg) from e
 
     return "\n".join(msg_list)
 
@@ -207,7 +255,7 @@ def str_to_msg(str_msg: str) -> mido.Message:
     return msg
 
 
-def save_midi_song_from_string(mtf_text: str, output_path: Path) -> None:
+def create_midi_file_from_string(mtf_text: str) -> mido.MidiFile:
     mtf_lines = mtf_text.strip().split("\n")
 
     ticks_per_beat_line = mtf_lines[0]
@@ -228,7 +276,12 @@ def save_midi_song_from_string(mtf_text: str, output_path: Path) -> None:
         new_msg = str_to_msg(msg)
         track.append(new_msg)
 
-    mid.save(str(output_path))
+    return mid
+
+
+def save_midi_song_from_string(mtf_text: str, output_path: Path) -> None:
+    midi_file = create_midi_file_from_string(mtf_text)
+    midi_file.save(str(output_path))
 
 
 def filter_state_dict_keys(state_dict: Dict[str, torch.Tensor], old_name: str):
@@ -268,3 +321,11 @@ def remove_state_dict_keys(
                 break
             new_state_dict[keys_string] = state_dict[keys_string]
     return new_state_dict
+
+
+def export_to_wav(
+    score: symusic.Score, filepath: Path, sample_rate: int = 44100
+) -> None:
+    synth = Synthesizer(sample_rate=sample_rate)
+    audio = synth.render(score, stereo=True)
+    dump_wav(filepath.as_posix(), audio, sample_rate=sample_rate, use_int16=True)

@@ -1,10 +1,12 @@
 from __future__ import annotations
 from typing import Any
 
+from pathlib import Path
 import torch
 import pytorch_lightning as pl
 import torch.nn.functional as F
 
+from src.constants import ExportFormat
 from src.models.vae import VAE
 from src.models.discriminator import Discriminator
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
@@ -106,9 +108,18 @@ class SecondStage(pl.LightningModule):
         )
         return [discriminator_optimizer, decoder_optimizer], []
 
-    def generate(self, z: torch.Tensor) -> list[str]:
+    def generate(
+        self,
+        z: torch.Tensor,
+        file_path: Path,
+        export_format: ExportFormat = ExportFormat.WAV,
+    ) -> list[str]:
         tokenized_songs = self.vae.generate(z)
         songs = []
         for tokenized_song in tokenized_songs:
-            songs.append(self.adapter.decode(tokenized_song))
+            songs.append(
+                self.adapter.decode(
+                    tokenized_song, output_path=file_path, export_format=export_format
+                )
+            )
         return songs

@@ -1,16 +1,18 @@
 from pathlib import Path
 from omegaconf import DictConfig
 import logging as lg
+from io import BytesIO
 
-import torch
 from miditok import REMI, MIDILike, TSD, Structured, CPWord, Octuple, MuMIDI, MMM
+from mido import MidiFile as MidoMidiFile
 
-from src.utils import base_weights_path, base_dataset_path
+from src.utils import base_weights_path, base_dataset_path, convert_mido_to_score
+from src.constants import SymbolicMusicFormat
+from src.constants import ExportFormat
 
 logger = lg.getLogger(__name__)
 
 
-# TODO  Fix to be like patchilizer!
 class Tokenizer:
     TOKENIZER_MAPPER = {
         "remi": REMI,
@@ -47,18 +49,42 @@ class Tokenizer:
             self.tokenizer = self.TOKENIZER_MAPPER[tokenizer_name]()
             self._is_trained = False
 
-    def encode(self, text: str) -> list[int]:
+    def encode(
+        self, music_file: MidoMidiFile, symbolic_format: SymbolicMusicFormat
+    ) -> list[list[int]]:
+        if symbolic_format == SymbolicMusicFormat.ABC:
+            raise ValueError("ABC format is not supported for tokenizer")
         if not self._is_trained:
-            raise ValueError("Tokenizer is not trained")
-        tok_sequence = self.tokenizer.encode(text)
-        # TODO How to properly make tensors from tokens
-        return torch.tensor(tok_sequence)
+            raise ValueError(f"Tokenizer is not trained")
+        midi_score = convert_mido_to_score(
+            music_file
+        )  # Change from mido into symusic.Score
+        tok_sequence = self.tokenizer(midi_score)[0].ids
+        return [tok_sequence]
 
-    def decode(self, tensor_tokens: list[int]) -> str:
+    def decode(
+        self,
+        tensor_tokens: list[list[int]],
+        symbolic_format: SymbolicMusicFormat,
+        output_path: Path,
+        export_format: ExportFormat = ExportFormat.WAV,
+    ) -> Path:
+        from src.utils import export_to_wav
+
+        if symbolic_format == SymbolicMusicFormat.ABC:
+            raise ValueError("ABC format is not supported for tokenizer")
         if not self._is_trained:
-            raise ValueError("Tokenizer is not trained")
-        # TODO how to make tokens from tensors
-        return self.tokenizer.decode(tensor_tokens)
+            raise ValueError(f"Tokenizer is not trained")
+        score = self.tokenizer.decode(tensor_tokens)
+        match export_format:
+            case ExportFormat.SYMBOLIC:
+                score.dump_midi(path=output_path.as_posix())
+                return output_path
+            case ExportFormat.WAV:
+                export_to_wav(score, output_path)
+                return output_path
+            case _:
+                raise ValueError(f"Export format {export_format} is not supported")
 
     def train(self, files_path: Path) -> None:
         files_paths = []

@@ -1,18 +1,19 @@
 from omegaconf import DictConfig
 import pytest
 
-from src.adapter.adapter import MusicAdapter, MusicPatchilizer, Tokenizer
+from src.adapter import MusicAdapter, MusicPatchilizer, Tokenizer
+from src.constants import SymbolicMusicFormat
 
 
 class TestMusicAdapter:
     @staticmethod
     def test_create_patchilizer_adapter(patchilizer_config):
-        adapter = MusicAdapter(patchilizer_config)
+        adapter = MusicAdapter(patchilizer_config, "midi")
         assert isinstance(adapter._adapter, MusicPatchilizer)
 
     @staticmethod
     def test_create_tokenizer_adapter(tokenizer_config):
-        adapter = MusicAdapter(tokenizer_config)
+        adapter = MusicAdapter(tokenizer_config, "midi")
         assert isinstance(adapter._adapter, Tokenizer)
 
     @staticmethod
@@ -20,11 +21,11 @@ class TestMusicAdapter:
         config = {"name": "unknown", "params": {}}
         config = DictConfig(config)
         with pytest.raises(ValueError):
-            MusicAdapter(config)
+            MusicAdapter(config, "midi")
 
     @staticmethod
-    def test_encode_patchilizer_midi(patchilizer_adapter, loaded_midi_song):
-        encoded = patchilizer_adapter.encode(loaded_midi_song)
+    def test_encode_patchilizer_midi(patchilizer_adapter_midi, loaded_midi_song):
+        encoded = patchilizer_adapter_midi.encode(loaded_midi_song)
         assert isinstance(encoded, list)
         for patch in encoded:
             assert isinstance(patch, list)
@@ -32,27 +33,16 @@ class TestMusicAdapter:
                 assert isinstance(value, int)
 
     @staticmethod
-    @pytest.mark.skip(reason="Tokenizer not implemented properly yet")
-    def test_encode_tokenizer_midi(tokenizer_adapter, loaded_midi_song):
-        encoded = tokenizer_adapter.encode(loaded_midi_song)
+    def test_encode_tokenizer_midi(tokenizer_adapter_midi, loaded_midi_song):
+        encoded = tokenizer_adapter_midi.encode(loaded_midi_song)
         assert isinstance(encoded, list)
 
     @staticmethod
-    def test_encode_patchilizer_abc(patchilizer_adapter, loaded_abc_song):
-        encoded = patchilizer_adapter.encode(loaded_abc_song)
+    def test_encode_patchilizer_abc(patchilizer_adapter_abc, loaded_abc_song):
+        encoded = patchilizer_adapter_abc.encode(loaded_abc_song)
         assert isinstance(encoded, list)
         for patch in encoded:
             assert isinstance(patch, list)
             for value in patch:
                 assert isinstance(value, int)
 
-
-class TestAdapterFunc:
-    @staticmethod
-    def test_adapter_func_maestro(patchilizer_adapter, loaded_midi_song):
-        encoded = patchilizer_adapter.encode(loaded_midi_song)
-        decoded = patchilizer_adapter.decode(encoded)
-        assert isinstance(decoded, str)  # Assuming the decode method returns a string
-        assert (
-            decoded == loaded_midi_song
-        )  # Assuming the decode method should return the original song

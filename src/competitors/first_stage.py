@@ -3,12 +3,14 @@ from typing import Any
 
 import torch
 import pytorch_lightning as pl
+from pathlib import Path
 
 from src.models.vae import VAE
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 from src.utils import split_dataset
 from src.dataset.dataloader import get_dataloader
 from src.loss import BaseVaeLoss
+from src.constants import ExportFormat
 
 
 class FirstStage(pl.LightningModule):
@@ -66,6 +68,7 @@ class FirstStage(pl.LightningModule):
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
         return loss
+
     def train_dataloader(self):
         return get_dataloader(
             self.train_dataset,
@@ -104,9 +107,18 @@ class FirstStage(pl.LightningModule):
             "monitor": "val_loss",
         }
 
-    def generate(self, z: torch.Tensor) -> list[str]:
+    def generate(
+        self,
+        z: torch.Tensor,
+        file_path: Path,
+        export_format: ExportFormat = ExportFormat.WAV,
+    ) -> list[str]:
         tokenized_songs = self.vae.generate(z)
         songs = []
         for tokenized_song in tokenized_songs:
-            songs.append(self.adapter.decode(tokenized_song))
+            songs.append(
+                self.adapter.decode(
+                    tokenized_song, output_path=file_path, export_format=export_format
+                )
+            )
         return songs

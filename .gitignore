@@ -178,3 +178,5 @@ hydra_outputs/
 lightning_logs/
 wandb/
 outputs/
+
+tests/results
