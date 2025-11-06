@@ -301,6 +301,3 @@ class TestPatchilizer:
             assert len(patch) == new_patch_size
             if i > 1:
                 assert result_padded_patches[i] == [patchilizer.pad_token_id] * new_patch_size
-
-
-

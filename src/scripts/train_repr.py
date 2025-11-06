@@ -30,7 +30,15 @@ def main(cfg: DictConfig) -> None:
     torch.set_float32_matmul_precision(cfg.processing_precision)
     lg.basicConfig(level=cfg.log_level)
 
-    symbolic_music_dataset = get_dataset(cfg.dataset, cfg.adapter)
+    single_data_training = cfg.single_data_training
+    if single_data_training:
+        try:
+            chosen_index = cfg.chosen_index
+        except AttributeError:
+            chosen_index = "RANDOM"
+        wandb.log({"INFO": f"Single Data Training with index: {chosen_index}"})
+        chosen_index = None
+    symbolic_music_dataset = get_dataset(cfg.dataset, cfg.adapter, single_data_training, chosen_index)
     vae_model = get_vae_model(cfg.model, cfg.adapter)
     if cfg.pretrained:
         vae_model.load_pretrained()

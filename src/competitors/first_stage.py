@@ -28,9 +28,12 @@ class FirstStage(pl.LightningModule):
     ) -> None:
         super(FirstStage, self).__init__()
         self.vae = vae
-        self.train_dataset, self.val_dataset = split_dataset(
-            symbolic_music_dataset, train_split
-        )
+        if len(symbolic_music_dataset) >=5:
+            self.train_dataset, self.val_dataset = split_dataset(
+                symbolic_music_dataset, train_split
+            )
+        else:
+            self.train_dataset, self.val_dataset = symbolic_music_dataset, symbolic_music_dataset
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.encoder_learning_rate = encoder_learning_rate
