@@ -13,14 +13,14 @@ class Decoder(nn.Module, ABC):
         latent_dim: int,
         vocab_size: int,
         name: str,
-        patch_count: int,
+        sequence_length: int,
         patch_size: int,
     ) -> None:
         super().__init__()
         self.latent_dim = latent_dim
         self.name = name
         self.vocab_size = vocab_size
-        self.patch_count = patch_count
+        self.sequence_length = sequence_length
         self.patch_size = patch_size
 
     @abstractmethod
@@ -34,9 +34,9 @@ class Decoder(nn.Module, ABC):
         """
         Transform the received tokens to the music form.
         Args:
-            recv_tokens: [batch_size, patch_count, patch_size, vocab_size]
+            recv_tokens: [batch_size, sequence_length, patch_size, vocab_size]
         Returns:
-            music_form: [batch_size, patch_count, patch_size]
+            music_form: [batch_size, sequence_length, patch_size]
         """
 
         return recv_tokens.argmax(dim=-1)
@@ -48,7 +48,7 @@ class DummyDecoder(Decoder):
             latent_dim=latent_dim,
             name="dummy",
             vocab_size=vocab_size,
-            patch_count=64,
+            sequence_length=64,
             patch_size=64,
         )
 
@@ -70,7 +70,7 @@ class Clamp2Decoder(Decoder):
         clamp2_vocab_size: int,
         hidden_size: int,
         num_hidden_layers: int,
-        patch_count: int,
+        sequence_length: int,
         patch_size: int,
         latent_dim: int,
         vocab_size: int,
@@ -79,7 +79,7 @@ class Clamp2Decoder(Decoder):
             latent_dim=latent_dim,
             vocab_size=vocab_size,
             name="clamp2",
-            patch_count=patch_count,
+            sequence_length=sequence_length,
             patch_size=patch_size,
         )
 
@@ -88,7 +88,7 @@ class Clamp2Decoder(Decoder):
             vocab_size=clamp2_vocab_size,  # Typically same as the encoder’s
             hidden_size=hidden_size,
             num_hidden_layers=num_hidden_layers,
-            max_position_embeddings=patch_count,
+            max_position_embeddings=sequence_length,
             num_attention_heads=hidden_size // 64,
             intermediate_size=hidden_size * 4,
         )
@@ -97,7 +97,7 @@ class Clamp2Decoder(Decoder):
         self.patch_decoder = PatchDecoder(
             config=decoder_config,
             patch_size=patch_size,
-            patch_count=patch_count,
+            sequence_length=sequence_length,
             projection_layer=hidden_size,
             vocab_size=self.vocab_size,
         )
@@ -115,11 +115,11 @@ class Clamp2Decoder(Decoder):
             latent_vector: [batch_size, latent_dim]
 
         Returns:
-            patch_logits: [batch_size, patch_count, patch_size, vocab_size]
+            patch_logits: [batch_size, sequence_length, patch_size, vocab_size]
         """
         # Construct an attention mask if desired. For a full-sequence decode, use all 1’s:
         attention_mask = torch.ones(
-            (latent_vector.size(0), self.patch_count),
+            (latent_vector.size(0), self.sequence_length),
             dtype=torch.long,
             device=latent_vector.device,
         )  # TODO think about removing this or use to teach the model to ignore padding
@@ -127,12 +127,12 @@ class Clamp2Decoder(Decoder):
         # Forward through the model
         patch_logits = self.model(
             latent_vectors=latent_vector,
-            patch_count=self.patch_count,
+            sequence_length=self.sequence_length,
             attention_mask=attention_mask,
         )
         patch_logits = patch_logits.view(
             latent_vector.size(0),  # batch_size
-            self.patch_count,
+            self.sequence_length,
             self.patch_size,
             self.vocab_size,
         )
@@ -151,7 +151,7 @@ class ClampDecoder(Decoder):
     def __init__(
         self,
         patchilizer_config: Dict,
-        patch_count: int,
+        sequence_length: int,
         patch_size: int,
         latent_dim: int,
         vocab_size: int,
@@ -160,7 +160,7 @@ class ClampDecoder(Decoder):
             latent_dim=latent_dim,
             vocab_size=vocab_size,
             name="clamp",
-            patch_count=patch_count,
+            sequence_length=sequence_length,
             patch_size=patch_size,
         )
 
@@ -168,7 +168,7 @@ class ClampDecoder(Decoder):
         self.patch_decoder = PatchDecoder(
             config=patchilizer_config,
             patch_size=patch_size,
-            patch_count=patch_count,
+            sequence_length=sequence_length,
             projection_layer=patchilizer_config.hidden_size,
             vocab_size=self.vocab_size,
         )
@@ -185,10 +185,10 @@ class ClampDecoder(Decoder):
         Args:
             latent_vector: [batch_size, latent_dim]
         Returns:
-            patch_logits: [batch_size, patch_count, patch_size, vocab_size]
+            patch_logits: [batch_size, sequence_length, patch_size, vocab_size]
         """
         attention_mask = torch.ones(
-            (latent_vector.size(0), self.patch_count),
+            (latent_vector.size(0), self.sequence_length),
             dtype=torch.long,
             device=latent_vector.device,
         )  # TODO think about removing this or use to teach the model to ignore padding
@@ -196,12 +196,12 @@ class ClampDecoder(Decoder):
         # Forward through the model
         patch_logits = self.model(
             latent_vectors=latent_vector,
-            patch_count=self.patch_count,
+            sequence_length=self.sequence_length,
             attention_mask=attention_mask,
         )
         patch_logits = patch_logits.view(
             latent_vector.size(0),  # batch_size
-            self.patch_count,
+            self.sequence_length,
             self.patch_size,
             self.vocab_size,
         )

@@ -29,11 +29,13 @@ def filter_music_files(filepath: Path, adapter: MusicAdapter) -> None:
 
         song = adapter.encode(song)
 
-        # Truncate or pad the encoded song to match the adapter's patch_count
-        if len(song) > adapter.patch_count:
-            song = torch.tensor(song[: adapter.patch_count])
+        # Truncate or pad the encoded song to match the adapter's sequence_length
+        if len(song) > adapter.sequence_length:
+            song = torch.tensor(song[: adapter.sequence_length])
         else:
-            padded_song = song + [adapter.pad_token] * (adapter.patch_count - len(song))
+            padded_song = song + [adapter.pad_token] * (
+                adapter.sequence_length - len(song)
+            )
             song = torch.tensor(padded_song)
     except Exception as e:
         print(f"Error processing file: {filepath}. Error: {e}, removing this file")
@@ -46,7 +48,7 @@ def get_adapter_config():
             "name": "patchilizer",
             "params": {
                 "patch_size": 64,
-                "patch_count": 512,
+                "sequence_length": 512,
                 "add_special_patches": False,
                 "truncate": True,
                 "random_truncate": False,

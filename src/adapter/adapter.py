@@ -30,22 +30,21 @@ class MusicAdapter:
             ret_music = ret_music.strip()
         return ret_music
 
+    def get_padded_sequence(self, music_file: list[list[int]]) -> list[list[int]]:
+        return self._adapter.get_padded_sequence(music_file)
+
     @property
-    def patch_count(self) -> int | None:
-        if not self.adapter_type == MusicAdapterType.PATCHILIZER:
-            return None
-        return self._adapter.patch_count
+    def sequence_length(self) -> int | None:
+        return self._adapter.sequence_length
 
     @property
     def pad_token(self) -> int | None:
-        if not self.adapter_type == MusicAdapterType.PATCHILIZER:
-            return None
         return self._adapter.pad_token_id
 
     @property
     def patch_size(self) -> int | None:
         if not self.adapter_type == MusicAdapterType.PATCHILIZER:
-            return None
+            return 1
         return self._adapter.patch_size
 
     @staticmethod
@@ -55,6 +54,6 @@ class MusicAdapter:
         if preprocessor_name == MusicAdapterType.PATCHILIZER:
             return MusicPatchilizer(**preprocessor_config)
         elif preprocessor_name == MusicAdapterType.TOKENIZER:
-            return get_tokenizer(preprocessor_config)
+            return get_tokenizer(**preprocessor_config)
         else:
             raise ValueError(f"Unknown preprocessor: {preprocessor_name}")

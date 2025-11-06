@@ -14,8 +14,9 @@ from src.utils import (
     rename_state_dict_keys,
     remove_state_dict_keys,
     save_midi_song_from_string,
+    convert_midi_to_string,
+    convert_mido_to_score,
 )
-from src.utils import load_midi_song, convert_mido_to_score, convert_midi_to_string
 from mido import MidiFile as MidoMidiFile
 from symusic import Score
 
@@ -370,3 +371,20 @@ class TestSymbolicMusicTools:
         new_file_path = tmp_path / "new_file.mid"
         save_midi_song_from_string(midi_song_as_string, new_file_path)
         assert new_file_path.exists(), "The new MIDI file should exist"
+
+    @staticmethod
+    @pytest.mark.skip(reason="Not working properly yet")
+    def test_convert_abc_to_score(loaded_abc_song_3, test_results_path, request):
+        loaded_abc_song = loaded_abc_song_3
+        folder_path = test_results_path / f"{request.node.parent.name}.{request.node.name}"
+        folder_path.mkdir(parents=True, exist_ok=True)
+        original_abc_path = folder_path / "original.abc"
+        with open(original_abc_path, "w") as f:
+            f.write(loaded_abc_song)
+        decoded_abc_path = folder_path / "decoded.abc"
+        score = Score.from_abc(loaded_abc_song)
+        score.dump_abc(path=decoded_abc_path.as_posix())
+        assert decoded_abc_path.exists(), "The decoded ABC file should exist"
+        with open(decoded_abc_path, "r") as f:
+            decoded_content = f.read()
+        assert (decoded_content == loaded_abc_song), "The decoded ABC content should match the original"

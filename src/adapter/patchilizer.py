@@ -13,6 +13,7 @@ from src.utils import (
     create_midi_file_from_string,
     convert_mido_to_score,
     export_to_wav,
+    convert_abc_to_score,
 )
 
 
@@ -20,7 +21,7 @@ class MusicPatchilizer:
     def __init__(
         self,
         patch_size: int,
-        patch_count: int,
+        sequence_length: int,
         add_special_patches: bool = False,
         truncate: bool = False,
         random_truncate: bool = False,
@@ -32,7 +33,7 @@ class MusicPatchilizer:
         self.eos_token_id = 2
         self.mask_token_id = 3
         self.patch_size = patch_size
-        self.patch_count = patch_count
+        self.sequence_length = sequence_length
         self.add_special_patches = add_special_patches
         self.truncate = truncate
         self.random_truncate = random_truncate
@@ -73,7 +74,8 @@ class MusicPatchilizer:
                         f.write(ret_music)
                     return output_path
                 case ExportFormat.WAV:
-                    raise NotImplemented("ABC to WAV export is not implemented yet")
+                    abc_score = convert_abc_to_score(ret_music)
+                    export_to_wav(abc_score, output_path)
                 case _:
                     raise ValueError(f"Export format {export_format} is not supported")
         return output_path
@@ -116,16 +118,16 @@ class MusicPatchilizer:
             eos_patch = chr(self.eos_token_id) * self.patch_size
             patches = [bos_patch] + patches + [eos_patch]
 
-        if len(patches) > self.patch_count and self.truncate:
+        if len(patches) > self.sequence_length and self.truncate:
             choices = ["head", "tail", "middle"]
             choice = random.choice(choices)
             if choice == "head" or self.random_truncate is False:
-                patches = patches[: self.patch_count]
+                patches = patches[: self.sequence_length]
             elif choice == "tail":
-                patches = patches[-self.patch_count :]
+                patches = patches[-self.sequence_length :]
             else:
-                start = random.randint(1, len(patches) - self.patch_count)
-                patches = patches[start : start + self.patch_count]
+                start = random.randint(1, len(patches) - self.sequence_length)
+                patches = patches[start : start + self.sequence_length]
 
         patches = [self._bar2patch(patch) for patch in patches]
 
@@ -148,3 +150,9 @@ class MusicPatchilizer:
 
     def _patch2bar(self, patch: list[int]) -> str:
         return "".join(chr(idx) if idx > self.mask_token_id else "" for idx in patch)
+
+    def get_padded_sequence(self, music_file: list[list[int]]) -> list[list[int]]:
+        padded_bar = [self.pad_token_id] * self.patch_size
+        padded_music_file = [padded_bar] * (self.sequence_length - len(music_file))
+        new_music_file = music_file + padded_music_file
+        return new_music_file

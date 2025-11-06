@@ -10,14 +10,14 @@ def get_vae_model(model_cfg: DictConfig, adapter_cfg: DictConfig) -> VAE:
     encoder_obj = encoder_mapper(model_cfg.encoder.name)(
         latent_dim=model_cfg.latent_dim,
         vocab_size=model_cfg.vocab_size,
-        patch_count=adapter_cfg.params.patch_count,
+        sequence_length=adapter_cfg.params.sequence_length,
         patch_size=adapter_cfg.params.patch_size,
         **model_cfg.encoder.params,
     )
     decoder_obj = decoder_mapper(model_cfg.decoder.name)(
         latent_dim=model_cfg.latent_dim,
         vocab_size=model_cfg.vocab_size,
-        patch_count=adapter_cfg.params.patch_count,
+        sequence_length=adapter_cfg.params.sequence_length,
         patch_size=adapter_cfg.params.patch_size,
         **model_cfg.decoder.params,
     )
@@ -25,12 +25,10 @@ def get_vae_model(model_cfg: DictConfig, adapter_cfg: DictConfig) -> VAE:
     return model
 
 
-def get_discriminator(
-    discriminator_cfg: DictConfig, adapter_cfg: DictConfig, vocab_size: int
-) -> Discriminator:
+def get_discriminator(discriminator_cfg: DictConfig, vocab_size: int) -> Discriminator:
     discriminator_obj = discriminator_mapper(discriminator_cfg.name)(
-        patch_count=adapter_cfg.params.patch_count,
-        patch_size=adapter_cfg.params.patch_size,
+        sequence_length=discriminator_cfg.sequence_length,
+        patch_size=discriminator_cfg.patch_size,
         vocab_size=vocab_size,
         **discriminator_cfg.params,
     )

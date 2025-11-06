@@ -1,10 +1,11 @@
-from pathlib import Path
+from music21 import converter
 from typing import Tuple, Dict
 import requests
 import symusic
 import torch
 from tqdm import tqdm
 import logging as lg
+import io
 
 import mido
 from mido.messages.messages import Message
@@ -321,6 +322,12 @@ def remove_state_dict_keys(
                 break
             new_state_dict[keys_string] = state_dict[keys_string]
     return new_state_dict
+
+
+def convert_abc_to_score(abc_string: str) -> symusic.Score:
+    score = Score()
+    score.from_abc(abc_string)
+    return score
 
 
 def export_to_wav(

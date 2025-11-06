@@ -188,7 +188,7 @@ class TestPatchilizer:
     @staticmethod
     def test_truncate_head(patchilizer, monkeypatch):
         patchilizer.truncate = True
-        patchilizer.patch_count = 2
+        patchilizer.sequence_length = 2
         patchilizer.random_truncate = False
         monkeypatch.setattr(patchilizer, "_bar2patch", lambda bar: [ord(bar[0])])
         item = "X:1\nY:2\nZ:3\n"
@@ -199,7 +199,7 @@ class TestPatchilizer:
     @staticmethod
     def test_truncate_tail(patchilizer, monkeypatch):
         patchilizer.truncate = True
-        patchilizer.patch_count = 1
+        patchilizer.sequence_length = 1
         patchilizer.random_truncate = True
         monkeypatch.setattr(patchilizer, "_bar2patch", lambda bar: [ord(bar[0])])
 
@@ -214,7 +214,7 @@ class TestPatchilizer:
     @staticmethod
     def test_truncate_middle(patchilizer, monkeypatch):
         patchilizer.truncate = True
-        patchilizer.patch_count = 1
+        patchilizer.sequence_length = 1
         patchilizer.random_truncate = True
         monkeypatch.setattr(patchilizer, "_bar2patch", lambda bar: [ord(bar[0])])
 
@@ -285,4 +285,22 @@ class TestPatchilizer:
         assert isinstance(output_file, Path)
         assert output_file.exists()
         assert output_file == output_abc_path
+
+    @staticmethod
+    @staticmethod
+    def test_get_padded_sequence(patchilizer: MusicPatchilizer):
+        new_sequence_len = 8
+        new_patch_size = 5
+        patchilizer.patch_size = new_patch_size
+        patchilizer.sequence_length = new_sequence_len
+        example_patch = [[5, 5, 5, 5, 5], [4, 4, 4, 4, 4]]
+        result_padded_patches = patchilizer.get_padded_sequence(example_patch)
+        assert isinstance(result_padded_patches, list)
+        assert len(result_padded_patches) == new_sequence_len
+        for i, patch in enumerate(result_padded_patches):
+            assert len(patch) == new_patch_size
+            if i > 1:
+                assert result_padded_patches[i] == [patchilizer.pad_token_id] * new_patch_size
+
+
 

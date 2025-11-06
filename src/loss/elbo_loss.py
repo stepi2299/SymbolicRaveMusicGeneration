@@ -34,8 +34,8 @@ class ElboLoss(BaseVaeLoss):
         recon_loss = torch.nn.functional.cross_entropy(
             reconstruction.view(
                 -1, self._vocab_size
-            ),  # Reshape to (batch*patch_count, vocab_size)
-            org_data.view(-1),  # Reshape to (batch*patch_count)
+            ),  # Reshape to (batch*sequence_length, vocab_size)
+            org_data.view(-1),  # Reshape to (batch*sequence_length)
         )
         kl_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
         kl_div = torch.mean(kl_div)

@@ -29,16 +29,18 @@ class PatchEncoder(PreTrainedModel):
 
     def forward(
         self,
-        input_patches: torch.Tensor,  # [batch_size, patch_count, patch_size]
-        input_masks: torch.Tensor,  # [batch_size, patch_count]
-    ) -> torch.Tensor:  # [batch_size, patch_count, projection_layer]
+        input_patches: torch.Tensor,  # [batch_size, sequence_length, patch_size]
+        input_masks: torch.Tensor,  # [batch_size, sequence_length]
+    ) -> torch.Tensor:  # [batch_size, sequence_length, projection_layer]
         # Transform input_patches into embeddings
         input_patches = torch.nn.functional.one_hot(
             input_patches, num_classes=self.vocab_size
-        )  # [batch_size, patch_count, patch_size, vocab_size]
+        )  # [batch_size, sequence_length, patch_size, vocab_size]
         input_patches = input_patches.reshape(
             len(input_patches), -1, self.patch_size * self.vocab_size
-        ).type(torch.FloatTensor)  # [batch_size, patch_count, patch_size * vocab_size]
+        ).type(
+            torch.FloatTensor
+        )  # [batch_size, sequence_length, patch_size * vocab_size]
         input_patches = self.patch_embedding(input_patches.to(self.device))
 
         # Apply BERT model to input_patches and input_masks
@@ -55,14 +57,14 @@ class PatchDecoder(PreTrainedModel):
         self,
         config: BertConfig,
         patch_size: int,
-        patch_count: int,
+        sequence_length: int,
         projection_layer: int,
         vocab_size: int,
     ) -> None:
         super().__init__(config)
         self.config = config
         self.patch_size = patch_size
-        self.patch_count = patch_count
+        self.sequence_length = sequence_length
         self.projection_layer = projection_layer
         self.vocab_size = vocab_size
 
@@ -78,7 +80,7 @@ class PatchDecoder(PreTrainedModel):
 
     def forward(
         self,
-        inputs_embeds: torch.Tensor,  # [batch_size, patch_count, projection_layer]
+        inputs_embeds: torch.Tensor,  # [batch_size, sequence_length, projection_layer]
         attention_mask: torch.Tensor = None,
     ):
         """
@@ -86,7 +88,7 @@ class PatchDecoder(PreTrainedModel):
             inputs_embeds: The 'decoded' embeddings to pass through BERT.
             attention_mask: Optional, same usage as in BERT.
         Returns:
-            patch_logits: [batch_size, patch_count, patch_size * 128]
+            patch_logits: [batch_size, sequence_length, patch_size * 128]
         """
 
         # Run "decoder" BERT
@@ -98,12 +100,12 @@ class PatchDecoder(PreTrainedModel):
         # Take BERT’s last hidden states
         hidden_states = (
             decoder_outputs.last_hidden_state
-        )  # [batch_size, patch_count, hidden_size]
+        )  # [batch_size, sequence_length, hidden_size]
 
         # Project back to patch space (logits)
         patch_logits = self.patch_embedding_inv(
             hidden_states
-        )  # [batch_size, patch_count, patch_size*vocab_size]
+        )  # [batch_size, sequence_length, patch_size*vocab_size]
 
         return patch_logits
 
@@ -139,9 +141,9 @@ class CLaMPModel(PreTrainedModel):
         Applies average pooling to the input features.
 
         Args:
-            input_features (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, patch_count, hidden_size)`):
+            input_features (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, sequence_length, hidden_size)`):
                 Tensor containing the input features.
-            input_masks (:obj:`torch.LongTensor` of shape :obj:`(batch_size, patch_count)`):
+            input_masks (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`):
                 Tensor containing the attention masks for the input features.
 
         Returns:
@@ -167,47 +169,47 @@ class CLaMPDecoderModel(PreTrainedModel):
 
         # Project the latent vector to patch_decoder's projection_layer size
         self.latent_proj = torch.nn.Linear(
-            latent_dim, patch_decoder.projection_layer * patch_decoder.patch_count
+            latent_dim, patch_decoder.projection_layer * patch_decoder.sequence_length
         )
         torch.nn.init.normal_(self.latent_proj.weight, std=0.02)
 
     def expand_latent(
-        self, latent_vectors: torch.Tensor, patch_count: int
+        self, latent_vectors: torch.Tensor, sequence_length: int
     ) -> torch.Tensor:
         """
         Expand a batch of latent vectors [batch_size, latent_dim]
-        into a sequence of embeddings [batch_size, patch_count, projection_layer].
-        One simple approach is to tile the latent vector across patch_count.
+        into a sequence of embeddings [batch_size, sequence_length, projection_layer].
+        One simple approach is to tile the latent vector across sequence_length.
         """
         # Project latent to the same dimension as patch_decoder expects
         # i.e., `projection_layer` dimension
         batch_size = latent_vectors.size(0)
         projected = self.latent_proj(
             latent_vectors
-        )  # [batch_size, projection_layer * patch_count]
+        )  # [batch_size, projection_layer * sequence_length]
 
         projected = projected.view(
-            batch_size, patch_count, self.patch_decoder.projection_layer
-        )  # [batch_size, patch_count, projection_layer]
+            batch_size, sequence_length, self.patch_decoder.projection_layer
+        )  # [batch_size, sequence_length, projection_layer]
         return projected
 
     def forward(
         self,
         latent_vectors: torch.Tensor,  # [batch_size, latent_dim]
-        patch_count: int,
+        sequence_length: int,
         attention_mask: torch.Tensor = None,
     ) -> torch.Tensor:
         """
-        Goes from [batch_size, latent_dim] -> [batch_size, patch_count, patch_size*vocab_size]
+        Goes from [batch_size, latent_dim] -> [batch_size, sequence_length, patch_size*vocab_size]
         """
         # Expand latent vector to match the sequence dimension
         inputs_embeds = self.expand_latent(
-            latent_vectors, patch_count
-        )  # [batch_size, patch_count, projection_layer]
+            latent_vectors, sequence_length
+        )  # [batch_size, sequence_length, projection_layer]
 
         # Decode to patch logits
         patch_logits = self.patch_decoder(
             inputs_embeds=inputs_embeds, attention_mask=attention_mask
-        )  # [batch_size, patch_count, patch_size*vocab_size]
+        )  # [batch_size, sequence_length, patch_size*vocab_size]
 
         return patch_logits

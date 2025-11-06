@@ -29,14 +29,20 @@ class Tokenizer:
         "mumidi": MuMIDI,
         "mmm": MMM,
     }
+    TOKENIZER_BASE_PATH = base_weights_path / "tokenizers"
 
     def __init__(
-        self, tokenizer_name: str, training_model: str, vocab_size: int
+        self,
+        tokenizer_name: str,
+        training_model: str,
+        vocab_size: int,
+        sequence_length: int,
+        **kwargs,
     ) -> None:
         self.tokenizer_name = tokenizer_name
         self.training_model = training_model
         self.vocab_size = vocab_size
-        self.tokenizer_base_path = base_weights_path / "tokenizers"
+        self.sequence_length = sequence_length
         if tokenizer_name not in self.TOKENIZER_MAPPER:
             raise ValueError(
                 f"Tokenizer {tokenizer_name} not supported, supported tokenizers "
@@ -118,18 +124,48 @@ class Tokenizer:
     @property
     def cache_tokenizer_path(self) -> Path:
         return (
-            self.tokenizer_base_path
+            self.TOKENIZER_BASE_PATH
             / f"{self.tokenizer_name}_{self.training_model}_{self.vocab_size}.json"
         )
 
+    def get_padded_sequence(self, music_file: list[list[int]]) -> list[list[int]]:
+        token_sequence = music_file[0]
+        if len(token_sequence) < self.sequence_length:
+            padded_sequence = (
+                [self.bos_token_id]
+                + token_sequence
+                + [self.pad_token_id] * (self.sequence_length - len(token_sequence) - 2)
+                + [self.eos_token_id]
+            )
+        else:
+            padded_sequence = (
+                [self.bos_token_id]
+                + token_sequence[: self.sequence_length - 2]
+                + [self.eos_token_id]
+            )
+        return [padded_sequence]
 
-def get_tokenizer(cfg: DictConfig, force: bool = False) -> Tokenizer:
+    @property
+    def pad_token_id(self) -> int:
+        return self.tokenizer.pad_token_id
+
+    @property
+    def eos_token_id(self) -> int:
+        return self.tokenizer["EOS_None"]
+
+    @property
+    def bos_token_id(self) -> int:
+        return self.tokenizer["BOS_None"]
+
+
+def get_tokenizer(
+    tokenizer: str, training_model: str, force: bool = False, **kwargs
+) -> Tokenizer:
+    dataset_name: str = kwargs.pop("dataset_name")
     tokenizer = Tokenizer(
-        tokenizer_name=cfg.tokenizer,
-        training_model=cfg.training_model,
-        vocab_size=cfg.vocab_size,
+        tokenizer_name=tokenizer, training_model=training_model, **kwargs
     )
     if force or not tokenizer.is_trained:
-        dataset_path = (base_dataset_path / cfg.dataset_name).resolve(True)
+        dataset_path = (base_dataset_path / dataset_name).resolve(True)
         tokenizer.train(files_path=dataset_path)
     return tokenizer

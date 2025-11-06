@@ -25,7 +25,7 @@ class Encoder(nn.Module, ABC):
         self,
         latent_dim: int,
         vocab_size: int,
-        patch_count: int,
+        sequence_length: int,
         patch_size: int,
         name: str,
     ) -> None:
@@ -33,7 +33,7 @@ class Encoder(nn.Module, ABC):
         self.latent_dim = latent_dim
         self.name = name
         self.vocab_size = vocab_size
-        self.patch_count = patch_count
+        self.sequence_length = sequence_length
         self.patch_size = patch_size
 
     @abstractmethod
@@ -51,7 +51,7 @@ class DummyEncoder(Encoder):
             vocab_size=vocab_size,
             name="dummy",
             patch_size=64,
-            patch_count=64,
+            sequence_length=64,
         )
 
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -66,7 +66,7 @@ class Clamp2Encoder(Encoder):
         clamp2_vocab_size: int,
         hidden_size: int,
         num_hidden_layers: int,
-        patch_count: int,
+        sequence_length: int,
         patch_size: int,
         latent_dim: int,
         vocab_size: int,
@@ -76,7 +76,7 @@ class Clamp2Encoder(Encoder):
             latent_dim=latent_dim,
             name="clamp2",
             vocab_size=vocab_size,
-            patch_count=patch_count,
+            sequence_length=sequence_length,
             patch_size=patch_size,
         )
         self.device = get_possible_device()
@@ -85,7 +85,7 @@ class Clamp2Encoder(Encoder):
             vocab_size=clamp2_vocab_size,
             hidden_size=hidden_size,
             num_hidden_layers=num_hidden_layers,
-            max_position_embeddings=patch_count,
+            max_position_embeddings=sequence_length,
             num_attention_heads=hidden_size // 64,
             intermediate_size=hidden_size * 4,
         )
@@ -150,7 +150,7 @@ class ClampEncoder(Encoder):
     def __init__(
         self,
         patchilizer_config: Dict,
-        patch_count: int,
+        sequence_length: int,
         patch_size: int,
         latent_dim: int,
         vocab_size: int,
@@ -160,7 +160,7 @@ class ClampEncoder(Encoder):
             latent_dim=latent_dim,
             name="clamp",
             vocab_size=vocab_size,
-            patch_count=patch_count,
+            sequence_length=sequence_length,
             patch_size=patch_size,
         )
         self.device = get_possible_device()  #  TODO probbly to remove
