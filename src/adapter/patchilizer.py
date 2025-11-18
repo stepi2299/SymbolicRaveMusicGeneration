@@ -25,6 +25,7 @@ class MusicPatchilizer:
         add_special_patches: bool = False,
         truncate: bool = False,
         random_truncate: bool = False,
+        vocab_size: int = 128,
     ) -> None:
         self.delimiters = ["|:", "::", ":|", "[|", "||", "|]", "|"]
         self.regexPattern = "(" + "|".join(map(re.escape, self.delimiters)) + ")"
@@ -37,6 +38,7 @@ class MusicPatchilizer:
         self.add_special_patches = add_special_patches
         self.truncate = truncate
         self.random_truncate = random_truncate
+        self.vocab_size = vocab_size
 
     def encode(
         self,
