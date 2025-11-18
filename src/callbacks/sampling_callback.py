@@ -3,7 +3,7 @@ import logging as lg
 from pathlib import Path
 
 from pytorch_lightning.callbacks import Callback
-from src.utils import save_midi_song_from_string
+from src.constants import ExportFormat
 
 logger = lg.getLogger(__name__)
 
@@ -19,6 +19,7 @@ class SamplingCallback(Callback):
         output_dir: str,
         sample_interval: int = 1,
         num_samples: int = 2,
+        export_format: str = "wav",
     ):
         """
         sample_interval: epochs between sample generations
@@ -32,6 +33,7 @@ class SamplingCallback(Callback):
         output_dir = Path(output_dir)
         self.output_dir = output_dir / "samples"
         self.output_dir.mkdir(parents=True, exist_ok=False)
+        self.export_format = ExportFormat(export_format)
 
     def on_train_epoch_end(self, trainer, pl_module):
         """Called when the epoch ends."""
@@ -44,19 +46,23 @@ class SamplingCallback(Callback):
                 z = torch.randn(
                     self.num_samples, self.latent_dim, device=pl_module.device
                 )
-                generated = pl_module.generate(z)
-
-            logger.info(f"=== [SamplingCallback] Samples at epoch {current_epoch} ===")
-            logger.info(
-                f"Generated songs: {len(generated)}",
-            )
-            for i, song in enumerate(generated):
+                logger.info(
+                    f"=== [SamplingCallback] Samples at epoch {current_epoch} ==="
+                )
                 try:
-                    file_name = self.output_dir / f"sample_{current_epoch}_{i + 1}.mid"
-                    save_midi_song_from_string(song, file_name)
-                    logger.info(f"Sample {i + 1} successfully saved to {file_name}")
+                    paths_to_gen = pl_module.generate(
+                        z,
+                        folder_path=self.output_dir,
+                        file_name=f"sample_{current_epoch}",
+                        export_format=self.export_format,
+                    )
+                    logger.info(
+                        f"Generated samples from epoch: {current_epoch} in format: {self.export_format} "
+                        f"in path: {paths_to_gen}"
+                    )
                 except Exception as e:
-                    logger.error(f"Error saving sample {i + 1}: {e}")
-                    continue
+                    logger.warning(
+                        f"Failed in songs generation on epoch: {current_epoch}, error: {e}"
+                    )
 
             pl_module.train()

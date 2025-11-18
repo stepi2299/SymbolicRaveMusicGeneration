@@ -36,11 +36,18 @@ class PatchEncoder(PreTrainedModel):
         input_patches = torch.nn.functional.one_hot(
             input_patches, num_classes=self.vocab_size
         )  # [batch_size, sequence_length, patch_size, vocab_size]
-        input_patches = input_patches.reshape(
-            len(input_patches), -1, self.patch_size * self.vocab_size
-        ).type(
-            torch.FloatTensor
-        )  # [batch_size, sequence_length, patch_size * vocab_size]
+        if len(input_patches.shape) != 3:
+            input_patches = input_patches.reshape(
+                len(input_patches), -1, self.patch_size * self.vocab_size
+            ).type(
+                torch.FloatTensor
+            )  # [batch_size, sequence_length, patch_size * vocab_size]
+        else:
+            input_patches = input_patches.reshape(
+                len(input_patches), -1, self.vocab_size
+            ).type(
+                torch.FloatTensor
+            )  # [batch_size, sequence_length, patch_size * vocab_size]
         input_patches = self.patch_embedding(input_patches.to(self.device))
 
         # Apply BERT model to input_patches and input_masks

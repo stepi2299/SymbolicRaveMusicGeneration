@@ -58,9 +58,11 @@ class MusicPatchilizer:
         if symbolic_format == SymbolicMusicFormat.MIDI:
             match export_format:
                 case ExportFormat.SYMBOLIC:
+                    output_path = output_path.with_suffix(".mid")
                     midi_file = create_midi_file_from_string(ret_music)
                     midi_file.save(output_path)
                 case ExportFormat.WAV:
+                    output_path = output_path.with_suffix(".wav")
                     score = convert_mido_to_score(
                         create_midi_file_from_string(ret_music)
                     )
@@ -70,10 +72,12 @@ class MusicPatchilizer:
         if symbolic_format == SymbolicMusicFormat.ABC:
             match export_format:
                 case ExportFormat.SYMBOLIC:
+                    output_path = output_path.with_suffix(".abc")
                     with open(output_path, "w") as f:
                         f.write(ret_music)
                     return output_path
                 case ExportFormat.WAV:
+                    output_path = output_path.with_suffix(".wav")
                     abc_score = convert_abc_to_score(ret_music)
                     export_to_wav(abc_score, output_path)
                 case _:

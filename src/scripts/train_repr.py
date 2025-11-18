@@ -38,7 +38,9 @@ def main(cfg: DictConfig) -> None:
             chosen_index = "RANDOM"
         wandb.log({"INFO": f"Single Data Training with index: {chosen_index}"})
         chosen_index = None
-    symbolic_music_dataset = get_dataset(cfg.dataset, cfg.adapter, single_data_training, chosen_index)
+    symbolic_music_dataset = get_dataset(
+        cfg.dataset, cfg.adapter, single_data_training, chosen_index
+    )
     vae_model = get_vae_model(cfg.model, cfg.adapter)
     if cfg.pretrained:
         vae_model.load_pretrained()

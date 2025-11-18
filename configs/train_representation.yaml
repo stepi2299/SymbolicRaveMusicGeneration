@@ -1,7 +1,7 @@
 
 defaults:
   - dataset: maestro     # default dataset
-  - adapter: patchilizer  # default adapter
+  - adapter: tokenizer  # default adapter
   - model: clamp2_vae     # default model
   - _self_
 
@@ -25,7 +25,7 @@ seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
 pretrained: false  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-single_data_training: false # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
+single_data_training: true # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
 
 loss: elbo  # name of the loss function to use, possible: elbo
 

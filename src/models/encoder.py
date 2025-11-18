@@ -134,7 +134,10 @@ class Clamp2Encoder(Encoder):
         download_file(self.weights_url, self.weights_path, verbose=True)
 
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        masks = (data != 0).any(dim=-1).long()
+        if data.dim() == 3:
+            masks = (data != 0).any(dim=-1).long()
+        else:
+            masks = (data != 0).long()
 
         hidden_states = self.model.get_music_features(
             music_inputs=data, music_masks=masks

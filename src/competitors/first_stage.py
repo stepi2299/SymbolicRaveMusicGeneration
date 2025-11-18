@@ -28,12 +28,15 @@ class FirstStage(pl.LightningModule):
     ) -> None:
         super(FirstStage, self).__init__()
         self.vae = vae
-        if len(symbolic_music_dataset) >=5:
+        if len(symbolic_music_dataset) >= 5:
             self.train_dataset, self.val_dataset = split_dataset(
                 symbolic_music_dataset, train_split
             )
         else:
-            self.train_dataset, self.val_dataset = symbolic_music_dataset, symbolic_music_dataset
+            self.train_dataset, self.val_dataset = (
+                symbolic_music_dataset,
+                symbolic_music_dataset,
+            )
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.encoder_learning_rate = encoder_learning_rate
@@ -113,15 +116,22 @@ class FirstStage(pl.LightningModule):
     def generate(
         self,
         z: torch.Tensor,
-        file_path: Path,
+        folder_path: Path,
+        file_name: str = "generated_song",
         export_format: ExportFormat = ExportFormat.WAV,
     ) -> list[str]:
         tokenized_songs = self.vae.generate(z)
+        folder_path.resolve(True)
+        if not folder_path.is_dir():
+            raise ValueError(
+                f"{folder_path} is not a valid directory when trying to generate songs."
+            )
         songs = []
-        for tokenized_song in tokenized_songs:
+        for i, tokenized_song in enumerate(tokenized_songs):
+            output_path = folder_path / f"{file_name}_{i}"
             songs.append(
                 self.adapter.decode(
-                    tokenized_song, output_path=file_path, export_format=export_format
+                    tokenized_song, output_path=output_path, export_format=export_format
                 )
             )
         return songs

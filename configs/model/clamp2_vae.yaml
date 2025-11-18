@@ -1,6 +1,5 @@
 name: clamp2_vae
 latent_dim: 768
-vocab_size: 128
 encoder:
   name: clamp2
   params:

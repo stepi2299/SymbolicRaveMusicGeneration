@@ -30,14 +30,10 @@ class TestTokenizer:
     @staticmethod
     def test_encode(remi_tokenizer: Tokenizer, loaded_midi_song):
         assert remi_tokenizer.is_trained is False
-        encoded = remi_tokenizer.encode(loaded_midi_song, symbolic_format=SymbolicMusicFormat.MIDI)
-        assert isinstance(encoded, list)
-        assert len(encoded) == 1  # TODO check in future
-        for patch in encoded:
-            assert isinstance(patch, list)
-            print(max(patch))
-            for token in patch:
-                assert isinstance(token, int)
+        sequence = remi_tokenizer.encode(loaded_midi_song, symbolic_format=SymbolicMusicFormat.MIDI)
+        assert isinstance(sequence, list)
+        for token in sequence:
+            assert isinstance(token, int)
 
     @staticmethod
     def test_decode_midi_wav(remi_tokenizer: Tokenizer, loaded_midi_song, test_results_path, request):
@@ -109,11 +105,10 @@ class TestTokenizer:
         example_sequence = [[10, 50, 20, 3, 4, 5, 6, 7, 8, 9, 10]]
         result_padded_sequence = remi_tokenizer.get_padded_sequence(example_sequence)
         assert isinstance(result_padded_sequence, list)
-        assert len(result_padded_sequence) == 1
-        assert len(result_padded_sequence[0]) == remi_tokenizer.sequence_length
-        assert result_padded_sequence[0][-1] == remi_tokenizer.eos_token_id
-        assert result_padded_sequence[0][-2] == remi_tokenizer.pad_token_id
-        assert result_padded_sequence[0][0] == remi_tokenizer.bos_token_id
+        assert len(result_padded_sequence) == remi_tokenizer.sequence_length
+        assert result_padded_sequence[-1] == remi_tokenizer.eos_token_id
+        assert result_padded_sequence[-2] == remi_tokenizer.pad_token_id
+        assert result_padded_sequence[0] == remi_tokenizer.bos_token_id
 
 
 

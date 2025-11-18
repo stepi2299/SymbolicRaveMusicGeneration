@@ -62,7 +62,7 @@ class Tokenizer:
 
     def encode(
         self, music_file: MidoMidiFile, symbolic_format: SymbolicMusicFormat
-    ) -> list[list[int]]:
+    ) -> list[int]:
         if symbolic_format == SymbolicMusicFormat.ABC:
             raise ValueError("ABC format is not supported for tokenizer")
         if not self._is_trained:
@@ -71,11 +71,11 @@ class Tokenizer:
             music_file
         )  # Change from mido into symusic.Score
         tok_sequence = self.tokenizer(midi_score)[0].ids
-        return [tok_sequence]
+        return tok_sequence
 
     def decode(
         self,
-        tensor_tokens: list[list[int]],
+        tensor_tokens: list[int],
         symbolic_format: SymbolicMusicFormat,
         output_path: Path,
         export_format: ExportFormat = ExportFormat.WAV,
@@ -84,12 +84,14 @@ class Tokenizer:
             raise ValueError("ABC format is not supported for tokenizer")
         if not self._is_trained:
             logger.warning(f"Tokenizer is not trained")
-        score = self.tokenizer.decode(tensor_tokens)
+        score = self.tokenizer.decode([tensor_tokens])
         match export_format:
             case ExportFormat.SYMBOLIC:
+                output_path = output_path.with_suffix(".mid")
                 score.dump_midi(path=output_path.as_posix())
                 return output_path
             case ExportFormat.WAV:
+                output_path = output_path.with_suffix(".wav")
                 export_to_wav(score, output_path)
                 return output_path
             case _:
@@ -128,22 +130,21 @@ class Tokenizer:
             / f"{self.tokenizer_name}_{self.training_model}_{self.vocab_size}.json"
         )
 
-    def get_padded_sequence(self, music_file: list[list[int]]) -> list[list[int]]:
-        token_sequence = music_file[0]
-        if len(token_sequence) < self.sequence_length:
+    def get_padded_sequence(self, music_file: list[int]) -> list[int]:
+        if len(music_file) < self.sequence_length:
             padded_sequence = (
                 [self.bos_token_id]
-                + token_sequence
-                + [self.pad_token_id] * (self.sequence_length - len(token_sequence) - 2)
+                + music_file
+                + [self.pad_token_id] * (self.sequence_length - len(music_file) - 2)
                 + [self.eos_token_id]
             )
         else:
             padded_sequence = (
                 [self.bos_token_id]
-                + token_sequence[: self.sequence_length - 2]
+                + music_file[: self.sequence_length - 2]
                 + [self.eos_token_id]
             )
-        return [padded_sequence]
+        return padded_sequence
 
     @property
     def pad_token_id(self) -> int:

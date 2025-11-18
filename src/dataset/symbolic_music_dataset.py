@@ -35,13 +35,18 @@ class SymbolicMusicDataset(Dataset, ABC):
         if self._single_data_training:
             if self._index_of_overtrained is not None:
                 if index_of_overtrained >= len(self.music_files_paths):
-                    raise ValueError(f"Index of overtrained music files: {self._index_of_overtrained} is out of range."
-                                     f"Files range: {len(self.music_files_paths)}")
+                    raise ValueError(
+                        f"Index of overtrained music files: {self._index_of_overtrained} is out of range."
+                        f"Files range: {len(self.music_files_paths)}"
+                    )
                 self.music_files_paths = [self.music_files_paths[index_of_overtrained]]
             else:
-                self._index_of_overtrained = random.randint(0, len(self.music_files_paths) - 1)
-                self.music_files_paths = [self.music_files_paths[self._index_of_overtrained]]
-
+                self._index_of_overtrained = random.randint(
+                    0, len(self.music_files_paths) - 1
+                )
+                self.music_files_paths = [
+                    self.music_files_paths[self._index_of_overtrained]
+                ]
 
     @abstractmethod
     def imread_music_files(self) -> list[Path]:
@@ -100,7 +105,7 @@ class AbcDataset(SymbolicMusicDataset):
         load_music_function: Callable[[Path], str] = load_abc_song,
         transform: Callable[[str], str] | None = None,
         single_data_training: bool = False,
-        index_of_overtrained: int | None = None
+        index_of_overtrained: int | None = None,
     ) -> None:
         super(AbcDataset, self).__init__(
             dataset_path=dataset_path,
