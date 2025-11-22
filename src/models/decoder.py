@@ -1,10 +1,7 @@
 import torch
 from torch import nn
 from abc import ABC, abstractmethod
-from typing import Type, Dict
-
-from transformers import BertConfig
-from src.models.clamp import CLaMPDecoderModel, PatchDecoder
+from typing import Type
 
 
 class Decoder(nn.Module, ABC):
@@ -25,7 +22,10 @@ class Decoder(nn.Module, ABC):
 
     @abstractmethod
     def forward(
-        self, latent_vector: torch.Tensor, recv_in_music_form: bool = False
+        self,
+        latent_vector: torch.Tensor,
+        input_sequence: torch.Tensor,
+        recv_in_music_form: bool = False,
     ) -> torch.Tensor:
         pass
 
@@ -42,180 +42,82 @@ class Decoder(nn.Module, ABC):
         return recv_tokens.argmax(dim=-1)
 
 
-class DummyDecoder(Decoder):
-    def __init__(self, latent_dim: int, vocab_size: int) -> None:
-        super(DummyDecoder, self).__init__(
-            latent_dim=latent_dim,
-            name="dummy",
-            vocab_size=vocab_size,
-            sequence_length=64,
-            patch_size=64,
-        )
-
-    def forward(
-        self, latent_vector: torch.Tensor, recv_in_music_form: bool = False
-    ) -> torch.Tensor:
-        return torch.zeros(latent_vector.shape[0], 3, 64, 64)
-
-
-class Clamp2Decoder(Decoder):
-    """
-    A higher-level "Decoder" that wraps CLaMPDecoderModel, similarly to how
-    ClampEncoder wraps CLaMPModel. It receives a 1D latent vector and
-    returns a 2D (or 3D) sequence of patch logits (or tokens).
-    """
-
+class GptDecoder(Decoder):
     def __init__(
         self,
-        clamp2_vocab_size: int,
+        latent_dim: int,
+        vocab_size: int,
         hidden_size: int,
-        num_hidden_layers: int,
         sequence_length: int,
         patch_size: int,
-        latent_dim: int,
-        vocab_size: int,
     ) -> None:
-        super().__init__(
+        super(GptDecoder, self).__init__(
             latent_dim=latent_dim,
+            name="gpt",
             vocab_size=vocab_size,
-            name="clamp2",
             sequence_length=sequence_length,
             patch_size=patch_size,
         )
+        self.hidden_size = hidden_size
+        self.num_heads = hidden_size // 64
 
-        # Build a BERT config to match the "decode" dimension
-        decoder_config = BertConfig(
-            vocab_size=clamp2_vocab_size,  # Typically same as the encoder’s
-            hidden_size=hidden_size,
-            num_hidden_layers=num_hidden_layers,
-            max_position_embeddings=sequence_length,
-            num_attention_heads=hidden_size // 64,
-            intermediate_size=hidden_size * 4,
+        self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
+        self.token_embeddings = nn.Embedding(self.vocab_size, self.hidden_size)
+        self.transformer_layer = nn.TransformerDecoderLayer(
+            d_model=self.hidden_size, nhead=self.num_heads
         )
+        self._sequence_of_patches = False
 
-        # Create the PatchDecoder
-        self.patch_decoder = PatchDecoder(
-            config=decoder_config,
-            patch_size=patch_size,
-            sequence_length=sequence_length,
-            projection_layer=hidden_size,
-            vocab_size=self.vocab_size,
-        )
-
-        # Wrap in CLaMP2DecoderModel
-        self.model = CLaMPDecoderModel(
-            patch_decoder=self.patch_decoder, latent_dim=latent_dim
-        )
+        self.output_proj = nn.Linear(self.hidden_size, self.vocab_size)
 
     def forward(
-        self, latent_vector: torch.Tensor, recv_in_music_form: bool = False
-    ) -> torch.Tensor:
-        """
-        Args:
-            latent_vector: [batch_size, latent_dim]
-
-        Returns:
-            patch_logits: [batch_size, sequence_length, patch_size, vocab_size]
-        """
-        # Construct an attention mask if desired. For a full-sequence decode, use all 1’s:
-        attention_mask = torch.ones(
-            (latent_vector.size(0), self.sequence_length),
-            dtype=torch.long,
-            device=latent_vector.device,
-        )  # TODO think about removing this or use to teach the model to ignore padding
-
-        # Forward through the model
-        patch_logits = self.model(
-            latent_vectors=latent_vector,
-            sequence_length=self.sequence_length,
-            attention_mask=attention_mask,
-        )
-        patch_logits = patch_logits.view(
-            latent_vector.size(0),  # batch_size
-            self.sequence_length,
-            self.patch_size,
-            self.vocab_size,
-        )
-        if recv_in_music_form:
-            patch_logits = self.transform_to_music_form(patch_logits)
-        return patch_logits
-
-
-class ClampDecoder(Decoder):
-    """
-    A higher-level "Decoder" that wraps CLaMPDecoderModel, similarly to how
-    ClampEncoder wraps CLaMPModel. It receives a 1D latent vector and
-    returns a 2D (or 3D) sequence of patch logits (or tokens).
-    """
-
-    def __init__(
         self,
-        patchilizer_config: Dict,
-        sequence_length: int,
-        patch_size: int,
-        latent_dim: int,
-        vocab_size: int,
-    ) -> None:
-        super().__init__(
-            latent_dim=latent_dim,
-            vocab_size=vocab_size,
-            name="clamp",
-            sequence_length=sequence_length,
-            patch_size=patch_size,
-        )
-
-        patchilizer_config = BertConfig(**patchilizer_config)
-        self.patch_decoder = PatchDecoder(
-            config=patchilizer_config,
-            patch_size=patch_size,
-            sequence_length=sequence_length,
-            projection_layer=patchilizer_config.hidden_size,
-            vocab_size=self.vocab_size,
-        )
-
-        # Wrap in CLaMP2DecoderModel
-        self.model = CLaMPDecoderModel(
-            patch_decoder=self.patch_decoder, latent_dim=latent_dim
-        )
-
-    def forward(
-        self, latent_vector: torch.Tensor, recv_in_music_form: bool = False
+        latent_vector: torch.Tensor,
+        input_sequence: torch.Tensor,
+        recv_in_music_form: bool = False,
     ) -> torch.Tensor:
-        """
-        Args:
-            latent_vector: [batch_size, latent_dim]
-        Returns:
-            patch_logits: [batch_size, sequence_length, patch_size, vocab_size]
-        """
-        attention_mask = torch.ones(
-            (latent_vector.size(0), self.sequence_length),
-            dtype=torch.long,
-            device=latent_vector.device,
-        )  # TODO think about removing this or use to teach the model to ignore padding
+        # Getting current sequence length (for generation when len is growing)
+        current_sequence_len = input_sequence.size(1)
+        latent_vector_projection = self.latent_proj(
+            latent_vector
+        )  # [B, latent_dim] -> [B, embedding_size]
+        latent_vector_projection = latent_vector_projection.unsqueeze(1).repeat(
+            1, current_sequence_len * self.patch_size, 1
+        )  # [batch_size, seq_len, embedding_size]
 
-        # Forward through the model
-        patch_logits = self.model(
-            latent_vectors=latent_vector,
-            sequence_length=self.sequence_length,
-            attention_mask=attention_mask,
-        )
-        patch_logits = patch_logits.view(
-            latent_vector.size(0),  # batch_size
-            self.sequence_length,
-            self.patch_size,
-            self.vocab_size,
-        )
+        if input_sequence.dim() == 3:
+            self._sequence_of_patches = True
+            input_sequence = input_sequence.reshape(
+                -1, self.patch_size * self.sequence_length
+            )
+        token_emb = self.token_embeddings(input_sequence)
+        decoder_input = token_emb + latent_vector_projection
+
+        mask = nn.Transformer.generate_square_subsequent_mask(
+            current_sequence_len * self.patch_size
+        ).to(latent_vector.device)
+
+        h = self.transformer_layer(
+            decoder_input.transpose(0, 1),
+            memory=decoder_input.transpose(0, 1),
+            tgt_mask=mask,
+        ).transpose(0, 1)
+        output_proj = self.output_proj(h)
+        if self._sequence_of_patches:
+            output_proj = output_proj.view(
+                latent_vector.size(0),
+                self.sequence_length,
+                self.patch_size,
+                self.vocab_size,
+            )
+            self._sequence_of_patches = False
         if recv_in_music_form:
-            patch_logits = self.transform_to_music_form(patch_logits)
-        return patch_logits
+            output_proj = self.transform_to_music_form(output_proj)
+        return output_proj
 
 
 def decoder_mapper(decoder_name: str) -> Type[Decoder]:
-    if decoder_name == "clamp2":
-        return Clamp2Decoder
-    elif decoder_name == "clamp":
-        return ClampDecoder
-    elif decoder_name == "dummy":
-        return DummyDecoder
+    if decoder_name == "gpt_decoder":
+        return GptDecoder
     else:
         raise ValueError(f"Unknown decoder: {decoder_name}, possible: ['simple_conv']")

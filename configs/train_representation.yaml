@@ -2,7 +2,7 @@
 defaults:
   - dataset: maestro     # default dataset
   - adapter: tokenizer  # default adapter
-  - model: clamp2_vae     # default model
+  - model: vae_clamp2_gpt     # default model
   - _self_
 
 # You can add any additional high-level settings or Hydra settings below
@@ -45,6 +45,7 @@ callbacks:
   sampling_params:
     sample_interval: 1
     num_samples: 2
+    export_format: midi
   early_stopping: true
   early_stopping_params:
     patience: 5

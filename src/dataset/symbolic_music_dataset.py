@@ -64,11 +64,19 @@ class SymbolicMusicDataset(Dataset, ABC):
         if self.transform:
             music_file = self.transform(music_file)
         music_file = self.music_adapter.encode(music_file)
-        return self._get_padded_tensor(music_file)
+        music_file = self._get_padded_data(music_file)
+        return torch.tensor(music_file)
 
-    def _get_padded_tensor(self, music_file: list[list[int]]) -> torch.Tensor:
-        padded_music = self.music_adapter.get_padded_sequence(music_file)
-        return torch.tensor(padded_music)
+    def _get_padded_data(
+        self, music_file: list[list[int]] | list[int]
+    ) -> list[list[int]] | list[int]:
+        return self.music_adapter.get_padded_sequence(music_file)
+
+    def get_music_file(self, idx: int | None = None) -> str | MidiFile:
+        if idx is None:
+            idx = self._index_of_overtrained
+        music_file_path = self.music_files_paths[idx]
+        return self.load_music_function(music_file_path)
 
 
 class MidiDataset(SymbolicMusicDataset):

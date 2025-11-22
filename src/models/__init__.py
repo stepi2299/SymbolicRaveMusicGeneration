@@ -4,24 +4,25 @@ from src.models.vae import VAE
 from src.models.encoder import encoder_mapper
 from src.models.decoder import decoder_mapper
 from src.models.discriminator import discriminator_mapper, Discriminator
+from src.adapter import MusicAdapter
 
 
-def get_vae_model(model_cfg: DictConfig, adapter_cfg: DictConfig) -> VAE:
+def get_vae_model(model_cfg: DictConfig, adapter: MusicAdapter) -> VAE:
     encoder_obj = encoder_mapper(model_cfg.encoder.name)(
         latent_dim=model_cfg.latent_dim,
-        vocab_size=adapter_cfg.params.vocab_size,
-        sequence_length=adapter_cfg.params.sequence_length,
-        patch_size=adapter_cfg.params.patch_size,
+        vocab_size=adapter.vocab_size,
+        sequence_length=adapter.sequence_length,
+        patch_size=adapter.patch_size,
         **model_cfg.encoder.params,
     )
     decoder_obj = decoder_mapper(model_cfg.decoder.name)(
         latent_dim=model_cfg.latent_dim,
-        vocab_size=adapter_cfg.params.vocab_size,
-        sequence_length=adapter_cfg.params.sequence_length,
-        patch_size=adapter_cfg.params.patch_size,
+        vocab_size=adapter.vocab_size,
+        sequence_length=adapter.sequence_length,
+        patch_size=adapter.patch_size,
         **model_cfg.decoder.params,
     )
-    model = VAE(encoder=encoder_obj, decoder=decoder_obj)
+    model = VAE(encoder=encoder_obj, decoder=decoder_obj, adapter=adapter)
     return model
 
 

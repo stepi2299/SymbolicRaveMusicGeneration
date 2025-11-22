@@ -1,5 +1,4 @@
 from pathlib import Path
-from omegaconf import DictConfig
 import logging as lg
 
 from miditok import REMI, MIDILike, TSD, Structured, CPWord, Octuple, MuMIDI, MMM
@@ -29,6 +28,16 @@ class Tokenizer:
         "mumidi": MuMIDI,
         "mmm": MMM,
     }
+    PATCH_MAPPER = {
+        "remi": 1,
+        "midilike": 1,
+        "tsd": 1,
+        "structured": 1,
+        "cpword": 5,
+        "octuple": 5,
+        "mumidi": 1,
+        "mmm": 1,
+    }
     TOKENIZER_BASE_PATH = base_weights_path / "tokenizers"
 
     def __init__(
@@ -37,12 +46,15 @@ class Tokenizer:
         training_model: str,
         vocab_size: int,
         sequence_length: int,
+        add_special_patches: bool = True,
         **kwargs,
     ) -> None:
         self.tokenizer_name = tokenizer_name
         self.training_model = training_model
         self.vocab_size = vocab_size
         self.sequence_length = sequence_length
+        self.add_special_patches = add_special_patches
+        self.patch_size = self.PATCH_MAPPER[tokenizer_name]
         if tokenizer_name not in self.TOKENIZER_MAPPER:
             raise ValueError(
                 f"Tokenizer {tokenizer_name} not supported, supported tokenizers "
@@ -70,12 +82,15 @@ class Tokenizer:
         midi_score = convert_mido_to_score(
             music_file
         )  # Change from mido into symusic.Score
-        tok_sequence = self.tokenizer(midi_score)[0].ids
+        tok_sequence = self.tokenizer(midi_score)[0].ids[: self.sequence_length - 2]
+        tok_sequence = (
+            [self.bos_token_id] + tok_sequence + [self.eos_token_id]
+        )  # TODO add case for cpword (more dimensional)
         return tok_sequence
 
     def decode(
         self,
-        tensor_tokens: list[int],
+        tokens: list[int],
         symbolic_format: SymbolicMusicFormat,
         output_path: Path,
         export_format: ExportFormat = ExportFormat.WAV,
@@ -84,7 +99,8 @@ class Tokenizer:
             raise ValueError("ABC format is not supported for tokenizer")
         if not self._is_trained:
             logger.warning(f"Tokenizer is not trained")
-        score = self.tokenizer.decode([tensor_tokens])
+        score = self.tokenizer.decode([tokens])
+
         match export_format:
             case ExportFormat.SYMBOLIC:
                 output_path = output_path.with_suffix(".mid")
@@ -129,22 +145,6 @@ class Tokenizer:
             self.TOKENIZER_BASE_PATH
             / f"{self.tokenizer_name}_{self.training_model}_{self.vocab_size}.json"
         )
-
-    def get_padded_sequence(self, music_file: list[int]) -> list[int]:
-        if len(music_file) < self.sequence_length:
-            padded_sequence = (
-                [self.bos_token_id]
-                + music_file
-                + [self.pad_token_id] * (self.sequence_length - len(music_file) - 2)
-                + [self.eos_token_id]
-            )
-        else:
-            padded_sequence = (
-                [self.bos_token_id]
-                + music_file[: self.sequence_length - 2]
-                + [self.eos_token_id]
-            )
-        return padded_sequence
 
     @property
     def pad_token_id(self) -> int:

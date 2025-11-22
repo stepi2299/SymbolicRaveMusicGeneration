@@ -36,7 +36,6 @@ class MusicPatchilizer:
         self.patch_size = patch_size
         self.sequence_length = sequence_length
         self.add_special_patches = add_special_patches
-        self.truncate = truncate
         self.random_truncate = random_truncate
         self.vocab_size = vocab_size
 
@@ -124,7 +123,7 @@ class MusicPatchilizer:
             eos_patch = chr(self.eos_token_id) * self.patch_size
             patches = [bos_patch] + patches + [eos_patch]
 
-        if len(patches) > self.sequence_length and self.truncate:
+        if len(patches) > self.sequence_length:
             choices = ["head", "tail", "middle"]
             choice = random.choice(choices)
             if choice == "head" or self.random_truncate is False:
@@ -156,9 +155,3 @@ class MusicPatchilizer:
 
     def _patch2bar(self, patch: list[int]) -> str:
         return "".join(chr(idx) if idx > self.mask_token_id else "" for idx in patch)
-
-    def get_padded_sequence(self, music_file: list[list[int]]) -> list[list[int]]:
-        padded_bar = [self.pad_token_id] * self.patch_size
-        padded_music_file = [padded_bar] * (self.sequence_length - len(music_file))
-        new_music_file = music_file + padded_music_file
-        return new_music_file

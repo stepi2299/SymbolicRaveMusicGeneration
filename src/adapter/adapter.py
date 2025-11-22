@@ -17,11 +17,14 @@ class MusicAdapter:
             symbolic_format = "midi"
         self.symbolic_format = SymbolicMusicFormat(symbolic_format)
 
-    def encode(self, item: MidoMidiFile | str) -> list[list[int]]:
+    def encode(self, item: MidoMidiFile | str) -> list[list[int]] | list[int]:
         return self._adapter.encode(item, self.symbolic_format)
 
     def decode(
-        self, item: list[list[int]], output_path: Path, export_format: ExportFormat
+        self,
+        item: list[list[int]] | list[int],
+        output_path: Path,
+        export_format: ExportFormat,
     ) -> Path:
         ret_music = self._adapter.decode(
             item, self.symbolic_format, output_path, export_format
@@ -30,21 +33,57 @@ class MusicAdapter:
             ret_music = ret_music.strip()
         return ret_music
 
-    def get_padded_sequence(self, music_file: list[list[int]]) -> list[list[int]]:
-        return self._adapter.get_padded_sequence(music_file)
+    def _get_single_dim_padded_sequence(self, music_file: list[int]) -> list[int]:
+        return music_file + [self.pad_token_id] * (
+            self.sequence_length - len(music_file)
+        )
+
+    def _get_two_dim_padded_sequence(
+        self, music_file: list[list[int]]
+    ) -> list[list[int]]:
+        music_file = music_file + [[self.pad_token_id] * self.patch_size] * (
+            self.sequence_length - len(music_file)
+        )
+        return music_file
+
+    def get_padded_sequence(
+        self, music_file: list[list[int]] | list[int]
+    ) -> list[list[int]] | list[int]:
+        if len(music_file) < self.sequence_length:
+            if isinstance(music_file[0], list):
+                return self._get_two_dim_padded_sequence(music_file)
+            else:
+                return self._get_single_dim_padded_sequence(music_file)
+        elif len(music_file) == self.sequence_length:
+            return music_file
+        else:
+            raise ValueError(
+                f"Input music length {len(music_file)} is greater than the defined "
+                f"sequence length {self.sequence_length}"
+            )
 
     @property
     def sequence_length(self) -> int | None:
         return self._adapter.sequence_length
 
     @property
-    def pad_token(self) -> int | None:
+    def pad_token_id(self) -> int | None:
         return self._adapter.pad_token_id
 
     @property
-    def patch_size(self) -> int | None:
-        if not self.adapter_type == MusicAdapterType.PATCHILIZER:
-            return 1
+    def eos_token_id(self) -> int:
+        return self._adapter.eos_token_id
+
+    @property
+    def bos_token_id(self) -> int:
+        return self._adapter.bos_token_id
+
+    @property
+    def vocab_size(self) -> int:
+        return self._adapter.vocab_size
+
+    @property
+    def patch_size(self) -> int:
         return self._adapter.patch_size
 
     @staticmethod

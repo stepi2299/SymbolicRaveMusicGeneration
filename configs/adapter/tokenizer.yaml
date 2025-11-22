@@ -5,4 +5,3 @@ params:
   vocab_size: 20000
   dataset_name: maestro
   sequence_length: 1024
-  patch_size: 1

@@ -34,6 +34,8 @@ class TestTokenizer:
         assert isinstance(sequence, list)
         for token in sequence:
             assert isinstance(token, int)
+        assert sequence[0] == remi_tokenizer.bos_token_id
+        assert sequence[-1] == remi_tokenizer.eos_token_id
 
     @staticmethod
     def test_decode_midi_wav(remi_tokenizer: Tokenizer, loaded_midi_song, test_results_path, request):
@@ -99,16 +101,6 @@ class TestTokenizer:
         assert isinstance(output_file, Path)
         assert output_file.exists()
         assert output_file == decoded_wav_path
-
-    @staticmethod
-    def test_get_padded_sequence(remi_tokenizer: Tokenizer):
-        example_sequence = [[10, 50, 20, 3, 4, 5, 6, 7, 8, 9, 10]]
-        result_padded_sequence = remi_tokenizer.get_padded_sequence(example_sequence)
-        assert isinstance(result_padded_sequence, list)
-        assert len(result_padded_sequence) == remi_tokenizer.sequence_length
-        assert result_padded_sequence[-1] == remi_tokenizer.eos_token_id
-        assert result_padded_sequence[-2] == remi_tokenizer.pad_token_id
-        assert result_padded_sequence[0] == remi_tokenizer.bos_token_id
 
 
 

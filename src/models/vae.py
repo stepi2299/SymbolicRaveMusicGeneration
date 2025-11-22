@@ -3,13 +3,17 @@ from torch import nn
 
 from src.models.encoder import Encoder
 from src.models.decoder import Decoder
+from src.adapter import MusicAdapter
 
 
 class VAE(nn.Module):
-    def __init__(self, encoder: Encoder, decoder: Decoder) -> None:
+    def __init__(
+        self, encoder: Encoder, decoder: Decoder, adapter: MusicAdapter
+    ) -> None:
         super(VAE, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
+        self._adapter = adapter
         self._validate_if_latent_dimensions_match()
 
     def _validate_if_latent_dimensions_match(self) -> None:
@@ -24,7 +28,9 @@ class VAE(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, log_variance = self.encoder(input_music)
         latent_vector = self.reparameterize(mu, log_variance)
-        tensor_reconstruction = self.decoder(latent_vector, recv_in_music_form)
+        tensor_reconstruction = self.decoder(
+            latent_vector, input_music, recv_in_music_form
+        )
         return tensor_reconstruction, mu, log_variance
 
     def reparameterize(self, mu: torch.Tensor, log_var: torch.Tensor) -> torch.Tensor:
@@ -41,16 +47,41 @@ class VAE(nn.Module):
             param.requires_grad = True
 
     @torch.no_grad()
-    def generate(self, latent_vector: torch.Tensor) -> list[list[list[int]]]:
+    def generate(self, latent_vector: torch.Tensor) -> list[list[int]]:
         self.decoder.eval()
         if latent_vector.shape[1] != self.latent_dim:
             raise ValueError(
                 f"Latent vector must have shape (batch_size, {self.latent_dim}), got {latent_vector.shape}"
             )
-        reconstruction = self.decoder(latent_vector)
-        reconstruction = reconstruction.argmax(dim=-1)
-        reconstruction = reconstruction.cpu().numpy().tolist()
-        return reconstruction
+        songs = []
+        for single_condition_latent in latent_vector:
+            songs.append(
+                self._generate_single_song(single_condition_latent.unsqueeze(0))
+            )
+        return songs
+
+    def _generate_single_song(self, latent_vector: torch.Tensor) -> list[int]:
+        generated_sequence = [self._adapter.bos_token_id]
+        for _ in range(self.decoder.sequence_length):
+            input_seq = (
+                torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
+            )
+            logits = self.decoder(
+                latent_vector, input_seq
+            )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
+            next_token_logits = logits[
+                0, -1, :
+            ]  # taking last one (logits for next token)
+
+            next_token_idx = torch.argmax(
+                next_token_logits
+            ).item()  # Taking the token with highest probability (possibly use sampling here to add diversity)
+
+            generated_sequence.append(next_token_idx)
+
+            if next_token_idx == self._adapter.eos_token_id:
+                break
+        return generated_sequence[1:]
 
     def load_pretrained(self) -> None:
         self.encoder.load_pretrained()

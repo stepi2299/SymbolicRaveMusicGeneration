@@ -35,13 +35,14 @@ def main(cfg: DictConfig) -> None:
         try:
             chosen_index = cfg.chosen_index
         except AttributeError:
-            chosen_index = "RANDOM"
+            chosen_index = None
         wandb.log({"INFO": f"Single Data Training with index: {chosen_index}"})
+    else:
         chosen_index = None
     symbolic_music_dataset = get_dataset(
         cfg.dataset, cfg.adapter, single_data_training, chosen_index
     )
-    vae_model = get_vae_model(cfg.model, cfg.adapter)
+    vae_model = get_vae_model(cfg.model, symbolic_music_dataset.music_adapter)
     if cfg.pretrained:
         vae_model.load_pretrained()
     loss_function = get_loss_function(
