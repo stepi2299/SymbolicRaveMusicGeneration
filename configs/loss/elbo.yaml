@@ -1,0 +1,5 @@
+name: elbo
+params:
+  turn: False
+  annealing_steps: 10000
+  beta_max: 0.01

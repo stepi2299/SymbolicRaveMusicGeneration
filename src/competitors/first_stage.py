@@ -25,6 +25,7 @@ class FirstStage(pl.LightningModule):
         encoder_learning_rate: float = 1e-3,
         decoder_learning_rate: float = 1e-3,
         learning_patience: int = 5,
+        single_data_training: bool = False,
     ) -> None:
         super(FirstStage, self).__init__()
         self.vae = vae
@@ -44,6 +45,7 @@ class FirstStage(pl.LightningModule):
         self.learning_patience = learning_patience
         self.adapter = symbolic_music_dataset.music_adapter
         self.loss_function = loss_function
+        self._single_data_training = single_data_training
         self.save_hyperparameters()
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
@@ -51,12 +53,26 @@ class FirstStage(pl.LightningModule):
 
     def training_step(self, batch: Any, batch_idx: int) -> Any:
         data = batch
-        reconstruction, mu, log_variance = self.vae(data)
+        x_input = data[:, :-1]  # Input sequence excluding the last token
+        x_target = data[:, 1:]  # Target sequence excluding the first token
+        reconstruction, mu, log_variance = self.vae(x_input)
+        if self._single_data_training:
+            token_reconstruction = reconstruction.argmax(dim=-1)
+            correctness_reconstruction = torch.equal(token_reconstruction, data)
+            self.log(
+                "reconstruction_success",
+                correctness_reconstruction,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+            )
+
         loss, loss_metadata = self.loss_function(
-            org_data=data,
+            org_data=x_target,
             reconstruction=reconstruction,
             mu=mu,
             logvar=log_variance,
+            global_step=self.global_step,
         )
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
@@ -64,12 +80,15 @@ class FirstStage(pl.LightningModule):
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> Any:
         data = batch
-        reconstruction, mu, log_variance = self.vae(data)
+        x_input = data[:, :-1]  # Input sequence excluding the last token
+        x_target = data[:, 1:]  # Target sequence excluding the first token
+        reconstruction, mu, log_variance = self.vae(x_input)
         loss, loss_metadata = self.loss_function(
-            org_data=data,
+            org_data=x_target,
             reconstruction=reconstruction,
             mu=mu,
             logvar=log_variance,
+            global_step=self.global_step,
         )
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
@@ -92,7 +111,7 @@ class FirstStage(pl.LightningModule):
         )
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.AdamW(
             [
                 {
                     "params": self.vae.encoder.parameters(),
@@ -104,8 +123,13 @@ class FirstStage(pl.LightningModule):
                 },
             ]
         )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", patience=self.learning_patience
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        #     optimizer, "min", patience=self.learning_patience
+        # )
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=10000,
+            eta_min=1e-6,
         )
         return {
             "optimizer": optimizer,

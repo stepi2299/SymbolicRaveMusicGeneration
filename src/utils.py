@@ -5,7 +5,7 @@ import symusic
 import torch
 from tqdm import tqdm
 import logging as lg
-import io
+import math
 
 import mido
 from mido.messages.messages import Message
@@ -336,3 +336,19 @@ def export_to_wav(
     synth = Synthesizer(sample_rate=sample_rate)
     audio = synth.render(score, stereo=True)
     dump_wav(filepath.as_posix(), audio, sample_rate=sample_rate, use_int16=True)
+
+
+def get_sinusoidal_position_embedding(seq_len: int, d_model: int) -> torch.Tensor:
+    """Generuje sinusoidalne osadzenia pozycyjne zgodnie z oryginalnym artykułem o Transformerze."""
+
+    position = torch.arange(seq_len).unsqueeze(1)
+    div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+
+    # PE(pos, 2i) = sin(pos / 10000^(2i/d_model))
+    # PE(pos, 2i+1) = cos(pos / 10000^(2i/d_model))
+
+    pe = torch.zeros(seq_len, d_model)
+    pe[:, 0::2] = torch.sin(position * div_term)
+    pe[:, 1::2] = torch.cos(position * div_term)
+
+    return pe.unsqueeze(0)  # [1, L, D]

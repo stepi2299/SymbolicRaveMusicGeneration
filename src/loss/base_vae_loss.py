@@ -12,6 +12,7 @@ class BaseVaeLoss(ABC):
         reconstruction: torch.Tensor,
         mu: torch.Tensor,
         logvar: torch.Tensor,
+        global_step: int,
     ) -> Tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         Args:

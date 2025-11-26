@@ -2,7 +2,7 @@ from src.loss.base_vae_loss import BaseVaeLoss
 from src.loss.elbo_loss import ElboLoss
 
 
-def get_loss_function(loss_name: str, vocab_size: int) -> BaseVaeLoss:
+def get_loss_function(loss_name: str, vocab_size: int, **kwargs) -> BaseVaeLoss:
     loss_mapper = {
         "elbo": ElboLoss,
         # Future loss functions can be added here
@@ -11,7 +11,7 @@ def get_loss_function(loss_name: str, vocab_size: int) -> BaseVaeLoss:
         raise ValueError(
             f"Loss function '{loss_name}' is not recognized. Available losses: {list(loss_mapper.keys())}"
         )
-    return loss_mapper[loss_name](vocab_size)
+    return loss_mapper[loss_name](vocab_size, **kwargs)
 
 
 __all__ = ["BaseVaeLoss", "get_loss_function", "ElboLoss"]

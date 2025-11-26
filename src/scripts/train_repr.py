@@ -46,13 +46,14 @@ def main(cfg: DictConfig) -> None:
     if cfg.pretrained:
         vae_model.load_pretrained()
     loss_function = get_loss_function(
-        loss_name=cfg.loss, vocab_size=vae_model.vocab_size
+        loss_name=cfg.loss.name, vocab_size=vae_model.vocab_size, **cfg.loss.params
     )
 
     competitor = FirstStage(
         vae=vae_model,
         symbolic_music_dataset=symbolic_music_dataset,
         loss_function=loss_function,
+        single_data_training=single_data_training,
         **cfg.competitor,
     )
     used_callbacks = get_callbacks(
@@ -61,8 +62,12 @@ def main(cfg: DictConfig) -> None:
         model_name=cfg.model.name,
         dataset_name=cfg.dataset.name,
     )
+
     trainer = Trainer(
-        callbacks=used_callbacks, max_epochs=cfg.epochs, logger=wandb_logger
+        callbacks=used_callbacks,
+        max_epochs=cfg.epochs,
+        logger=wandb_logger,
+        gradient_clip_val=cfg.grad_clip_val,
     )
     trainer.fit(competitor)
     wandb.finish()

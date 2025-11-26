@@ -50,6 +50,7 @@ class GptDecoder(Decoder):
         hidden_size: int,
         sequence_length: int,
         patch_size: int,
+        num_decoder_layers: int,
     ) -> None:
         super(GptDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -63,10 +64,15 @@ class GptDecoder(Decoder):
 
         self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
         self.token_embeddings = nn.Embedding(self.vocab_size, self.hidden_size)
-        self.transformer_layer = nn.TransformerDecoderLayer(
+        self.positional_embeddings = nn.Embedding(
+            self.sequence_length, self.hidden_size
+        )
+        layer = nn.TransformerDecoderLayer(
             d_model=self.hidden_size, nhead=self.num_heads
         )
-        self._sequence_of_patches = False
+        self.transformer_decoder = nn.TransformerDecoder(
+            layer, num_layers=num_decoder_layers
+        )
 
         self.output_proj = nn.Linear(self.hidden_size, self.vocab_size)
 
@@ -77,42 +83,39 @@ class GptDecoder(Decoder):
         recv_in_music_form: bool = False,
     ) -> torch.Tensor:
         # Getting current sequence length (for generation when len is growing)
-        current_sequence_len = input_sequence.size(1)
+        batch_size, current_sequence_len = input_sequence.shape
+
+        position_idx = torch.arange(
+            current_sequence_len, dtype=torch.long, device=input_sequence.device
+        )
+        position_idx = position_idx.unsqueeze(0).repeat(batch_size, 1)
+        pos_emb = self.positional_embeddings(position_idx)  # [1, seq_len, hidden]
+
         latent_vector_projection = self.latent_proj(
             latent_vector
         )  # [B, latent_dim] -> [B, embedding_size]
         latent_vector_projection = latent_vector_projection.unsqueeze(1).repeat(
-            1, current_sequence_len * self.patch_size, 1
+            1, current_sequence_len, 1
         )  # [batch_size, seq_len, embedding_size]
 
-        if input_sequence.dim() == 3:
-            self._sequence_of_patches = True
-            input_sequence = input_sequence.reshape(
-                -1, self.patch_size * self.sequence_length
-            )
         token_emb = self.token_embeddings(input_sequence)
-        decoder_input = token_emb + latent_vector_projection
 
-        mask = nn.Transformer.generate_square_subsequent_mask(
-            current_sequence_len * self.patch_size
-        ).to(latent_vector.device)
+        decoder_input = token_emb + latent_vector_projection + pos_emb
+        decoder_input = decoder_input.permute(1, 0, 2)
 
-        h = self.transformer_layer(
-            decoder_input.transpose(0, 1),
-            memory=decoder_input.transpose(0, 1),
+        mask = nn.Transformer.generate_square_subsequent_mask(current_sequence_len).to(
+            latent_vector.device
+        )
+        # TODO dac maske odpowiednia gdy token jest 0!!! (mozliwe ze to wazne tez w encoderze) THINK
+
+        h = self.transformer_decoder(
+            decoder_input,
+            memory=decoder_input,
             tgt_mask=mask,
         ).transpose(0, 1)
-        output_proj = self.output_proj(h)
-        if self._sequence_of_patches:
-            output_proj = output_proj.view(
-                latent_vector.size(0),
-                self.sequence_length,
-                self.patch_size,
-                self.vocab_size,
-            )
-            self._sequence_of_patches = False
+        output_proj = self.output_proj(h)  # [B, seq_len, vocab_size]
         if recv_in_music_form:
-            output_proj = self.transform_to_music_form(output_proj)
+            output_proj = self.transform_to_music_form(output_proj)  # [B, seq_len]
         return output_proj
 
 

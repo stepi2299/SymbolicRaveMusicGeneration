@@ -1,9 +1,13 @@
 import torch
 from torch import nn
+from torch.nn import functional as F
+import logging as lg
 
 from src.models.encoder import Encoder
 from src.models.decoder import Decoder
 from src.adapter import MusicAdapter
+
+logger = lg.getLogger(__name__)
 
 
 class VAE(nn.Module):
@@ -15,6 +19,7 @@ class VAE(nn.Module):
         self.decoder = decoder
         self._adapter = adapter
         self._validate_if_latent_dimensions_match()
+        self.orig_sample = None
 
     def _validate_if_latent_dimensions_match(self) -> None:
         if self.encoder.latent_dim != self.decoder.latent_dim:
@@ -26,6 +31,7 @@ class VAE(nn.Module):
     def forward(
         self, input_music: torch.Tensor, recv_in_music_form: bool = False
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        self.orig_sample = input_music
         mu, log_variance = self.encoder(input_music)
         latent_vector = self.reparameterize(mu, log_variance)
         tensor_reconstruction = self.decoder(
@@ -60,26 +66,37 @@ class VAE(nn.Module):
             )
         return songs
 
-    def _generate_single_song(self, latent_vector: torch.Tensor) -> list[int]:
+    @staticmethod
+    def sample_next_token(logits, temperature=1.0, strict: bool = False) -> int:
+        if strict:
+            return logits.argmax().item()
+        probs = F.softmax(logits / temperature, dim=-1)
+        next_token_idx = torch.multinomial(probs, num_samples=1).item()
+        return next_token_idx
+
+    def _generate_single_song(
+        self, latent_vector: torch.Tensor
+    ) -> list[int] | list[list[int]]:
         generated_sequence = [self._adapter.bos_token_id]
         for _ in range(self.decoder.sequence_length):
             input_seq = (
                 torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
             )
             logits = self.decoder(
-                latent_vector, input_seq
+                latent_vector, input_seq, recv_in_music_form=False
             )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
             next_token_logits = logits[
                 0, -1, :
             ]  # taking last one (logits for next token)
 
-            next_token_idx = torch.argmax(
-                next_token_logits
-            ).item()  # Taking the token with highest probability (possibly use sampling here to add diversity)
-
+            next_token_idx = self.sample_next_token(next_token_logits, strict=True)
             generated_sequence.append(next_token_idx)
 
-            if next_token_idx == self._adapter.eos_token_id:
+            if (
+                next_token_idx == self._adapter.eos_token_id
+                or len(generated_sequence) >= self.decoder.sequence_length
+            ):
+                logger.debug(f"Generated sequence: {generated_sequence}")
                 break
         return generated_sequence[1:]
 

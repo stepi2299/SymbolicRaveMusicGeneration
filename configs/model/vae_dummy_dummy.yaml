@@ -1,9 +1,0 @@
-name: dummy_vae
-encoder:
-  name: dummy
-  params:
-    latent_dim: 10
-decoder:
-    name: dummy
-    params:
-      latent_dim: 10
