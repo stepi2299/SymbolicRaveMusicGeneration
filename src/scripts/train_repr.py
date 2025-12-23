@@ -62,12 +62,14 @@ def main(cfg: DictConfig) -> None:
         model_name=cfg.model.name,
         dataset_name=cfg.dataset.name,
     )
-
+    grad_clip_val = cfg.grad_clip_val
+    if grad_clip_val == "None":
+        grad_clip_val = None
     trainer = Trainer(
         callbacks=used_callbacks,
         max_epochs=cfg.epochs,
         logger=wandb_logger,
-        gradient_clip_val=cfg.grad_clip_val,
+        gradient_clip_val=grad_clip_val,
     )
     trainer.fit(competitor)
     wandb.finish()

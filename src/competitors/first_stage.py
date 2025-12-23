@@ -56,16 +56,6 @@ class FirstStage(pl.LightningModule):
         x_input = data[:, :-1]  # Input sequence excluding the last token
         x_target = data[:, 1:]  # Target sequence excluding the first token
         reconstruction, mu, log_variance = self.vae(x_input)
-        if self._single_data_training:
-            token_reconstruction = reconstruction.argmax(dim=-1)
-            correctness_reconstruction = torch.equal(token_reconstruction, data)
-            self.log(
-                "reconstruction_success",
-                correctness_reconstruction,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-            )
 
         loss, loss_metadata = self.loss_function(
             org_data=x_target,
@@ -74,6 +64,16 @@ class FirstStage(pl.LightningModule):
             logvar=log_variance,
             global_step=self.global_step,
         )
+        if self._single_data_training:
+            token_reconstruction = reconstruction.argmax(dim=-1)
+            correctness_reconstruction = (token_reconstruction == x_target).float().mean().item() * 100
+            self.log(
+                "reconstruction_success",
+                correctness_reconstruction,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+            )
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
         return loss

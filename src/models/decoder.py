@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from abc import ABC, abstractmethod
 from typing import Type
+from transformers import TransfoXLConfig, TransfoXLModel
 
 
 class Decoder(nn.Module, ABC):
@@ -119,8 +120,83 @@ class GptDecoder(Decoder):
         return output_proj
 
 
+class TransformerXL(Decoder):
+    def __init__(
+        self,
+        latent_dim: int,
+        vocab_size: int,
+        hidden_size: int,
+        sequence_length: int,
+        patch_size: int,
+        num_decoder_layers: int,
+        mem_len: int,
+        dropout: float,
+    ) -> None:
+        super(TransformerXL, self).__init__(
+            latent_dim=latent_dim,
+            name="transformer_xl",
+            vocab_size=vocab_size,
+            sequence_length=sequence_length,
+            patch_size=patch_size,
+        )
+
+        self.hidden_size = hidden_size
+        self.num_heads = hidden_size // 64
+        config = TransfoXLConfig(
+            d_model=self.hidden_size,
+            n_head=self.num_heads,
+            n_layer=num_decoder_layers,
+            d_inner=self.hidden_size * 4,  # Inner dimension of feed-forward layers
+            vocab_size=vocab_size,
+            mem_len=mem_len,  # Length of the memory
+            dropout=dropout,
+            # Important! Disable adaptive input and output embeddings
+            adaptive=False,
+            div_val=1  # No division of embedding size
+        )
+
+        self.transformer = TransfoXLModel(config)
+        self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
+        self.latent_proj = nn.Linear(latent_dim, hidden_size)
+        self.output_proj = nn.Linear(hidden_size, vocab_size)
+        self._memory = None
+
+    def forward(
+        self,
+        latent_vector: torch.Tensor,
+        input_sequence: torch.Tensor,
+        recv_in_music_form: bool = False,
+    ) -> torch.Tensor:
+        # input_sequence: [Batch, Seq_Len]
+        batch_size, current_sequence_len = input_sequence.shape
+        token_emb = self.token_embeddings(input_sequence)
+
+        # [B, Latent] -> [B, Hidden]
+        latent_proj = self.latent_proj(latent_vector)
+
+        # [B, 1, Hidden] -> [B, Seq_Len, Hidden]
+        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
+            batch_size, current_sequence_len, self.hidden_size
+        )
+        decoder_inputs_embeds = token_emb + latent_proj_expanded
+
+        outputs = self.transformer(
+            inputs_embeds=decoder_inputs_embeds,
+            mems=self._memory
+        )
+        last_hidden_state = outputs.last_hidden_state  # [B, Seq_Len, Hidden]
+        self._memory = outputs.mems
+
+        logits = self.output_proj(last_hidden_state)  # [B, Seq_Len, Vocab]
+        if recv_in_music_form:
+            logits = self.transform_to_music_form(logits)
+        return logits
+
+
 def decoder_mapper(decoder_name: str) -> Type[Decoder]:
     if decoder_name == "gpt_decoder":
         return GptDecoder
+    elif decoder_name == "transformer_xl":
+        return TransformerXL
     else:
         raise ValueError(f"Unknown decoder: {decoder_name}, possible: ['simple_conv']")
