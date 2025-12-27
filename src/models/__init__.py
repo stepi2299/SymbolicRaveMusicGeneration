@@ -20,6 +20,9 @@ def get_vae_model(model_cfg: DictConfig, adapter: MusicAdapter) -> VAE:
         vocab_size=adapter.vocab_size,
         sequence_length=adapter.sequence_length,
         patch_size=adapter.patch_size,
+        pad_token=adapter.pad_token_id,
+        bos_token=adapter.bos_token_id,
+        eos_token=adapter.eos_token_id,
         **model_cfg.decoder.params,
     )
     model = VAE(encoder=encoder_obj, decoder=decoder_obj, adapter=adapter)

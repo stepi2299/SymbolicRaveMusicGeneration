@@ -66,7 +66,9 @@ class FirstStage(pl.LightningModule):
         )
         if self._single_data_training:
             token_reconstruction = reconstruction.argmax(dim=-1)
-            correctness_reconstruction = (token_reconstruction == x_target).float().mean().item() * 100
+            correctness_reconstruction = (
+                token_reconstruction == x_target
+            ).float().mean().item() * 100
             self.log(
                 "reconstruction_success",
                 correctness_reconstruction,

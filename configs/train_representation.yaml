@@ -2,7 +2,7 @@
 defaults:
   - dataset: maestro     # default dataset
   - adapter: tokenizer  # default adapter
-  - model: vae_clamp2_trans_xl     # default model
+  - model: vae_clamp2_mistral   # default model
   - loss: elbo         # default loss
   - _self_
 
