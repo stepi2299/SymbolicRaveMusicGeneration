@@ -125,6 +125,30 @@ class Clamp2Encoder(Encoder):
                 "Could not load the checkpoint to the patch encoder model in strict way. "
                 f"Received error: {e}. Loading in non-strict way."
             )
+            if (
+                self.model.patch_encoder.patch_embedding.weight.size()
+                != model_checkpoint["patch_encoder.patch_embedding.weight"].size()
+            ):
+                logger.warning(
+                    "The patch embedding weights size does not match the checkpoint size. "
+                    "Removing patch embedding weights from the checkpoint."
+                )
+                model_checkpoint.pop("patch_encoder.patch_embedding.weight")
+                model_checkpoint.pop("patch_encoder.patch_embedding.bias")
+            if (
+                self.model.patch_encoder.base.embeddings.position_embeddings.weight.size()
+                != model_checkpoint[
+                    "patch_encoder.base.embeddings.position_embeddings.weight"
+                ].size()
+            ):
+                logger.warning(
+                    "The position embeddings weights size does not match the checkpoint size. "
+                    "Removing position embeddings weights from the checkpoint."
+                    f"Expected sequence len in CLAMP2: 512, received: {self.sequence_length}"
+                )
+                model_checkpoint.pop(
+                    "patch_encoder.base.embeddings.position_embeddings.weight"
+                )
             self.model.load_state_dict(model_checkpoint, strict=False)
 
     def _download_checkpoint(self) -> None:

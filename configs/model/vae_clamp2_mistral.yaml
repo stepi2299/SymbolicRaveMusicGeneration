@@ -21,7 +21,7 @@ decoder:
       # STANDARD: 32.
       # FOR MUSIC: 8-12. Music has complex hierarchical structures (phrasing, repetition)
       # that require depth to be modeled correctly.
-      num_hidden_layers: 1
+      num_hidden_layers: 4
 
       # The size of the internal Feed-Forward Network (FFN).
       # Mistral typically uses very wide FFNs (approx. 3.5x hidden_size).

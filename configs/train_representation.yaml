@@ -12,7 +12,6 @@ hydra:
   run:
     dir: outputs/hydra_train_repr/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
-
 competitor:
   batch_size: 1
   num_workers: 16
@@ -25,8 +24,8 @@ epochs: 1000  # number of epochs to train the model
 seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
-pretrained: false  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-single_data_training: true # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
+pretrained: true  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
+single_data_training: false # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
 grad_clip_val: null  # gradient clipping value, set to 0 to disable gradient clipping, can be set as null
 
 wandb:
@@ -41,10 +40,10 @@ callbacks:
   model_checkpoint_params:
     monitor: "val_loss"
     filename: "model-{epoch:02d}-{val_loss:.2f}"
-  sampling: false
+  sampling: true
   sampling_params:
     sample_interval: 10
-    num_samples: 1
+    num_samples: 2
     export_format: wav
   early_stopping: true
   early_stopping_params:
