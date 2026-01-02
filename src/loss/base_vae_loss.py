@@ -20,6 +20,7 @@ class BaseVaeLoss(ABC):
             reconstruction: Reconstructed data from the model.
             mu: Mean of the latent variable distribution.
             logvar: Log variance of the latent variable distribution.
+            global_step: Current training step.
 
         Returns:
             loss: The computed loss.

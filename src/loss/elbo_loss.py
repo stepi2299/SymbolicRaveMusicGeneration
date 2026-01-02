@@ -6,7 +6,7 @@ import torch
 
 class ElboLoss(BaseVaeLoss):
     def __init__(
-        self, vocab_size: int, turn: bool, annealing_steps: int, beta_max: float
+        self, vocab_size: int, turn: bool, annealing_steps: int, beta_max: float, kl_weight: float
     ) -> None:
         """
         ELBO Loss Function for Variational Autoencoders.
@@ -15,11 +15,13 @@ class ElboLoss(BaseVaeLoss):
         :param turn: Whether to use annealing for the KL divergence term.
         :param annealing_steps: Number of steps over which to anneal the KL divergence weight.
         :param beta_max: Maximum weight for the KL divergence term during annealing.
+        :param kl_weight: Fixed weight for the KL divergence term if not using annealing.
         """
         self._vocab_size = vocab_size
         self._annealing_steps = annealing_steps
         self._beta_max = beta_max
         self._turn = turn
+        self._kl_weight = kl_weight
 
     def __call__(
         self,
@@ -60,7 +62,7 @@ class ElboLoss(BaseVaeLoss):
                 min(1.0, global_step / self._annealing_steps) * self._beta_max
             )
         else:
-            annealing_beta = 1
+            annealing_beta = self._kl_weight
         loss = recon_loss + annealing_beta * kl_div
 
         return loss, {

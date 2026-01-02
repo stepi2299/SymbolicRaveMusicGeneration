@@ -19,10 +19,6 @@ class PatchEncoder(PreTrainedModel):
         torch.nn.init.normal_(self.patch_embedding.weight, std=0.02)
         self.config = config
         self.base = BertModel(config=config)
-        self.pad_token_id = 0
-        self.bos_token_id = 1
-        self.eos_token_id = 2
-        self.mask_token_id = 3
         self.patch_size = patch_size
         self.projection_layer = projection_layer
         self.vocab_size = vocab_size

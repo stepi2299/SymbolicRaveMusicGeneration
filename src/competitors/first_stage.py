@@ -3,6 +3,7 @@ from typing import Any
 
 import torch
 import pytorch_lightning as pl
+from pytorch_lightning.utilities import grad_norm
 from pathlib import Path
 
 from src.models.vae import VAE
@@ -26,6 +27,7 @@ class FirstStage(pl.LightningModule):
         decoder_learning_rate: float = 1e-3,
         learning_patience: int = 5,
         single_data_training: bool = False,
+        monitor_metric: str = "val_loss",
     ) -> None:
         super(FirstStage, self).__init__()
         self.vae = vae
@@ -46,6 +48,7 @@ class FirstStage(pl.LightningModule):
         self.adapter = symbolic_music_dataset.music_adapter
         self.loss_function = loss_function
         self._single_data_training = single_data_training
+        self._monitor_metric = monitor_metric
         self.save_hyperparameters()
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
@@ -77,6 +80,7 @@ class FirstStage(pl.LightningModule):
                 prog_bar=True,
             )
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
@@ -128,15 +132,20 @@ class FirstStage(pl.LightningModule):
         # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         #     optimizer, "min", patience=self.learning_patience
         # )
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        #     optimizer,
+        #     T_max=10000,
+        #     eta_min=1e-6,
+        # )
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
-            T_max=10000,
-            eta_min=1e-6,
+            max_lr=1e-3,
+            total_steps=self.trainer.estimated_stepping_batches
         )
         return {
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
-            "monitor": "val_loss",
+            "monitor": self._monitor_metric,
         }
 
     def generate(
@@ -161,3 +170,29 @@ class FirstStage(pl.LightningModule):
                 )
             )
         return songs
+
+    def on_before_optimizer_step(self, optimizer):
+        global_norms = grad_norm(self, norm_type=2)
+        if 'grad_2.0_norm_total' in global_norms:
+            self.log("grad_global/total_norm", global_norms['grad_2.0_norm_total'])
+
+        layers_to_track = self.vae.decoder.get_layers_to_track()
+
+        for i, layer in enumerate(layers_to_track):
+            grads = []
+            for param in layer.parameters():
+                if param.grad is not None:
+                    grads.append(param.grad.view(-1))
+
+            if grads:
+                layer_grads = torch.cat(grads)
+
+                l_norm = torch.norm(layer_grads, p=2)
+                l_max = layer_grads.max()
+                l_min = layer_grads.min()
+                l_std = layer_grads.std()
+
+                self.log(f"grad_layer_{i}/norm", l_norm, prog_bar=True, on_epoch=True, on_step=False)
+                self.log(f"grad_layer_{i}/max", l_max, prog_bar=True, on_epoch=True, on_step=False)
+                self.log(f"grad_layer_{i}/min", l_min, prog_bar=True, on_epoch=True, on_step=False)
+                self.log(f"grad_layer_{i}/std", l_std, prog_bar=True, on_epoch=True, on_step=False)

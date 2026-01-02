@@ -25,8 +25,9 @@ seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
 pretrained: true  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-single_data_training: false # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
-grad_clip_val: null  # gradient clipping value, set to 0 to disable gradient clipping, can be set as null
+single_data_training: true # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
+grad_clip_val: 0.5  # gradient clipping value, set to 0 to disable gradient clipping, can be set as null
+monitor_metric: "val_loss"  # metric to monitor for early stopping and model checkpointing
 
 wandb:
   project: "SymbolicRave"
@@ -49,3 +50,4 @@ callbacks:
   early_stopping_params:
     patience: 15
     monitor: "val_loss"
+  log_learning_rate: true

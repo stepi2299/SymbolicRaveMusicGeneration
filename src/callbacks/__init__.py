@@ -2,7 +2,7 @@ from omegaconf import DictConfig
 from typing import List
 from datetime import datetime
 
-from pytorch_lightning.callbacks import Callback, ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import Callback, ModelCheckpoint, EarlyStopping, LearningRateMonitor
 
 from src.callbacks.sampling_callback import SamplingCallback
 
@@ -37,4 +37,6 @@ def get_callbacks(
         )
     if cfg.early_stopping:
         used_callbacks.append(EarlyStopping(mode="min", **cfg.early_stopping_params))
+    if cfg.log_learning_rate:
+        used_callbacks.append(LearningRateMonitor(logging_interval="epoch"))
     return used_callbacks

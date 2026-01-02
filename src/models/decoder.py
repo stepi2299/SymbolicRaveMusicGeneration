@@ -57,6 +57,10 @@ class Decoder(nn.Module, ABC):
 
         return recv_tokens.argmax(dim=-1)
 
+    @abstractmethod
+    def get_layers_to_track(self):
+        pass
+
 
 class GptDecoder(Decoder):
     def __init__(
@@ -97,7 +101,7 @@ class GptDecoder(Decoder):
             dim_feedforward=intermediate_ff_size,
             dropout=dropout,
         )
-        self.transformer_decoder = nn.TransformerDecoder(
+        self.model = nn.TransformerDecoder(
             layer, num_layers=num_decoder_layers
         )
 
@@ -135,7 +139,7 @@ class GptDecoder(Decoder):
         )
         # TODO dac maske odpowiednia gdy token jest 0!!! (mozliwe ze to wazne tez w encoderze) THINK
 
-        h = self.transformer_decoder(
+        h = self.model(
             decoder_input,
             memory=decoder_input,
             tgt_mask=mask,
@@ -144,6 +148,9 @@ class GptDecoder(Decoder):
         if recv_in_music_form:
             output_proj = self.transform_to_music_form(output_proj)  # [B, seq_len]
         return output_proj
+
+    def get_layers_to_track(self):
+        return self.model.layers
 
 
 class TransformerXL(Decoder):
@@ -186,12 +193,13 @@ class TransformerXL(Decoder):
             # Important! Disable adaptive input and output embeddings
             adaptive=False,
             div_val=1,  # No division of embedding size,
+            pre_lnorm=True,
             bos_token_id=self.bos_token,
             eos_token_id=self.eos_token,
             pad_token_id=self.pad_token,
         )
 
-        self.transformer = TransfoXLModel(config)
+        self.model = TransfoXLModel(config)
         self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
         self.latent_proj = nn.Linear(latent_dim, hidden_size)
         self.output_proj = nn.Linear(hidden_size, vocab_size)
@@ -216,7 +224,7 @@ class TransformerXL(Decoder):
         )
         decoder_inputs_embeds = token_emb + latent_proj_expanded
 
-        outputs = self.transformer(
+        outputs = self.model(
             inputs_embeds=decoder_inputs_embeds, mems=self._memory
         )
         last_hidden_state = outputs.last_hidden_state  # [B, Seq_Len, Hidden]
@@ -226,6 +234,9 @@ class TransformerXL(Decoder):
         if recv_in_music_form:
             logits = self.transform_to_music_form(logits)
         return logits
+
+    def get_layers_to_track(self):
+        return self.model.layers
 
 
 class TransformerRope(Decoder):
@@ -274,7 +285,7 @@ class TransformerRope(Decoder):
             use_cache=False,
         )
 
-        self._model = GPTNeoXModel(config)
+        self.model = GPTNeoXModel(config)
         self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
         self.latent_proj = nn.Linear(latent_dim, hidden_size)
         self.output_proj = nn.Linear(hidden_size, vocab_size)
@@ -301,7 +312,7 @@ class TransformerRope(Decoder):
         )
         decoder_inputs_embeds = token_emb + latent_proj_expanded
 
-        outputs = self._model(
+        outputs = self.model(
             inputs_embeds=decoder_inputs_embeds,
             past_key_values=self._past_key_values,
             return_dict=True,

@@ -3,3 +3,4 @@ params:
   turn: False
   annealing_steps: 10000
   beta_max: 0.01
+  kl_weight: 1.0
