@@ -100,6 +100,7 @@ class GptDecoder(Decoder):
             nhead=self.num_heads,
             dim_feedforward=intermediate_ff_size,
             dropout=dropout,
+            norm_first=True
         )
         self.model = nn.TransformerDecoder(
             layer, num_layers=num_decoder_layers

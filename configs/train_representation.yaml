@@ -2,7 +2,7 @@
 defaults:
   - dataset: maestro     # default dataset
   - adapter: tokenizer  # default adapter
-  - model: vae_clamp2_mistral   # default model
+  - model: vae_clamp2_trans_xl   # default model
   - loss: elbo         # default loss
   - _self_
 
@@ -16,18 +16,18 @@ competitor:
   batch_size: 1
   num_workers: 16
   train_split: 0.8
-  encoder_learning_rate: 0.001
-  decoder_learning_rate: 0.001
-  learning_patience: 5
+  max_encoder_learning_rate: 0.003
+  max_decoder_learning_rate: 0.003
 
 epochs: 1000  # number of epochs to train the model
 seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
-processing_precision: medium  # possible values: medium | high
+processing_precision: high  # possible values: medium | high
 pretrained: true  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
 single_data_training: true # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
-grad_clip_val: 0.5  # gradient clipping value, set to 0 to disable gradient clipping, can be set as null
+grad_clip_val: 0.5  # gradient clipping value, set to null to disable gradient clipping
 monitor_metric: "val_loss"  # metric to monitor for early stopping and model checkpointing
+warmup_steps: 100  # number of warmup steps for learning rate scheduler (for single data training, set small value like 10/50)
 
 wandb:
   project: "SymbolicRave"
@@ -41,13 +41,13 @@ callbacks:
   model_checkpoint_params:
     monitor: "val_loss"
     filename: "model-{epoch:02d}-{val_loss:.2f}"
-  sampling: true
+  sampling: false
   sampling_params:
     sample_interval: 10
-    num_samples: 2
+    num_samples: 1
     export_format: wav
   early_stopping: true
   early_stopping_params:
-    patience: 15
+    patience: 10
     monitor: "val_loss"
   log_learning_rate: true

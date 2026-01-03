@@ -2,8 +2,10 @@ from __future__ import annotations
 from typing import Any
 
 import torch
+import math
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import grad_norm
+from torch.optim.lr_scheduler import LambdaLR
 from pathlib import Path
 
 from src.models.vae import VAE
@@ -23,11 +25,11 @@ class FirstStage(pl.LightningModule):
         batch_size: int,
         num_workers: int = 0,
         train_split: float = 0.8,
-        encoder_learning_rate: float = 1e-3,
-        decoder_learning_rate: float = 1e-3,
-        learning_patience: int = 5,
+        max_encoder_learning_rate: float = 1e-3,
+        max_decoder_learning_rate: float = 1e-3,
         single_data_training: bool = False,
         monitor_metric: str = "val_loss",
+        warmup_steps=100
     ) -> None:
         super(FirstStage, self).__init__()
         self.vae = vae
@@ -42,13 +44,13 @@ class FirstStage(pl.LightningModule):
             )
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.encoder_learning_rate = encoder_learning_rate
-        self.decoder_learning_rate = decoder_learning_rate
-        self.learning_patience = learning_patience
+        self.max_encoder_learning_rate = max_encoder_learning_rate
+        self.max_decoder_learning_rate = max_decoder_learning_rate
         self.adapter = symbolic_music_dataset.music_adapter
         self.loss_function = loss_function
         self._single_data_training = single_data_training
         self._monitor_metric = monitor_metric
+        self._warmup_steps = warmup_steps
         self.save_hyperparameters()
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
@@ -117,34 +119,56 @@ class FirstStage(pl.LightningModule):
         )
 
     def configure_optimizers(self):
+        # 1. Define the optimizer with separate parameter groups for Encoder and Decoder
+        # This allows setting different maximum learning rates for each part of the VAE.
         optimizer = torch.optim.AdamW(
             [
                 {
                     "params": self.vae.encoder.parameters(),
-                    "lr": self.encoder_learning_rate,
+                    "lr": self.max_encoder_learning_rate,  # Base LR for the encoder
                 },
                 {
                     "params": self.vae.decoder.parameters(),
-                    "lr": self.decoder_learning_rate,
+                    "lr": self.max_decoder_learning_rate,  # Base LR for the decoder
                 },
             ]
         )
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        #     optimizer, "min", patience=self.learning_patience
-        # )
-        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        #     optimizer,
-        #     T_max=10000,
-        #     eta_min=1e-6,
-        # )
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer,
-            max_lr=1e-3,
-            total_steps=self.trainer.estimated_stepping_batches
-        )
+
+        # 2. Calculate total training steps
+        # Lightning automatically calculates this based on max_epochs, batch_size, and accumulation.
+        total_steps = self.trainer.estimated_stepping_batches
+
+        # 3. Define warmup steps
+        # Standard practice is to warm up for a fraction of training (e.g., 5-10%) or a fixed number (e.g., 2000).
+        # Since you are doing a sanity check on one song, keep it small (e.g., 50-100 steps).
+        warmup_steps = self._warmup_steps
+
+        # 4. Define the Scheduler Lambda function (Linear Warmup + Cosine Decay)
+        # This function returns a *multiplier* for the base LR (from 0.0 to 1.0).
+        def lr_lambda(current_step: int):
+            # Phase 1: Linear Warmup
+            # Linearly increase LR from 0 to the base LR defined in the optimizer.
+            if current_step < warmup_steps:
+                return float(current_step) / float(max(1, warmup_steps))
+
+            # Phase 2: Cosine Decay
+            # After warmup, follow a cosine curve down to 0.
+            progress = float(current_step - warmup_steps) / float(max(1, total_steps - warmup_steps))
+
+            # Ensure we don't go below 0.0
+            return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
+
+        # 5. Initialize the scheduler using the lambda function
+        scheduler = LambdaLR(optimizer, lr_lambda)
+
         return {
             "optimizer": optimizer,
-            "lr_scheduler": scheduler,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                # CRITICAL: Scheduler must step every batch to create the smooth cosine curve.
+                "interval": "step",
+                "frequency": 1,
+            },
             "monitor": self._monitor_metric,
         }
 
