@@ -7,7 +7,7 @@ from src.models.discriminator import discriminator_mapper, Discriminator
 from src.adapter import MusicAdapter
 
 
-def get_vae_model(model_cfg: DictConfig, adapter: MusicAdapter) -> VAE:
+def get_vae_model(model_cfg: DictConfig, adapter: MusicAdapter, vae_params: DictConfig) -> VAE:
     encoder_obj = encoder_mapper(model_cfg.encoder.name)(
         latent_dim=model_cfg.latent_dim,
         vocab_size=adapter.vocab_size,
@@ -25,7 +25,7 @@ def get_vae_model(model_cfg: DictConfig, adapter: MusicAdapter) -> VAE:
         eos_token=adapter.eos_token_id,
         **model_cfg.decoder.params,
     )
-    model = VAE(encoder=encoder_obj, decoder=decoder_obj, adapter=adapter)
+    model = VAE(encoder=encoder_obj, decoder=decoder_obj, adapter=adapter, **vae_params)
     return model
 
 

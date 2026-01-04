@@ -27,7 +27,11 @@ pretrained: true  # possible values: true | false, if true, the model will be lo
 single_data_training: true # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
 grad_clip_val: 0.5  # gradient clipping value, set to null to disable gradient clipping
 monitor_metric: "val_loss"  # metric to monitor for early stopping and model checkpointing
-warmup_steps: 100  # number of warmup steps for learning rate scheduler (for single data training, set small value like 10/50)
+warmup_steps: 10  # number of warmup steps for learning rate scheduler (for single data training, set small value like 10/50)
+
+vae_params:
+  use_cache_generation: false  # whether to use cache during generation (inference) - requires more VRAM but speeds up generation
+  strict_sampling: true  # whether to use strict sampling (top-k, top-p) during generation
 
 wandb:
   project: "SymbolicRave"

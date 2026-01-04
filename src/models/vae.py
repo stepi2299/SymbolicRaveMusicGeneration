@@ -12,14 +12,16 @@ logger = lg.getLogger(__name__)
 
 class VAE(nn.Module):
     def __init__(
-        self, encoder: Encoder, decoder: Decoder, adapter: MusicAdapter
+        self, encoder: Encoder, decoder: Decoder, adapter: MusicAdapter, use_cache_generation: bool = False, strict_sampling: bool = True
     ) -> None:
         super(VAE, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
         self._adapter = adapter
         self._validate_if_latent_dimensions_match()
-        self.orig_sample = None
+        self._orig_sample = None
+        self._use_cache = use_cache_generation
+        self._strict_sampling = strict_sampling
 
     def _validate_if_latent_dimensions_match(self) -> None:
         if self.encoder.latent_dim != self.decoder.latent_dim:
@@ -31,7 +33,7 @@ class VAE(nn.Module):
     def forward(
         self, input_music: torch.Tensor, recv_in_music_form: bool = False
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        self.orig_sample = input_music
+        self._orig_sample = input_music
         mu, log_variance = self.encoder(input_music)
         latent_vector = self.reparameterize(mu, log_variance)
         tensor_reconstruction = self.decoder(
@@ -87,13 +89,13 @@ class VAE(nn.Module):
                 torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
             )
             logits = self.decoder(
-                latent_vector, input_seq, recv_in_music_form=False, use_cache=True
+                latent_vector, input_seq, recv_in_music_form=False, use_cache=self._use_cache
             )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
             next_token_logits = logits[
                 0, -1, :
             ]  # taking last one (logits for next token)
 
-            next_token_idx = self.sample_next_token(next_token_logits, strict=True)
+            next_token_idx = self.sample_next_token(next_token_logits, strict=self._strict_sampling)
             generated_sequence.append(next_token_idx)
 
             if (
@@ -102,6 +104,7 @@ class VAE(nn.Module):
             ):
                 logger.debug(f"Generated sequence: {generated_sequence}")
                 break
+        self.decoder.clean_cache()
         return generated_sequence[1:]
 
     def load_pretrained(self) -> None:
