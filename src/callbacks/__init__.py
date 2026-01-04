@@ -2,7 +2,12 @@ from omegaconf import DictConfig
 from typing import List
 from datetime import datetime
 
-from pytorch_lightning.callbacks import Callback, ModelCheckpoint, EarlyStopping, LearningRateMonitor
+from pytorch_lightning.callbacks import (
+    Callback,
+    ModelCheckpoint,
+    EarlyStopping,
+    LearningRateMonitor,
+)
 
 from src.callbacks.sampling_callback import SamplingCallback
 

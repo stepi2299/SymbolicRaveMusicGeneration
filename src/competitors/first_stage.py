@@ -29,7 +29,7 @@ class FirstStage(pl.LightningModule):
         max_decoder_learning_rate: float = 1e-3,
         single_data_training: bool = False,
         monitor_metric: str = "val_loss",
-        warmup_steps=100
+        warmup_steps=100,
     ) -> None:
         super(FirstStage, self).__init__()
         self.vae = vae
@@ -153,7 +153,9 @@ class FirstStage(pl.LightningModule):
 
             # Phase 2: Cosine Decay
             # After warmup, follow a cosine curve down to 0.
-            progress = float(current_step - warmup_steps) / float(max(1, total_steps - warmup_steps))
+            progress = float(current_step - warmup_steps) / float(
+                max(1, total_steps - warmup_steps)
+            )
 
             # Ensure we don't go below 0.0
             return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
@@ -197,8 +199,8 @@ class FirstStage(pl.LightningModule):
 
     def on_before_optimizer_step(self, optimizer):
         global_norms = grad_norm(self, norm_type=2)
-        if 'grad_2.0_norm_total' in global_norms:
-            self.log("grad_global/total_norm", global_norms['grad_2.0_norm_total'])
+        if "grad_2.0_norm_total" in global_norms:
+            self.log("grad_global/total_norm", global_norms["grad_2.0_norm_total"])
 
         layers_to_track = self.vae.decoder.get_layers_to_track()
 
@@ -216,7 +218,31 @@ class FirstStage(pl.LightningModule):
                 l_min = layer_grads.min()
                 l_std = layer_grads.std()
 
-                self.log(f"grad_layer_{i}/norm", l_norm, prog_bar=True, on_epoch=True, on_step=False)
-                self.log(f"grad_layer_{i}/max", l_max, prog_bar=True, on_epoch=True, on_step=False)
-                self.log(f"grad_layer_{i}/min", l_min, prog_bar=True, on_epoch=True, on_step=False)
-                self.log(f"grad_layer_{i}/std", l_std, prog_bar=True, on_epoch=True, on_step=False)
+                self.log(
+                    f"grad_layer_{i}/norm",
+                    l_norm,
+                    prog_bar=True,
+                    on_epoch=True,
+                    on_step=False,
+                )
+                self.log(
+                    f"grad_layer_{i}/max",
+                    l_max,
+                    prog_bar=True,
+                    on_epoch=True,
+                    on_step=False,
+                )
+                self.log(
+                    f"grad_layer_{i}/min",
+                    l_min,
+                    prog_bar=True,
+                    on_epoch=True,
+                    on_step=False,
+                )
+                self.log(
+                    f"grad_layer_{i}/std",
+                    l_std,
+                    prog_bar=True,
+                    on_epoch=True,
+                    on_step=False,
+                )

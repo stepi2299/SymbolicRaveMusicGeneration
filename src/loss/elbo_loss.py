@@ -6,7 +6,12 @@ import torch
 
 class ElboLoss(BaseVaeLoss):
     def __init__(
-        self, vocab_size: int, turn: bool, annealing_steps: int, beta_max: float, kl_weight: float
+        self,
+        vocab_size: int,
+        turn: bool,
+        annealing_steps: int,
+        beta_max: float,
+        kl_weight: float,
     ) -> None:
         """
         ELBO Loss Function for Variational Autoencoders.

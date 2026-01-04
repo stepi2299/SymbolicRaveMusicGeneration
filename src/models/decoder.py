@@ -100,11 +100,9 @@ class GptDecoder(Decoder):
             nhead=self.num_heads,
             dim_feedforward=intermediate_ff_size,
             dropout=dropout,
-            norm_first=True
+            norm_first=True,
         )
-        self.model = nn.TransformerDecoder(
-            layer, num_layers=num_decoder_layers
-        )
+        self.model = nn.TransformerDecoder(layer, num_layers=num_decoder_layers)
 
         self.output_proj = nn.Linear(self.hidden_size, self.vocab_size)
 
@@ -225,9 +223,7 @@ class TransformerXL(Decoder):
         )
         decoder_inputs_embeds = token_emb + latent_proj_expanded
 
-        outputs = self.model(
-            inputs_embeds=decoder_inputs_embeds, mems=self._memory
-        )
+        outputs = self.model(inputs_embeds=decoder_inputs_embeds, mems=self._memory)
         last_hidden_state = outputs.last_hidden_state  # [B, Seq_Len, Hidden]
         self._memory = outputs.mems
 
