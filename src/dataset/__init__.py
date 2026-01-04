@@ -15,7 +15,9 @@ def get_dataset(
     single_data_training: bool = False,
     chosen_index: int = None,
 ) -> SymbolicMusicDataset:
-    music_adapter = MusicAdapter(adapter_config, dataset_config.extension)
+    music_adapter = MusicAdapter(
+        adapter_config, dataset_config.extension, dataset_config.name
+    )
     dataset_path = Path.cwd() / "data" / dataset_config.data_dir
     dataset_path = dataset_path.resolve(True)
     if dataset_config.extension == "mid" or dataset_config.extension == "midi":

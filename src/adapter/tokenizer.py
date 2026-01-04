@@ -45,6 +45,7 @@ class Tokenizer:
         tokenizer_name: str,
         training_model: str,
         vocab_size: int,
+        dataset_name: str,
         sequence_length: int,
         add_special_patches: bool = True,
         **kwargs,
@@ -54,6 +55,7 @@ class Tokenizer:
         self.vocab_size = vocab_size
         self.sequence_length = sequence_length
         self.add_special_patches = add_special_patches
+        self._dataset_name = dataset_name
         self.patch_size = self.PATCH_MAPPER[tokenizer_name]
         if tokenizer_name not in self.TOKENIZER_MAPPER:
             raise ValueError(
@@ -143,7 +145,7 @@ class Tokenizer:
     def cache_tokenizer_path(self) -> Path:
         return (
             self.TOKENIZER_BASE_PATH
-            / f"{self.tokenizer_name}_{self.training_model}_{self.vocab_size}.json"
+            / f"{self._dataset_name}_{self.tokenizer_name}_{self.training_model}_{self.vocab_size}.json"
         )
 
     @property
@@ -160,11 +162,17 @@ class Tokenizer:
 
 
 def get_tokenizer(
-    tokenizer: str, training_model: str, force: bool = False, **kwargs
+    tokenizer: str,
+    training_model: str,
+    dataset_name: str,
+    force: bool = False,
+    **kwargs,
 ) -> Tokenizer:
-    dataset_name: str = kwargs.pop("dataset_name")
     tokenizer = Tokenizer(
-        tokenizer_name=tokenizer, training_model=training_model, **kwargs
+        tokenizer_name=tokenizer,
+        training_model=training_model,
+        dataset_name=dataset_name,
+        **kwargs,
     )
     if force or not tokenizer.is_trained:
         dataset_path = (base_dataset_path / dataset_name).resolve(True)

@@ -2,6 +2,7 @@ import hydra
 import logging as lg
 import wandb
 from omegaconf import DictConfig
+import os
 
 import torch
 from pytorch_lightning import Trainer
@@ -18,6 +19,7 @@ from src.loss import get_loss_function
     config_path="../../configs", config_name="train_representation", version_base="1.3"
 )
 def main(cfg: DictConfig) -> None:
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
     wandb_logger = WandbLogger(
         project=cfg.wandb.project,
         entity=cfg.wandb.entity,

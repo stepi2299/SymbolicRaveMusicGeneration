@@ -35,7 +35,10 @@ class VAE(nn.Module):
         mu, log_variance = self.encoder(input_music)
         latent_vector = self.reparameterize(mu, log_variance)
         tensor_reconstruction = self.decoder(
-            latent_vector, input_music, recv_in_music_form
+            latent_vector,
+            input_music,
+            recv_in_music_form=recv_in_music_form,
+            use_cache=False,
         )
         return tensor_reconstruction, mu, log_variance
 
@@ -78,12 +81,13 @@ class VAE(nn.Module):
         self, latent_vector: torch.Tensor
     ) -> list[int] | list[list[int]]:
         generated_sequence = [self._adapter.bos_token_id]
+        self.decoder.clean_cache()
         for _ in range(self.decoder.sequence_length):
             input_seq = (
                 torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
             )
             logits = self.decoder(
-                latent_vector, input_seq, recv_in_music_form=False
+                latent_vector, input_seq, recv_in_music_form=False, use_cache=True
             )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
             next_token_logits = logits[
                 0, -1, :

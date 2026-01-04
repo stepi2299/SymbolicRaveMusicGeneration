@@ -10,9 +10,15 @@ from src.constants import SymbolicMusicFormat, MusicAdapterType, ExportFormat
 
 
 class MusicAdapter:
-    def __init__(self, adapter_config: DictConfig, symbolic_format: str) -> None:
+    def __init__(
+        self, adapter_config: DictConfig, symbolic_format: str, dataset_name: str
+    ) -> None:
         self.adapter_type = MusicAdapterType(adapter_config.name)
-        self._adapter = self.get_preprocessor(self.adapter_type, adapter_config.params)
+        self._adapter = self.get_preprocessor(
+            self.adapter_type,
+            dataset_name=dataset_name,
+            preprocessor_config=adapter_config.params,
+        )
         if symbolic_format == "mid":
             symbolic_format = "midi"
         self.symbolic_format = SymbolicMusicFormat(symbolic_format)
@@ -88,11 +94,13 @@ class MusicAdapter:
 
     @staticmethod
     def get_preprocessor(
-        preprocessor_name: MusicAdapterType, preprocessor_config: DictConfig
+        preprocessor_name: MusicAdapterType,
+        dataset_name: str,
+        preprocessor_config: DictConfig,
     ) -> MusicPatchilizer | Tokenizer:
         if preprocessor_name == MusicAdapterType.PATCHILIZER:
             return MusicPatchilizer(**preprocessor_config)
         elif preprocessor_name == MusicAdapterType.TOKENIZER:
-            return get_tokenizer(**preprocessor_config)
+            return get_tokenizer(dataset_name=dataset_name, **preprocessor_config)
         else:
             raise ValueError(f"Unknown preprocessor: {preprocessor_name}")

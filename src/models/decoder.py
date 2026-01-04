@@ -35,13 +35,16 @@ class Decoder(nn.Module, ABC):
         self.bos_token = bos_token
         self.eos_token = eos_token
         self.pad_token = pad_token
+        self._cache_params = None
 
     @abstractmethod
     def forward(
         self,
         latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
+        *,
         recv_in_music_form: bool = False,
+        use_cache: bool = False,
     ) -> torch.Tensor:
         pass
 
@@ -60,6 +63,9 @@ class Decoder(nn.Module, ABC):
     @abstractmethod
     def get_layers_to_track(self):
         pass
+
+    def clean_cache(self):
+        self._cache_params = None
 
 
 class GptDecoder(Decoder):
@@ -110,7 +116,9 @@ class GptDecoder(Decoder):
         self,
         latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
+        *,
         recv_in_music_form: bool = False,
+        use_cache: bool = False,
     ) -> torch.Tensor:
         # Getting current sequence length (for generation when len is growing)
         batch_size, current_sequence_len = input_sequence.shape
@@ -208,7 +216,9 @@ class TransformerXL(Decoder):
         self,
         latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
+        *,
         recv_in_music_form: bool = False,
+        use_cache: bool = False,
     ) -> torch.Tensor:
         # input_sequence: [Batch, Seq_Len]
         batch_size, current_sequence_len = input_sequence.shape
@@ -286,14 +296,13 @@ class TransformerRope(Decoder):
         self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
         self.latent_proj = nn.Linear(latent_dim, hidden_size)
         self.output_proj = nn.Linear(hidden_size, vocab_size)
-        self._past_key_values = None
 
     def forward(
         self,
         latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
-        recv_in_music_form: bool = False,
         *,
+        recv_in_music_form: bool = False,
         use_cache: bool = False,  # set True during inference
     ) -> torch.Tensor:
         # input_sequence: [Batch, Seq_Len]
@@ -311,7 +320,7 @@ class TransformerRope(Decoder):
 
         outputs = self.model(
             inputs_embeds=decoder_inputs_embeds,
-            past_key_values=self._past_key_values,
+            past_key_values=self._cache_params,
             return_dict=True,
             use_cache=use_cache,
         )
@@ -322,8 +331,11 @@ class TransformerRope(Decoder):
         if recv_in_music_form:
             logits = self.transform_to_music_form(logits)
         if use_cache:
-            self._past_key_values = outputs.past_key_values
+            self._cache_params = outputs.past_key_values
         return logits
+
+    def get_layers_to_track(self):
+        return self.model.layers
 
 
 class MistralDecoder(Decoder):
@@ -377,14 +389,13 @@ class MistralDecoder(Decoder):
         self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
         self.latent_proj = nn.Linear(latent_dim, hidden_size)
         self.output_proj = nn.Linear(hidden_size, vocab_size)
-        self._past_key_values = None
 
     def forward(
         self,
         latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
-        recv_in_music_form: bool = False,
         *,
+        recv_in_music_form: bool = False,
         use_cache: bool = False,  # set True during inference
     ) -> torch.Tensor:
         batch_size, current_sequence_len = input_sequence.shape
@@ -399,7 +410,7 @@ class MistralDecoder(Decoder):
 
         outputs = self.model(
             inputs_embeds=decoder_inputs_embeds,
-            past_key_values=self._past_key_values,
+            past_key_values=self._cache_params,
             return_dict=True,
             use_cache=use_cache,
         )
@@ -408,8 +419,11 @@ class MistralDecoder(Decoder):
         if recv_in_music_form:
             logits = self.transform_to_music_form(logits)
         if use_cache:
-            self._past_key_values = outputs.past_key_values
+            self._cache_params = outputs.past_key_values
         return logits
+
+    def get_layers_to_track(self):
+        return self.model.layers
 
 
 class MambaDecoder(Decoder):
@@ -462,8 +476,8 @@ class MambaDecoder(Decoder):
         self,
         latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
-        recv_in_music_form: bool = False,
         *,
+        recv_in_music_form: bool = False,
         use_cache: bool = False,
     ) -> torch.Tensor:
         batch_size, current_sequence_len = input_sequence.shape
@@ -490,8 +504,10 @@ class MambaDecoder(Decoder):
             logits = self.transform_to_music_form(logits)
         if use_cache:
             self._cache_params = outputs.cache_params
-
         return logits
+
+    def get_layers_to_track(self):
+        return self.model.layers
 
 
 def decoder_mapper(decoder_name: str) -> Type[Decoder]:
