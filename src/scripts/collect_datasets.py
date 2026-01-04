@@ -3,15 +3,14 @@ import shutil
 import requests
 import tarfile
 import logging as lg
-
+import zipfile
 import muspy
 
 lg.basicConfig(level=lg.INFO)
 logger = lg.getLogger(__name__)
 
 
-def download_from_url(url, save_path, verbose=False, **kwargs) -> Path:
-    archive_path = save_path / "midicaps.tar.gz"
+def download_from_url(url: str, save_path: Path, archive_path: Path, verbose=False, **kwargs) -> Path:
     logger.info(f"Downloading to {archive_path} ...")
     with requests.get(url, stream=True) as r:
         with open(archive_path, "wb") as f:
@@ -55,6 +54,7 @@ def download_and_process_midicaps(save_path: Path) -> None:
     midicaps_tar_path = download_from_url(
         midicaps_url,
         save_path,
+        save_path / "midicaps.tar.gz",
     )
     with tarfile.open(midicaps_tar_path, mode="r:gz") as tar:
         tar.extractall(path=midicaps_path)
@@ -65,12 +65,39 @@ def download_and_process_midicaps(save_path: Path) -> None:
     extra_level_folder.rmdir()
     logger.info(f"Moved {extra_level_folder} to {midicaps_path}")
 
+def download_and_process_pop909(save_path: Path) -> None:
+    pop909_url = "https://github.com/music-x-lab/POP909-Dataset/archive/refs/heads/master.zip"
+    pop909_path = save_path / "pop909"
+    pop909_path.mkdir(exist_ok=True)
+    pop909_zip_path = download_from_url(
+        pop909_url,
+        save_path,
+        save_path / "pop909.zip",
+    )
+    with zipfile.ZipFile(pop909_zip_path, 'r') as zip_ref:
+        zip_ref.extractall(pop909_path)
+    logger.info(f"Extracted {pop909_zip_path} to {pop909_path}")
+    extra_level_folder = pop909_path / "POP909-Dataset-master" / "POP909"
+    for item in extra_level_folder.iterdir():
+        item.rename(pop909_path / item.name)
+    shutil.rmtree(extra_level_folder.parent)
+    for item in pop909_path.iterdir():
+        if not item.is_dir():
+            item.unlink()
+            continue
+        for subitem in item.iterdir():
+            if subitem.is_dir():
+                shutil.rmtree(subitem)
+            elif subitem.suffix not in ['.mid', '.midi']:
+                subitem.unlink()
+    logger.info(f"Moved {extra_level_folder} to {pop909_path}")
 
 def download_data():
     base_data_path = Path.cwd() / "data"
     clean_root_dir(base_data_path)
     download_and_process_maestro(base_data_path)
     download_and_process_midicaps(base_data_path)
+    download_and_process_pop909(base_data_path)
     cleanup(base_data_path)
 
 
