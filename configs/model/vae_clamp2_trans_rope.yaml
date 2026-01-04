@@ -18,7 +18,7 @@ decoder:
       # Number of Transformer blocks.
       # IMPACT: Critical for modeling long-term structure (phrasing, repetition).
       # STANDARD: 1 is extremely shallow. Use 6-12+ for meaningful music generation.
-      num_decoder_layers: 1
+      num_decoder_layers: 12
 
       # Probability of dropping neurons to prevent overfitting.
       # STANDARD: 0.1.
@@ -26,7 +26,7 @@ decoder:
 
       # Size of the feed-forward network inside the transformer.
       # STANDARD: Usually 4x hidden_size (approx 3072).
-      intermediate_ff_size: 2048
+      intermediate_ff_size: 3072
 
       # [RoPE SPECIFIC] ROTATION PERCENTAGE
       # Defines what fraction of the hidden dimension gets the rotary embedding applied.
