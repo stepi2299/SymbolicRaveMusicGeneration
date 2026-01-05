@@ -1,4 +1,4 @@
-name: clamp_vae
+name: clamp_pgt
 latent_dim: 768
 encoder:
   name: clamp

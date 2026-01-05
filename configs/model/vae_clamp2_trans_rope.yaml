@@ -1,4 +1,4 @@
-name: clamp2_vae
+name: clamp2_rope
 latent_dim: 768
 encoder:
   name: clamp2
