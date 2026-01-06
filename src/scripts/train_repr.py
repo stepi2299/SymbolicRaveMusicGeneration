@@ -44,7 +44,9 @@ def main(cfg: DictConfig) -> None:
     symbolic_music_dataset = get_dataset(
         cfg.dataset, cfg.adapter, single_data_training, chosen_index
     )
-    vae_model = get_vae_model(cfg.model, symbolic_music_dataset.music_adapter, cfg.vae_params)
+    vae_model = get_vae_model(
+        cfg.model, symbolic_music_dataset.music_adapter, cfg.vae_params
+    )
     if cfg.pretrained:
         vae_model.load_pretrained()
     loss_function = get_loss_function(

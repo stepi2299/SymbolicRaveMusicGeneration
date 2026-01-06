@@ -12,6 +12,7 @@ from transformers import (
     MistralConfig,
     MistralModel,
 )
+from src.models.linear_attention import LinearTransformerBlock
 
 
 class Decoder(nn.Module, ABC):
@@ -510,6 +511,104 @@ class MambaDecoder(Decoder):
         return self.model.layers
 
 
+class LinearAttentionDecoder(Decoder):
+    def __init__(
+        self,
+        latent_dim: int,
+        vocab_size: int,
+        hidden_size: int,
+        sequence_length: int,
+        num_decoder_layers: int,
+        intermediate_ff_size: int,
+        patch_size: int,
+        bos_token: int,
+        eos_token: int,
+        pad_token: int,
+        dropout: float = 0.1,
+    ) -> None:
+        super().__init__(
+            latent_dim=latent_dim,
+            name="mamba_decoder",
+            vocab_size=vocab_size,
+            sequence_length=sequence_length,
+            patch_size=patch_size,
+            bos_token=bos_token,
+            eos_token=eos_token,
+            pad_token=pad_token,
+        )
+        self.hidden_size = hidden_size
+        self.num_heads = hidden_size // 64
+
+        self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
+
+        # W Linear Transformer absolutna pozycja nie jest aż tak krytyczna jak w standardowym
+        # bo stan RNN "liczy" kroki, ale warto dodać
+        self.position_embeddings = nn.Embedding(sequence_length, hidden_size)
+
+        self.latent_proj = nn.Linear(latent_dim, hidden_size)
+
+        # Stos warstw liniowych
+        self.layers = nn.ModuleList(
+            [
+                LinearTransformerBlock(
+                    hidden_size, self.num_heads, intermediate_ff_size, dropout
+                )
+                for _ in range(num_decoder_layers)
+            ]
+        )
+
+        self.ln_f = nn.LayerNorm(hidden_size)
+        self.output_proj = nn.Linear(hidden_size, vocab_size)
+
+    def forward(
+        self,
+        latent_vector: torch.Tensor,
+        input_sequence: torch.Tensor,
+        *,
+        recv_in_music_form: bool = False,
+        use_cache: bool = False,
+    ) -> torch.Tensor:
+        batch_size, seq_len = input_sequence.shape
+
+        # Embeddings
+        x = self.token_embeddings(input_sequence)
+
+        # Add position
+        if not use_cache:  # W treningu dodajemy pozycje dla całego ciągu
+            positions = torch.arange(0, seq_len, device=x.device).unsqueeze(0)
+            x = x + self.position_embeddings(positions)
+        else:  # W inference dla pojedynczego kroku (trzeba by śledzić index, tu uproszczenie)
+            pass
+
+            # Conditioning
+        latent_proj = self.latent_proj(latent_vector).unsqueeze(1)
+        x = x + latent_proj  # Broadcasting
+
+        new_states = []
+
+        for i, layer in enumerate(self.layers):
+            layer_state = (
+                self._cache_params[i] if self._cache_params is not None else None
+            )
+            x, new_s = layer(x, state=layer_state, use_cache=use_cache)
+            if use_cache:
+                new_states.append(new_s)
+
+        x = self.ln_f(x)
+        logits = self.output_proj(x)
+
+        if recv_in_music_form:
+            logits = self.transform_to_music_form(logits)
+
+        if use_cache:
+            self._cache_params = new_states
+
+        return logits
+
+    def get_layers_to_track(self):
+        return self.layers
+
+
 def decoder_mapper(decoder_name: str) -> Type[Decoder]:
     if decoder_name == "gpt_decoder":
         return GptDecoder
@@ -521,5 +620,7 @@ def decoder_mapper(decoder_name: str) -> Type[Decoder]:
         return MistralDecoder
     elif decoder_name == "mamba":
         return MambaDecoder
+    elif decoder_name == "transformer_linear":
+        return LinearAttentionDecoder
     else:
         raise ValueError(f"Unknown decoder: {decoder_name}, possible: ['simple_conv']")

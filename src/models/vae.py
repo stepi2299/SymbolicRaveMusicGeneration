@@ -12,7 +12,12 @@ logger = lg.getLogger(__name__)
 
 class VAE(nn.Module):
     def __init__(
-        self, encoder: Encoder, decoder: Decoder, adapter: MusicAdapter, use_cache_generation: bool = False, strict_sampling: bool = True
+        self,
+        encoder: Encoder,
+        decoder: Decoder,
+        adapter: MusicAdapter,
+        use_cache_generation: bool = False,
+        strict_sampling: bool = True,
     ) -> None:
         super(VAE, self).__init__()
         self.encoder = encoder
@@ -89,13 +94,18 @@ class VAE(nn.Module):
                 torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
             )
             logits = self.decoder(
-                latent_vector, input_seq, recv_in_music_form=False, use_cache=self._use_cache
+                latent_vector,
+                input_seq,
+                recv_in_music_form=False,
+                use_cache=self._use_cache,
             )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
             next_token_logits = logits[
                 0, -1, :
             ]  # taking last one (logits for next token)
 
-            next_token_idx = self.sample_next_token(next_token_logits, strict=self._strict_sampling)
+            next_token_idx = self.sample_next_token(
+                next_token_logits, strict=self._strict_sampling
+            )
             generated_sequence.append(next_token_idx)
 
             if (
