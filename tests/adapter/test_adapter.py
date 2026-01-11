@@ -8,12 +8,12 @@ from src.constants import SymbolicMusicFormat
 class TestMusicAdapter:
     @staticmethod
     def test_create_patchilizer_adapter(patchilizer_config):
-        adapter = MusicAdapter(patchilizer_config, "midi")
+        adapter = MusicAdapter(patchilizer_config, "midi", "maestro")
         assert isinstance(adapter._adapter, MusicPatchilizer)
 
     @staticmethod
     def test_create_tokenizer_adapter(tokenizer_config):
-        adapter = MusicAdapter(tokenizer_config, "midi")
+        adapter = MusicAdapter(tokenizer_config, "midi", "maestro")
         assert isinstance(adapter._adapter, Tokenizer)
 
     @staticmethod
@@ -21,7 +21,7 @@ class TestMusicAdapter:
         config = {"name": "unknown", "params": {}}
         config = DictConfig(config)
         with pytest.raises(ValueError):
-            MusicAdapter(config, "midi")
+            MusicAdapter(config, "midi", dataset_name="maestro")
 
     @staticmethod
     def test_encode_patchilizer_midi(patchilizer_adapter_midi, loaded_midi_song):

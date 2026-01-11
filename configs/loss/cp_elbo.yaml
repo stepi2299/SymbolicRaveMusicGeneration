@@ -1,0 +1,12 @@
+name: cp_elbo
+params:
+  turn_annealing: true  # whether to use annealing beta (increasing KL weight during training) or not
+  annealing_steps: 30000  # number of steps to reach beta_max (for single data generation should be small like 100)
+  beta_max: 0.01  # maximum KL weight
+  kl_weight: 1.0  # weight of the KL divergence term if not using annealing
+  attribute_weights:
+    family: 1.0      # KRYTYCZNE: Struktura (Czy to nuta? Czy koniec taktu?)
+    position: 1.0    # BARDZO WAŻNE: Rytm (Gdzie w takcie?)
+    pitch: 1.0       # WAŻNE: Melodia i Harmonia (Jaki dźwięk?)
+    duration: 1.0   # STANDARD: Czas trwania
+    velocity: 1.0    # MNIEJ WAŻNE: Dynamika (Głośność)

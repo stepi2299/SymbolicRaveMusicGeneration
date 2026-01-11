@@ -102,6 +102,32 @@ class TestTokenizer:
         assert output_file.exists()
         assert output_file == decoded_wav_path
 
+    @staticmethod
+    def test_encode_and_decode_cp_word(
+            cp_word_tokenizer: Tokenizer,
+            midi_data_path: Path,
+            tmp_path: Path,
+            loaded_midi_song,
+            test_results_path,
+            request
+    ):
+        cp_word_tokenizer.tokenizer_base_path = tmp_path / "tokenizers"
+        assert cp_word_tokenizer.is_trained is False
+        loaded_score = convert_mido_to_score(loaded_midi_song)
+
+        folder_path = test_results_path / f"{request.node.parent.name}_{request.node.name}"
+        folder_path.mkdir(parents=True, exist_ok=True)
+        original_wav_path = folder_path / "original.wav"
+        decoded_wav_path = folder_path / "decoded.wav"
+        export_to_wav(loaded_score, original_wav_path)
+        encoded = cp_word_tokenizer.encode(loaded_midi_song, symbolic_format=SymbolicMusicFormat.MIDI)
+        output_file = cp_word_tokenizer.decode(encoded, symbolic_format=SymbolicMusicFormat.MIDI,
+                                            output_path=decoded_wav_path)
+        assert isinstance(output_file, Path)
+        assert output_file.exists()
+        assert output_file == decoded_wav_path
+
+
 
 
 

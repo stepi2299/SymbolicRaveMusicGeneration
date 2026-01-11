@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from abc import ABC, abstractmethod
 from typing import Type
+import logging as lg
 from transformers import (
     TransfoXLConfig,
     TransfoXLModel,
@@ -13,6 +14,10 @@ from transformers import (
     MistralModel,
 )
 from src.models.linear_attention import LinearTransformerBlock
+from src.models.cp_word import MultiHeadOutput, CompoundWordEmbedding
+from src.constants import CP_WORD_INDEXES
+
+logger = lg.getLogger(__name__)
 
 
 class Decoder(nn.Module, ABC):
@@ -26,6 +31,9 @@ class Decoder(nn.Module, ABC):
         bos_token: int,
         eos_token: int,
         pad_token: int,
+        hidden_size: int,
+        dropout: float = 0.1,
+        num_decoder_layers: int = 1,
     ) -> None:
         super().__init__()
         self.latent_dim = latent_dim
@@ -36,6 +44,11 @@ class Decoder(nn.Module, ABC):
         self.bos_token = bos_token
         self.eos_token = eos_token
         self.pad_token = pad_token
+        self.dropout = dropout
+        self.num_decoder_layers = num_decoder_layers
+        self.hidden_size = hidden_size
+        self.num_heads = hidden_size // 64
+        self.intermediate_ff_size = 4 * hidden_size
         self._cache_params = None
 
     @abstractmethod
@@ -81,7 +94,6 @@ class GptDecoder(Decoder):
         pad_token: int,
         bos_token: int,
         eos_token: int,
-        intermediate_ff_size: int,
         dropout: float,
     ) -> None:
         super(GptDecoder, self).__init__(
@@ -93,9 +105,10 @@ class GptDecoder(Decoder):
             bos_token=bos_token,
             eos_token=eos_token,
             pad_token=pad_token,
+            dropout=dropout,
+            hidden_size=hidden_size,
+            num_decoder_layers=num_decoder_layers,
         )
-        self.hidden_size = hidden_size
-        self.num_heads = hidden_size // 64
 
         self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
         self.token_embeddings = nn.Embedding(self.vocab_size, self.hidden_size)
@@ -105,11 +118,11 @@ class GptDecoder(Decoder):
         layer = nn.TransformerDecoderLayer(
             d_model=self.hidden_size,
             nhead=self.num_heads,
-            dim_feedforward=intermediate_ff_size,
-            dropout=dropout,
+            dim_feedforward=self.intermediate_ff_size,
+            dropout=self.dropout,
             norm_first=True,
         )
-        self.model = nn.TransformerDecoder(layer, num_layers=num_decoder_layers)
+        self.model = nn.TransformerDecoder(layer, num_layers=self.num_decoder_layers)
 
         self.output_proj = nn.Linear(self.hidden_size, self.vocab_size)
 
@@ -145,7 +158,6 @@ class GptDecoder(Decoder):
         mask = nn.Transformer.generate_square_subsequent_mask(current_sequence_len).to(
             latent_vector.device
         )
-        # TODO dac maske odpowiednia gdy token jest 0!!! (mozliwe ze to wazne tez w encoderze) THINK
 
         h = self.model(
             decoder_input,
@@ -175,7 +187,6 @@ class TransformerXL(Decoder):
         pad_token: int,
         bos_token: int,
         eos_token: int,
-        intermediate_ff_size: int,
     ) -> None:
         super(TransformerXL, self).__init__(
             latent_dim=latent_dim,
@@ -186,18 +197,19 @@ class TransformerXL(Decoder):
             bos_token=bos_token,
             eos_token=eos_token,
             pad_token=pad_token,
+            dropout=dropout,
+            num_decoder_layers=num_decoder_layers,
+            hidden_size=hidden_size,
         )
 
-        self.hidden_size = hidden_size
-        self.num_heads = hidden_size // 64
         config = TransfoXLConfig(
             d_model=self.hidden_size,
             n_head=self.num_heads,
             n_layer=num_decoder_layers,
-            d_inner=intermediate_ff_size,
-            vocab_size=vocab_size,
+            d_inner=self.intermediate_ff_size,
+            vocab_size=self.vocab_size,
             mem_len=mem_len,  # Length of the memory
-            dropout=dropout,
+            dropout=self.dropout,
             # Important! Disable adaptive input and output embeddings
             adaptive=False,
             div_val=1,  # No division of embedding size,
@@ -208,10 +220,9 @@ class TransformerXL(Decoder):
         )
 
         self.model = TransfoXLModel(config)
-        self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
-        self.latent_proj = nn.Linear(latent_dim, hidden_size)
-        self.output_proj = nn.Linear(hidden_size, vocab_size)
-        self._memory = None
+        self.token_embeddings = nn.Embedding(self.vocab_size, self.hidden_size)
+        self.latent_proj = nn.Linear(latent_dim, self.hidden_size)
+        self.output_proj = nn.Linear(self.hidden_size, self.vocab_size)
 
     def forward(
         self,
@@ -234,9 +245,11 @@ class TransformerXL(Decoder):
         )
         decoder_inputs_embeds = token_emb + latent_proj_expanded
 
-        outputs = self.model(inputs_embeds=decoder_inputs_embeds, mems=self._memory)
+        outputs = self.model(
+            inputs_embeds=decoder_inputs_embeds, mems=self._cache_params
+        )
         last_hidden_state = outputs.last_hidden_state  # [B, Seq_Len, Hidden]
-        self._memory = outputs.mems
+        self._cache_params = outputs.mems
 
         logits = self.output_proj(last_hidden_state)  # [B, Seq_Len, Vocab]
         if recv_in_music_form:
@@ -262,7 +275,6 @@ class TransformerRope(Decoder):
         bos_token: int,
         rotary_pct: float,
         rotary_emb_base: int,
-        intermediate_ff_size: int,
     ) -> None:
         super(TransformerRope, self).__init__(
             latent_dim=latent_dim,
@@ -273,15 +285,16 @@ class TransformerRope(Decoder):
             bos_token=bos_token,
             eos_token=eos_token,
             pad_token=pad_token,
+            dropout=dropout,
+            num_decoder_layers=num_decoder_layers,
+            hidden_size=hidden_size,
         )
 
-        self.hidden_size = hidden_size
-        self.num_heads = hidden_size // 64
         config = GPTNeoXConfig(
             hidden_size=self.hidden_size,
             num_attention_heads=self.num_heads,
             num_hidden_layers=num_decoder_layers,
-            intermediate_size=intermediate_ff_size,
+            intermediate_size=self.intermediate_ff_size,
             vocab_size=vocab_size,
             dropout_rate=dropout,
             max_position_embeddings=sequence_length,
@@ -347,13 +360,12 @@ class MistralDecoder(Decoder):
         hidden_size: int,
         sequence_length: int,
         patch_size: int,
-        num_hidden_layers: int,
+        num_decoder_layers: int,
         attention_dropout: float,
         rope_theta: float,
         eos_token: int,
         pad_token: int,
         bos_token: int,
-        intermediate_ff_size: int,
         sliding_window: int,
         num_key_value_heads: int,
     ) -> None:
@@ -366,15 +378,17 @@ class MistralDecoder(Decoder):
             bos_token=bos_token,
             eos_token=eos_token,
             pad_token=pad_token,
+            hidden_size=hidden_size,
+            dropout=attention_dropout,
+            num_decoder_layers=num_decoder_layers,
         )
         self.hidden_size = hidden_size
-        self.num_heads = hidden_size // 64
         config = MistralConfig(
             hidden_size=self.hidden_size,
             num_attention_heads=self.num_heads,
-            num_hidden_layers=num_hidden_layers,
+            num_hidden_layers=num_decoder_layers,
             num_key_value_heads=num_key_value_heads,
-            intermediate_size=intermediate_ff_size,
+            intermediate_size=self.intermediate_ff_size,
             vocab_size=vocab_size,
             max_position_embeddings=self.sequence_length,
             attention_dropout=attention_dropout,
@@ -436,7 +450,7 @@ class MambaDecoder(Decoder):
         sequence_length: int,
         patch_size: int,
         state_size: int,
-        num_hidden_layers: int,
+        num_decoder_layers: int,
         eos_token: int,
         pad_token: int,
         bos_token: int,
@@ -452,12 +466,14 @@ class MambaDecoder(Decoder):
             bos_token=bos_token,
             eos_token=eos_token,
             pad_token=pad_token,
+            hidden_size=hidden_size,
+            num_decoder_layers=num_decoder_layers,
         )
         self.hidden_size = hidden_size
         config = MambaConfig(
-            hidden_size=hidden_size,
+            hidden_size=self.hidden_size,
             state_size=state_size,
-            num_hidden_layers=num_hidden_layers,
+            num_hidden_layers=self.num_decoder_layers,
             vocab_size=vocab_size,
             expand=expand,
             conv_kernel=conv_kernel,
@@ -519,7 +535,6 @@ class LinearAttentionDecoder(Decoder):
         hidden_size: int,
         sequence_length: int,
         num_decoder_layers: int,
-        intermediate_ff_size: int,
         patch_size: int,
         bos_token: int,
         eos_token: int,
@@ -535,9 +550,10 @@ class LinearAttentionDecoder(Decoder):
             bos_token=bos_token,
             eos_token=eos_token,
             pad_token=pad_token,
+            dropout=dropout,
+            num_decoder_layers=num_decoder_layers,
+            hidden_size=hidden_size,
         )
-        self.hidden_size = hidden_size
-        self.num_heads = hidden_size // 64
 
         self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
 
@@ -551,7 +567,7 @@ class LinearAttentionDecoder(Decoder):
         self.layers = nn.ModuleList(
             [
                 LinearTransformerBlock(
-                    hidden_size, self.num_heads, intermediate_ff_size, dropout
+                    hidden_size, self.num_heads, self.intermediate_ff_size, dropout
                 )
                 for _ in range(num_decoder_layers)
             ]
@@ -609,6 +625,135 @@ class LinearAttentionDecoder(Decoder):
         return self.layers
 
 
+class MistralCompoundDecoder(Decoder):
+    def __init__(
+        self,
+        latent_dim: int,
+        vocab_size: int,
+        hidden_size: int,
+        sequence_length: int,
+        patch_size: int,
+        token_types: dict[str, int],
+        num_decoder_layers: int,
+        attention_dropout: float,
+        rope_theta: float,
+        eos_token: int,
+        pad_token: int,
+        bos_token: int,
+        sliding_window: int,
+        num_key_value_heads: int,
+    ) -> None:
+        super().__init__(
+            latent_dim=latent_dim,
+            name="mistral_compound_decoder",
+            vocab_size=vocab_size,
+            sequence_length=sequence_length,
+            patch_size=patch_size,
+            bos_token=bos_token,
+            eos_token=eos_token,
+            pad_token=pad_token,
+            dropout=attention_dropout,
+            num_decoder_layers=num_decoder_layers,
+            hidden_size=hidden_size,
+        )
+        self.token_types = token_types
+        self.hidden_size = hidden_size
+
+        # 1. Input Module (Adaptive Embeddings)
+        self.cp_embedding = CompoundWordEmbedding(self.token_types, self.hidden_size)
+
+        # 2. Latent Projection (VAE Conditioning)
+        self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
+
+        # 3. Transformer Backbone (Mistral)
+        self.num_heads = hidden_size // 64
+        config = MistralConfig(
+            hidden_size=self.hidden_size,
+            num_attention_heads=self.num_heads,
+            num_hidden_layers=self.num_decoder_layers,
+            num_key_value_heads=num_key_value_heads,
+            intermediate_size=self.intermediate_ff_size,
+            vocab_size=vocab_size,
+            max_position_embeddings=self.sequence_length,
+            attention_dropout=attention_dropout,
+            bos_token_id=self.bos_token,
+            eos_token_id=self.eos_token,
+            pad_token_id=self.pad_token,
+            use_cache=False,
+            rope_theta=rope_theta,
+            sliding_window=sliding_window,
+        )
+        self.model = MistralModel(config)
+
+        # 4. Output Module (Multi-head)
+        self.output_heads = MultiHeadOutput(hidden_size, token_types)
+
+    def forward(
+        self,
+        latent_vector: torch.Tensor,  # [Batch, Latent_Dim]
+        input_sequence: torch.Tensor,  # [Batch, Seq_Len, Num_Attributes] <-- ZMIANA: 3D Input
+        *,
+        recv_in_music_form: bool = False,
+        use_cache: bool = False,
+    ):
+        batch_size, seq_len, num_attrs = input_sequence.shape
+
+        assert (
+            num_attrs == len(CP_WORD_INDEXES)
+        ), f"Liczba atrybutów w input_sequence nie zgadza się z configiem! Otrzymano {num_attrs}, oczekiwano {len(CP_WORD_INDEXES)}"
+
+        # A. Embed Inputs
+        # Zamieniamy [B, L, Attrs] -> [B, L, Hidden]
+        inputs_embeds = self.cp_embedding(input_sequence)
+
+        # B. Inject Latent Vector (Global Conditioning)
+        # [B, Latent] -> [B, Hidden]
+        z_proj = self.latent_proj(latent_vector)
+        # Add to embeddings (Broadcasting)
+        inputs_embeds = inputs_embeds + z_proj.unsqueeze(1)
+
+        # C. Transformer Pass
+        outputs = self.model(
+            inputs_embeds=inputs_embeds,
+            past_key_values=self._cache_params,
+            use_cache=use_cache,
+            return_dict=True,
+        )
+        hidden_states = outputs.last_hidden_state  # [B, L, Hidden]
+
+        # D. Multi-head Output
+        # Zwraca słownik: {'pitch': Logits, 'duration': Logits, ...}
+        logits = self.output_heads(hidden_states)
+
+        if use_cache:
+            self._cache_params = outputs.past_key_values
+
+        if recv_in_music_form:
+            logits = self.transform_to_music_form(logits)
+
+        return logits
+
+    def get_layers_to_track(self):
+        return self.model.layers
+
+    def transform_to_music_form(
+        self, recv_tokens: dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        """
+        Transform the received tokens to the music form.
+        Args:
+            recv_tokens: Dict of [batch_size, sequence_length, vocab_size] with key as attribute name
+            (patch number of keys)
+        Returns:
+            music_form: Tensor of [batch_size, patch_size, sequence_length]
+        """
+        music_form = []
+        for attr, logits in recv_tokens.items():
+            music_form.append(logits.argmax(dim=-1))
+        music_form = torch.stack(music_form, dim=-1)
+        return music_form
+
+
 def decoder_mapper(decoder_name: str) -> Type[Decoder]:
     if decoder_name == "gpt_decoder":
         return GptDecoder
@@ -622,5 +767,7 @@ def decoder_mapper(decoder_name: str) -> Type[Decoder]:
         return MambaDecoder
     elif decoder_name == "transformer_linear":
         return LinearAttentionDecoder
+    elif decoder_name == "cp_decoder":
+        return MistralCompoundDecoder
     else:
         raise ValueError(f"Unknown decoder: {decoder_name}, possible: ['simple_conv']")

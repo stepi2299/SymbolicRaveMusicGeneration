@@ -27,7 +27,7 @@ decoder:
       # Number of Mamba layers stacked.
       # IMPACT: Mamba models often favor depth over width.
       # STANDARD: 32 is a very healthy depth (comparable to large LLaMA models). This provides strong structural modeling despite the small 'hidden_size'.
-      num_hidden_layers: 32
+      num_decoder_layers: 32
 
       # EXPANSION FACTOR (Block Width)
       # Multiplier for the internal dimension inside the Mamba block (similar to FFN expansion).

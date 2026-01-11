@@ -18,17 +18,12 @@ decoder:
       # Number of Transformer blocks.
       # IMPACT: TransformerXL relies on depth for its recurrence mechanism to work well.
       # STANDARD: 4 is minimal. 6-12 is recommended for capturing long-term song structures.
-      num_decoder_layers: 12
+      num_decoder_layers: 4
 
       # Specific to TransformerXL. Defines how many tokens from the *previous* batch/segment are cached and accessible via attention.
       # IMPACT: Crucial for music. It allows the model to "remember" the beat or theme from the previous measure even if it's outside the current input window.
       # STANDARD: Usually equal to or half of the training sequence length (e.g., 256 or 512).
       mem_len: 128
-
-      # The size of the expansion layer.
-      # IMPACT: Stores the "knowledge" of the model.
-      # STANDARD: Typically 4x hidden_size. (4 * 768 = 3072). Your value (4096) is slightly higher, which is good for capacity but slower.
-      intermediate_ff_size: 3072
 
       # Probability of dropping neurons.
       # STANDARD: 0.1.

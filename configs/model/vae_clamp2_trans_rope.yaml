@@ -24,10 +24,6 @@ decoder:
       # STANDARD: 0.1.
       dropout: 0.1
 
-      # Size of the feed-forward network inside the transformer.
-      # STANDARD: Usually 4x hidden_size (approx 3072).
-      intermediate_ff_size: 3072
-
       # [RoPE SPECIFIC] ROTATION PERCENTAGE
       # Defines what fraction of the hidden dimension gets the rotary embedding applied.
       # IMPACT:

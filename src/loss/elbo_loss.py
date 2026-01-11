@@ -8,7 +8,8 @@ class ElboLoss(BaseVaeLoss):
     def __init__(
         self,
         vocab_size: int,
-        turn: bool,
+        pad_token_id: int,
+        turn_annealing: bool,
         annealing_steps: int,
         beta_max: float,
         kl_weight: float,
@@ -22,11 +23,14 @@ class ElboLoss(BaseVaeLoss):
         :param beta_max: Maximum weight for the KL divergence term during annealing.
         :param kl_weight: Fixed weight for the KL divergence term if not using annealing.
         """
-        self._vocab_size = vocab_size
-        self._annealing_steps = annealing_steps
-        self._beta_max = beta_max
-        self._turn = turn
-        self._kl_weight = kl_weight
+        super().__init__(
+            vocab_size=vocab_size,
+            pad_token_id=pad_token_id,
+            turn_annealing=turn_annealing,
+            annealing_steps=annealing_steps,
+            beta_max=beta_max,
+            kl_weight=kl_weight,
+        )
 
     def __call__(
         self,
@@ -58,16 +62,14 @@ class ElboLoss(BaseVaeLoss):
                 -1, self._vocab_size
             ),  # Reshape to (batch*sequence_length, vocab_size)
             org_data.view(-1),  # Reshape to (batch*sequence_length)
+            ignore_index=self._pad_token_id,
+            reduction="mean",
         )
         kl_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
         kl_div = torch.mean(kl_div)
 
-        if self._turn:
-            annealing_beta = (
-                min(1.0, global_step / self._annealing_steps) * self._beta_max
-            )
-        else:
-            annealing_beta = self._kl_weight
+        annealing_beta = self._get_annealing_beta(global_step)
+
         loss = recon_loss + annealing_beta * kl_div
 
         return loss, {

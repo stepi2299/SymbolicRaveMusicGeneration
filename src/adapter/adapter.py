@@ -8,7 +8,6 @@ from pathlib import Path
 
 from src.constants import SymbolicMusicFormat, MusicAdapterType, ExportFormat
 
-
 class MusicAdapter:
     def __init__(
         self, adapter_config: DictConfig, symbolic_format: str, dataset_name: str
@@ -32,9 +31,12 @@ class MusicAdapter:
         output_path: Path,
         export_format: ExportFormat,
     ) -> Path:
-        ret_music = self._adapter.decode(
-            item, self.symbolic_format, output_path, export_format
-        )
+        try:
+            ret_music = self._adapter.decode(
+                item, self.symbolic_format, output_path, export_format
+            )
+        except Exception as e:
+            raise RuntimeError(f"Decoding failed: {e}") from e
         if isinstance(ret_music, str):
             ret_music = ret_music.strip()
         return ret_music
@@ -91,6 +93,10 @@ class MusicAdapter:
     @property
     def patch_size(self) -> int:
         return self._adapter.patch_size
+
+    @property
+    def song_dim(self) -> int:
+        return self._adapter.song_dim
 
     @staticmethod
     def get_preprocessor(

@@ -100,7 +100,6 @@ def fixture_tokenizer_config() -> DictConfig:
             "tokenizer": "tsd",
             "training_model": "BPE",
             "vocab_size": 1000,
-            "dataset_name": "maestro",
             "sequence_length": 1024,
         },
     }
@@ -109,16 +108,16 @@ def fixture_tokenizer_config() -> DictConfig:
 
 @pytest.fixture(scope="session", name="patchilizer_adapter_midi")
 def fixture_patchilizer_adapter_midi(patchilizer_config) -> MusicAdapter:
-    return MusicAdapter(patchilizer_config, "midi")
+    return MusicAdapter(patchilizer_config, "midi", "maestro")
 
 @pytest.fixture(scope="session", name="patchilizer_adapter_abc")
 def fixture_patchilizer_adapter_abc(patchilizer_config) -> MusicAdapter:
-    return MusicAdapter(patchilizer_config, "abc")
+    return MusicAdapter(patchilizer_config, "abc", "maestro")
 
 
 @pytest.fixture(scope="session", name="tokenizer_adapter_midi")
 def fixture_tokenizer_adapter_midi(tokenizer_config) -> MusicAdapter:
-    return MusicAdapter(tokenizer_config, "midi")
+    return MusicAdapter(tokenizer_config, "midi", "maestro")
 
 
 @pytest.fixture(scope="session", name="midi_symbolic_dataset")
@@ -131,8 +130,21 @@ def fixture_remi_tokenizer() -> Tokenizer:
         "tokenizer_name": "remi",
         "training_model": "BPE",
         "vocab_size": 1000,
-        "sequence_length": 1024
+        "sequence_length": 1024,
+        "dataset_name": "maestro"
+    }
+    Tokenizer.TOKENIZER_BASE_PATH = Path(tempfile.mkdtemp())
+    tokenizer = Tokenizer(**tokenizer_config)
+    return tokenizer
 
+@pytest.fixture(scope="function", name="cp_word_tokenizer")
+def fixture_cp_word_tokenizer() -> Tokenizer:
+    tokenizer_config = {
+        "tokenizer_name": "cpword",
+        "training_model": "BPE",
+        "vocab_size": 1000,
+        "sequence_length": 1024,
+        "dataset_name": "maestro"
     }
     Tokenizer.TOKENIZER_BASE_PATH = Path(tempfile.mkdtemp())
     tokenizer = Tokenizer(**tokenizer_config)

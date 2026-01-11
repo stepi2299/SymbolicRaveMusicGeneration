@@ -14,3 +14,12 @@ class MusicAdapterType(Enum):
 class ExportFormat(Enum):
     SYMBOLIC = "midi"
     WAV = "wav"
+
+
+CP_WORD_INDEXES = {
+    "family": 0,
+    "position": 1,
+    "pitch": 2,
+    "velocity": 3,
+    "duration": 4,
+}

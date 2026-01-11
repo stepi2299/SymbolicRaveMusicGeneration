@@ -26,9 +26,3 @@ decoder:
       # - Decrease if you have massive data or the model is underfitting.
       # STANDARD: 0.1 (10%).
       dropout: 0.1
-
-      # INTERNAL MEMORY (width of FFN)
-      # The size of the expansion layer inside each Transformer block.
-      # IMPACT: Defines the number of parameters available to store "knowledge" or patterns.
-      # STANDARD: Usually 4x the 'hidden_size' (e.g., 4 * 768 = 3072).
-      intermediate_ff_size: 3072

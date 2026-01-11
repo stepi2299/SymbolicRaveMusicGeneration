@@ -70,10 +70,25 @@ class VAE(nn.Module):
                 f"Latent vector must have shape (batch_size, {self.latent_dim}), got {latent_vector.shape}"
             )
         songs = []
-        for single_condition_latent in latent_vector:
-            songs.append(
-                self._generate_single_song(single_condition_latent.unsqueeze(0))
-            )
+        for i, single_condition_latent in enumerate(latent_vector):
+            try:
+                if self._adapter.song_dim == 1:
+                    song = self._generate_single_song(
+                        single_condition_latent.unsqueeze(0)
+                    )
+                elif self._adapter.song_dim == 2:
+                    song = self._generate_song_for_2_dim(
+                        single_condition_latent.unsqueeze(0)
+                    )
+                else:
+                    raise ValueError(
+                        f"Unsupported song dimension {self._adapter.song_dim}"
+                    )
+                songs.append(song)
+            except Exception as e:
+                logger.error(
+                    f"Error generating song for latent vector for index: {i}: {e}"
+                )
         return songs
 
     @staticmethod
@@ -84,9 +99,7 @@ class VAE(nn.Module):
         next_token_idx = torch.multinomial(probs, num_samples=1).item()
         return next_token_idx
 
-    def _generate_single_song(
-        self, latent_vector: torch.Tensor
-    ) -> list[int] | list[list[int]]:
+    def _generate_single_song(self, latent_vector: torch.Tensor) -> list[int]:
         generated_sequence = [self._adapter.bos_token_id]
         self.decoder.clean_cache()
         for _ in range(self.decoder.sequence_length):
@@ -117,6 +130,48 @@ class VAE(nn.Module):
         self.decoder.clean_cache()
         return generated_sequence[1:]
 
+    def _generate_song_for_2_dim(self, latent_vector: torch.Tensor) -> list[list[int]]:
+        logger.info("Generating song for 2D representation")
+        generated_sequence = [
+            [self._adapter.bos_token_id]
+            + [self._adapter.pad_token_id] * (self._adapter.patch_size - 1)
+        ]
+        self.decoder.clean_cache()
+        for i in range(self.decoder.sequence_length - 1):
+            logger.debug(f"Generated sequence: {generated_sequence}")
+            try:
+                input_seq = (
+                    torch.tensor(generated_sequence)
+                    .unsqueeze(0)
+                    .to(latent_vector.device)
+                )
+            except Exception as e:
+                logger.error(f"Error creating input sequence tensor at step {i}: {e}")
+                raise
+            logger.debug(f"Input Sequence - Tensor: {input_seq.shape}")
+            dict_logits = self.decoder(
+                latent_vector,
+                input_seq,
+                recv_in_music_form=False,
+                use_cache=self._use_cache,
+            )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
+            logger.debug(
+                f"Recv Logits with keys: {dict_logits.keys()} with shapes: {[v.shape for v in dict_logits.values()]}"
+            )
+            next_patch = self.sample_next_patch(dict_logits)
+            # logger.debug(f"Next Patch: {next_patch}, old patch: {self._orig_sample[0][i+1]}")
+            generated_sequence.append(next_patch)
+            logger.debug(
+                f"Current Generated Sequence Length: {len(generated_sequence)}"
+            )
+            if len(
+                generated_sequence
+            ) >= self.decoder.sequence_length or self._eos_patch_equal(next_patch):
+                logger.debug(f"Generated sequence: {generated_sequence}")
+                break
+        self.decoder.clean_cache()
+        return generated_sequence[1:]
+
     def load_pretrained(self) -> None:
         self.encoder.load_pretrained()
 
@@ -127,3 +182,37 @@ class VAE(nn.Module):
     @property
     def vocab_size(self) -> int:
         return self.encoder.vocab_size
+
+    def _eos_patch_equal(self, next_patch: list[int]) -> bool:
+        return next_patch == [self._adapter.eos_token_id] + [
+            self._adapter.pad_token_id
+        ] * (self._adapter.patch_size - 1)
+
+    @staticmethod
+    def sample_next_patch(
+        logits: dict[str, torch.Tensor], strict: bool = True
+    ) -> list[int]:
+        """
+        Sample next patch tokens from the logits for each attribute.
+        Args:
+            logits: Dict of [batch_size, vocab_size] with key as attribute name (Logits for last sequence position)
+            strict: If True, use argmax sampling
+        Returns:
+            next_patch: List of length patch_size with sampled tokens
+        """
+        next_patch = []
+        for attr, attr_logits in logits.items():
+            if strict:
+                all_current_tokens = attr_logits.argmax(
+                    dim=-1
+                )  # [batch_size, sequence_length]
+                logger.debug(
+                    f"Current tokens for attribute {attr}: {all_current_tokens.shape}"
+                )
+                next_token = all_current_tokens[0, -1]
+            else:
+                probs = torch.softmax(attr_logits, dim=-1)  # [batch_size, vocab_size]
+                next_token = torch.multinomial(probs, num_samples=1).squeeze(-1)[-1]
+            logger.debug(f"Next token for attribute {attr}: {next_token.item()}")
+            next_patch.append(next_token.item())
+        return next_patch

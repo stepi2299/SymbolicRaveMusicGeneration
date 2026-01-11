@@ -1,7 +1,17 @@
 from pathlib import Path
 import logging as lg
 
-from miditok import REMI, MIDILike, TSD, Structured, CPWord, Octuple, MuMIDI, MMM
+from miditok import (
+    REMI,
+    MIDILike,
+    TSD,
+    Structured,
+    CPWord,
+    Octuple,
+    MuMIDI,
+    MMM,
+    TokenizerConfig,
+)
 from mido import MidiFile as MidoMidiFile
 
 from src.utils import (
@@ -10,8 +20,7 @@ from src.utils import (
     convert_mido_to_score,
     export_to_wav,
 )
-from src.constants import SymbolicMusicFormat
-from src.constants import ExportFormat
+from src.constants import SymbolicMusicFormat, ExportFormat
 
 
 logger = lg.getLogger(__name__)
@@ -48,6 +57,7 @@ class Tokenizer:
         dataset_name: str,
         sequence_length: int,
         add_special_patches: bool = True,
+        config: dict | None = None,
         **kwargs,
     ) -> None:
         self.tokenizer_name = tokenizer_name
@@ -71,8 +81,15 @@ class Tokenizer:
             )
             self._is_trained = True
         else:
-            self.tokenizer = self.TOKENIZER_MAPPER[tokenizer_name]()
+            logger.info(
+                f"Initializing new tokenizer {self.tokenizer_name} with config: {config}"
+            )
+            tokenizer_config = TokenizerConfig(**config if config is not None else {})
+            self.tokenizer = self.TOKENIZER_MAPPER[tokenizer_name](
+                tokenizer_config=tokenizer_config
+            )
             self._is_trained = False
+        self._dim_of_song = 2 if self.patch_size > 1 else 1
 
     def encode(
         self, music_file: MidoMidiFile, symbolic_format: SymbolicMusicFormat
@@ -85,14 +102,13 @@ class Tokenizer:
             music_file
         )  # Change from mido into symusic.Score
         tok_sequence = self.tokenizer(midi_score)[0].ids[: self.sequence_length - 2]
-        tok_sequence = (
-            [self.bos_token_id] + tok_sequence + [self.eos_token_id]
-        )  # TODO add case for cpword (more dimensional)
+        if self.add_special_patches:
+            tok_sequence = self._add_special_tokens(tok_sequence)
         return tok_sequence
 
     def decode(
         self,
-        tokens: list[int],
+        tokens: list[int] | list[list[int]],
         symbolic_format: SymbolicMusicFormat,
         output_path: Path,
         export_format: ExportFormat = ExportFormat.WAV,
@@ -122,14 +138,17 @@ class Tokenizer:
                 files_paths.extend(item.iterdir())
             else:
                 files_paths.append(item)
-
-        self.tokenizer.train(
-            vocab_size=self.vocab_size,
-            files_paths=files_paths,
-            model=self.training_model,
-        )
-        self._is_trained = True
-        self.save()
+        if self.tokenizer_name != "cpword":
+            self.tokenizer.train(
+                vocab_size=self.vocab_size,
+                files_paths=files_paths,
+                model=self.training_model,
+            )
+            self._is_trained = True
+            self.save()
+        else:
+            logger.info(f"Current tokenizer is CPWord, skipping training step.")
+            self._is_trained = True
 
     def save(self) -> None:
         logger.info(
@@ -159,6 +178,26 @@ class Tokenizer:
     @property
     def bos_token_id(self) -> int:
         return self.tokenizer["BOS_None"]
+
+    @property
+    def song_dim(self) -> int:
+        return self._dim_of_song
+
+    def _add_special_tokens(
+        self, tokens: list[int] | list[list[int]]
+    ) -> list[int] | list[list[int]]:
+        if self._dim_of_song == 2:
+            bos_token = [self.bos_token_id] + [self.pad_token_id] * (
+                self.patch_size - 1
+            )
+            eos_token = [self.eos_token_id] + [self.pad_token_id] * (
+                self.patch_size - 1
+            )
+            return [bos_token] + tokens + [eos_token]
+        elif self._dim_of_song == 1:
+            return [self.bos_token_id] + tokens + [self.eos_token_id]
+        else:
+            raise ValueError(f"Unsupported song dimension {self._dim_of_song}")
 
 
 def get_tokenizer(

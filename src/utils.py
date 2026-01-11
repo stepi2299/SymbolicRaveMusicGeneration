@@ -352,3 +352,11 @@ def get_sinusoidal_position_embedding(seq_len: int, d_model: int) -> torch.Tenso
     pe[:, 1::2] = torch.cos(position * div_term)
 
     return pe.unsqueeze(0)  # [1, L, D]
+
+
+def get_song_dim(tokens: list[int] | list[list[int]]) -> int:
+    if not isinstance(tokens, list):
+        raise TypeError("Its not a list")
+    if tokens and all(isinstance(el, list) for el in tokens):
+        return 2
+    return 1

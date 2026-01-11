@@ -30,7 +30,7 @@ def main(cfg: DictConfig) -> None:
     wandb_logger.log_hyperparams(cfg)
     torch.cuda.empty_cache()
     torch.set_float32_matmul_precision(cfg.processing_precision)
-    lg.basicConfig(level=cfg.log_level)
+    lg.basicConfig(level=cfg.log_level, format=cfg.log_format, force=True)
 
     single_data_training = cfg.single_data_training
     if single_data_training:
@@ -50,7 +50,10 @@ def main(cfg: DictConfig) -> None:
     if cfg.pretrained:
         vae_model.load_pretrained()
     loss_function = get_loss_function(
-        loss_name=cfg.loss.name, vocab_size=vae_model.vocab_size, **cfg.loss.params
+        loss_name=cfg.loss.name,
+        vocab_size=vae_model.vocab_size,
+        pad_token_id=symbolic_music_dataset.music_adapter.pad_token_id,
+        **cfg.loss.params,
     )
 
     competitor = FirstStage(

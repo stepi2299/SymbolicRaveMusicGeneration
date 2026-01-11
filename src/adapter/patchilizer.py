@@ -155,3 +155,7 @@ class MusicPatchilizer:
 
     def _patch2bar(self, patch: list[int]) -> str:
         return "".join(chr(idx) if idx > self.mask_token_id else "" for idx in patch)
+
+    @property
+    def song_dim(self) -> int:
+        return 2
