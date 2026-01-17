@@ -29,6 +29,7 @@ class BaseVaeLoss(ABC):
         mu: torch.Tensor,
         logvar: torch.Tensor,
         global_step: int,
+        train: bool
     ) -> Tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         Args:
@@ -37,6 +38,7 @@ class BaseVaeLoss(ABC):
             mu: Mean of the latent variable distribution.
             logvar: Log variance of the latent variable distribution.
             global_step: Current training step.
+            train: Boolean indicating if the model is in training mode.
 
         Returns:
             loss: The computed loss.

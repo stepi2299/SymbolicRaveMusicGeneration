@@ -39,6 +39,7 @@ class ElboLoss(BaseVaeLoss):
         mu: torch.Tensor,
         logvar: torch.Tensor,
         global_step: int,
+        train: bool
     ) -> Tuple[torch.Tensor, dict]:
         """
         Args:
@@ -47,6 +48,7 @@ class ElboLoss(BaseVaeLoss):
             mu: Mean of the latent variable distribution.
             logvar: Log variance of the latent variable distribution.
             global_step: Current training step.
+            train: Boolean indicating if the model is in training mode.
 
         Returns:
             loss: The computed ELBO loss which is the sum of reconstruction loss and KL divergence.
@@ -71,9 +73,10 @@ class ElboLoss(BaseVaeLoss):
         annealing_beta = self._get_annealing_beta(global_step)
 
         loss = recon_loss + annealing_beta * kl_div
+        name = "train" if train else "val"
 
         return loss, {
-            "recon_loss": recon_loss,
-            "kl_div": kl_div,
-            "annealing_beta": annealing_beta,
+            f"{name}_recon_loss": recon_loss,
+            f"{name}_kl_div": kl_div,
+            f"{name}_annealing_beta": annealing_beta,
         }

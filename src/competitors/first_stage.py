@@ -69,6 +69,7 @@ class FirstStage(pl.LightningModule):
             mu=mu,
             logvar=log_variance,
             global_step=self.global_step,
+            train=True,
         )
         if self._single_data_training:
             if isinstance(reconstruction, torch.Tensor):
@@ -95,6 +96,7 @@ class FirstStage(pl.LightningModule):
             mu=mu,
             logvar=log_variance,
             global_step=self.global_step,
+            train=False,
         )
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
