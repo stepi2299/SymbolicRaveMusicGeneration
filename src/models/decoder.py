@@ -187,6 +187,7 @@ class TransformerXL(Decoder):
         pad_token: int,
         bos_token: int,
         eos_token: int,
+        attention_dropout: float,
     ) -> None:
         super(TransformerXL, self).__init__(
             latent_dim=latent_dim,
@@ -210,6 +211,7 @@ class TransformerXL(Decoder):
             vocab_size=self.vocab_size,
             mem_len=mem_len,  # Length of the memory
             dropout=self.dropout,
+            dropatt=attention_dropout,
             # Important! Disable adaptive input and output embeddings
             adaptive=False,
             div_val=1,  # No division of embedding size,
@@ -270,6 +272,8 @@ class TransformerRope(Decoder):
         patch_size: int,
         num_decoder_layers: int,
         dropout: float,
+        attention_dropout: float,
+        hidden_dropout: float,
         eos_token: int,
         pad_token: int,
         bos_token: int,
@@ -296,7 +300,9 @@ class TransformerRope(Decoder):
             num_hidden_layers=num_decoder_layers,
             intermediate_size=self.intermediate_ff_size,
             vocab_size=vocab_size,
-            dropout_rate=dropout,
+            classifier_dropout=dropout,
+            attention_dropout=attention_dropout,
+            hidden_dropout=hidden_dropout,
             max_position_embeddings=sequence_length,
             rotary_pct=rotary_pct,
             rotary_emb_base=rotary_emb_base,

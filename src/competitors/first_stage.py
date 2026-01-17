@@ -28,6 +28,8 @@ class FirstStage(pl.LightningModule):
         train_split: float = 0.8,
         max_encoder_learning_rate: float = 1e-3,
         max_decoder_learning_rate: float = 1e-3,
+        encoder_weight_decay: float = 0.01,
+        decoder_weight_decay: float = 0.01,
         single_data_training: bool = False,
         monitor_metric: str = "val_loss",
         warmup_steps=100,
@@ -52,6 +54,8 @@ class FirstStage(pl.LightningModule):
         self._single_data_training = single_data_training
         self._monitor_metric = monitor_metric
         self._warmup_steps = warmup_steps
+        self._encoder_weight_decay = encoder_weight_decay
+        self._decoder_weight_decay = decoder_weight_decay
         self.save_hyperparameters()
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:
@@ -126,10 +130,12 @@ class FirstStage(pl.LightningModule):
                 {
                     "params": self.vae.encoder.parameters(),
                     "lr": self.max_encoder_learning_rate,  # Base LR for the encoder
+                    "weight_decay": self._encoder_weight_decay,
                 },
                 {
                     "params": self.vae.decoder.parameters(),
                     "lr": self.max_decoder_learning_rate,  # Base LR for the decoder
+                    "weight_decay": self._decoder_weight_decay,
                 },
             ]
         )

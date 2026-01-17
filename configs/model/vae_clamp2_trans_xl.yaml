@@ -28,3 +28,7 @@ decoder:
       # Probability of dropping neurons.
       # STANDARD: 0.1.
       dropout: 0.1
+
+      # Probability of dropping attention weights during training.
+      # STANDARD: 0
+      attention_dropout: 0.1
