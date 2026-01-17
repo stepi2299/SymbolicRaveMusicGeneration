@@ -36,6 +36,7 @@ class CpElboLoss(BaseVaeLoss):
         mu: torch.Tensor,  # Średnia z Encodera VAE [B, Latent]
         logvar: torch.Tensor,  # Logariytm wariancji z Encodera VAE [B, Latent]
         global_step: int,
+        train: bool = True,
     ) -> tuple[torch.Tensor, dict]:
         """
         Args:
@@ -45,7 +46,7 @@ class CpElboLoss(BaseVaeLoss):
             mu: Mean of the latent variable distribution of shape [Batch, Latent_Dim].
             logvar: Log variance of the latent variable distribution of shape [Batch, Latent_Dim].
             global_step: Current training step.
-
+            train: Boolean indicating if the model is in training mode.
         Returns:
             loss: The computed Compound Word VAE loss which is the sum of weighted reconstruction loss and KL divergence.
             metrics: A dictionary of additional metrics to log, including 'recon_loss', 'kl_div', and 'annealing_beta'.
@@ -86,9 +87,10 @@ class CpElboLoss(BaseVaeLoss):
         annealing_beta = self._get_annealing_beta(global_step)
 
         total_loss = total_recon_loss + (annealing_beta * kl_loss)
+        name = "train" if train else "val"
 
         return total_loss, {
-            "recon_loss": total_recon_loss,
-            "kl_div": kl_loss,
-            "annealing_beta": annealing_beta,
+            f"{name}_recon_loss": total_recon_loss,
+            f"{name}_kl_div": kl_loss,
+            f"{name}_annealing_beta": annealing_beta,
         }

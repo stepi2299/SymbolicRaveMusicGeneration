@@ -133,8 +133,7 @@ class VAE(nn.Module):
     def _generate_song_for_2_dim(self, latent_vector: torch.Tensor) -> list[list[int]]:
         logger.info("Generating song for 2D representation")
         generated_sequence = [
-            [self._adapter.bos_token_id]
-            + [self._adapter.pad_token_id] * (self._adapter.patch_size - 1)
+            [self._adapter.bos_token_id] * self._adapter.patch_size
         ]
         self.decoder.clean_cache()
         for i in range(self.decoder.sequence_length - 1):
@@ -166,7 +165,7 @@ class VAE(nn.Module):
             )
             if len(
                 generated_sequence
-            ) >= self.decoder.sequence_length or self._eos_patch_equal(next_patch):
+            ) >= self.decoder.sequence_length or self._patch_is_eos_or_pad(next_patch):
                 logger.debug(f"Generated sequence: {generated_sequence}")
                 break
         self.decoder.clean_cache()
@@ -184,9 +183,11 @@ class VAE(nn.Module):
         return self.encoder.vocab_size
 
     def _eos_patch_equal(self, next_patch: list[int]) -> bool:
-        return next_patch == [self._adapter.eos_token_id] + [
-            self._adapter.pad_token_id
-        ] * (self._adapter.patch_size - 1)
+        return next_patch == [self._adapter.eos_token_id] * self._adapter.patch_size
+
+    def _patch_is_eos_or_pad(self, next_patch: list[int]) -> bool:
+        allowed = {self._adapter.eos_token_id, self._adapter.pad_token_id}
+        return set(next_patch).issubset(allowed)
 
     @staticmethod
     def sample_next_patch(

@@ -187,12 +187,8 @@ class Tokenizer:
         self, tokens: list[int] | list[list[int]]
     ) -> list[int] | list[list[int]]:
         if self._dim_of_song == 2:
-            bos_token = [self.bos_token_id] + [self.pad_token_id] * (
-                self.patch_size - 1
-            )
-            eos_token = [self.eos_token_id] + [self.pad_token_id] * (
-                self.patch_size - 1
-            )
+            bos_token = [self.bos_token_id] * self.patch_size
+            eos_token = [self.eos_token_id] * self.patch_size
             return [bos_token] + tokens + [eos_token]
         elif self._dim_of_song == 1:
             return [self.bos_token_id] + tokens + [self.eos_token_id]
