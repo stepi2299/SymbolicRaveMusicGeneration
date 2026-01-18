@@ -16,8 +16,10 @@ competitor:
   batch_size: 1
   num_workers: 16
   train_split: 0.8
-  max_encoder_learning_rate: 0.003
-  max_decoder_learning_rate: 0.003
+  max_encoder_learning_rate: 0.0003
+  max_decoder_learning_rate: 0.0003
+  encoder_weight_decay: 0.01
+  decoder_weight_decay: 0.1
 
 epochs: 1000  # number of epochs to train the model
 seed: 42  # random seed for reproducibility
@@ -25,7 +27,7 @@ log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 log_format: "[%(asctime)s] - [%(name)s] - [%(levelname)s] - %(message)s"
 processing_precision: high  # possible values: medium | high
 pretrained: true  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-single_data_training: true # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
+single_data_training: false # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
 grad_clip_val: 0.5  # gradient clipping value, set to null to disable gradient clipping
 monitor_metric: "val_loss"  # metric to monitor for early stopping and model checkpointing
 warmup_steps: 300  # number of warmup steps for learning rate scheduler (for single data training, set small value like 10/50)
@@ -53,6 +55,6 @@ callbacks:
     export_format: wav
   early_stopping: true
   early_stopping_params:
-    patience: 10
+    patience: 20
     monitor: "val_loss"
   log_learning_rate: true

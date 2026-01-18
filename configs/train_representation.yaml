@@ -2,7 +2,7 @@
 defaults:
   - dataset: maestro     # default dataset
   - adapter: tokenizer  # default adapter
-  - model: vae_clamp2_mistral  # default model
+  - model: vae_clamp2_trans_xl  # default model
   - loss: elbo         # default loss
   - _self_
 
@@ -16,8 +16,8 @@ competitor:
   batch_size: 1
   num_workers: 16
   train_split: 0.8
-  max_encoder_learning_rate: 0.003
-  max_decoder_learning_rate: 0.003
+  max_encoder_learning_rate: 0.0003
+  max_decoder_learning_rate: 0.0003
   encoder_weight_decay: 0.01
   decoder_weight_decay: 0.1
 
@@ -55,6 +55,6 @@ callbacks:
     export_format: wav
   early_stopping: true
   early_stopping_params:
-    patience: 10
+    patience: 30
     monitor: "val_loss"
   log_learning_rate: true
