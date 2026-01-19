@@ -1,5 +1,7 @@
+import random
 from pathlib import Path
 import logging as lg
+import torch
 
 from miditok import (
     REMI,
@@ -104,6 +106,19 @@ class Tokenizer:
         tok_sequence = self.tokenizer(midi_score)[0].ids[: self.sequence_length - 2]
         if self.add_special_patches:
             tok_sequence = self._add_special_tokens(tok_sequence)
+        pitch_interval = random.randint(-6, 6)
+        pitch_range = self.tokenizer.config.pitch_range[1] - self.tokenizer.config.pitch_range[0]
+        min_pitch = 4
+        tok_sequence = self._augment_single_dim(
+            tok_sequence,
+            min_range=min_pitch,
+            max_range=min_pitch + pitch_range, shift_interval=pitch_interval)
+        vel_interval = random.randint(-5, 5)
+        min_vel = min_pitch + pitch_range + 1
+        tok_sequence = self._augment_single_dim(
+            tok_sequence,
+            min_range=min_pitch + pitch_range + 1,
+            max_range=min_vel + self.tokenizer.config.num_velocities, shift_interval=vel_interval)
         return tok_sequence
 
     def decode(
@@ -195,6 +210,16 @@ class Tokenizer:
         else:
             raise ValueError(f"Unsupported song dimension {self._dim_of_song}")
 
+    @staticmethod
+    def _augment_single_dim(tok_sequence: list[int], min_range: int, max_range: int, shift_interval: int) -> list[int]:
+        seq_tensor = torch.tensor(tok_sequence, dtype=torch.long)
+
+        mask = (seq_tensor >= min_range) & (seq_tensor <= max_range)
+        shifted_values = seq_tensor[mask] + shift_interval
+        seq_tensor[mask] = torch.clamp(shifted_values, min=min_range, max=max_range)
+
+        return seq_tensor.tolist()
+
 
 def get_tokenizer(
     tokenizer: str,
@@ -213,3 +238,4 @@ def get_tokenizer(
         dataset_path = (base_dataset_path / dataset_name).resolve(True)
         tokenizer.train(files_path=dataset_path)
     return tokenizer
+
