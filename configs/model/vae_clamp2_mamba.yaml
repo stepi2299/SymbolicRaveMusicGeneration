@@ -40,3 +40,6 @@ decoder:
       # IMPACT: Helps the model smooth out local noise and capture immediate neighbors (e.g., this note vs. previous note) before the "long-term" memory kicks in.
       # STANDARD: 4.
       conv_kernel: 4
+
+      # Probability of dropping input neurons during training.
+      input_dropout: 0

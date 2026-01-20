@@ -47,3 +47,6 @@ decoder:
       # --- REGULARIZATION ---
       # Probability of dropping attention weights during training.
       attention_dropout: 0.1
+
+      # Probability of dropping input neurons during training.
+      input_dropout: 0

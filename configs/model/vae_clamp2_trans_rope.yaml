@@ -48,3 +48,6 @@ decoder:
       # - 500,000+: Used for very long contexts (e.g., CodeLlama) to prevent "frequency collision" at long distances.
       # STANDARD: 10,000 (Start here). Increase if your music sequences are extremely long (>8192 tokens).
       rotary_emb_base: 10_000
+
+      # Probability of dropping input neurons during training.
+      input_dropout: 0

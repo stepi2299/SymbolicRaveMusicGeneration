@@ -34,6 +34,7 @@ class Decoder(nn.Module, ABC):
         hidden_size: int,
         dropout: float = 0.1,
         num_decoder_layers: int = 1,
+        input_dropout: float = 0.0,
     ) -> None:
         super().__init__()
         self.latent_dim = latent_dim
@@ -49,7 +50,12 @@ class Decoder(nn.Module, ABC):
         self.hidden_size = hidden_size
         self.num_heads = hidden_size // 64
         self.intermediate_ff_size = 4 * hidden_size
+        self._input_dropout = input_dropout
         self._cache_params = None
+        special_token_ids = [self.bos_token, self.eos_token, self.pad_token]
+        self.register_buffer(
+            "special_ids", torch.tensor(special_token_ids, dtype=torch.long)
+        )
 
     @abstractmethod
     def forward(
@@ -81,6 +87,29 @@ class Decoder(nn.Module, ABC):
     def clean_cache(self):
         self._cache_params = None
 
+    def input_dropout(
+        self, embeddings: torch.Tensor, input_sequence: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Apply dropout to the input sequence.
+        Args:
+            embeddings: [batch_size, sequence_length, embedding_size]
+            input_sequence: [batch_size, sequence_length]
+        Returns:
+            dropped_out_sequence: [batch_size, sequence_length]
+        """
+        if self.training and self._input_dropout > 0.0:
+            keep_prob = 1.0 - self._input_dropout
+            random_mask = torch.bernoulli(
+                torch.full(
+                    input_sequence.shape, keep_prob, device=input_sequence.device
+                )
+            )
+            is_protected = torch.isin(input_sequence, self.special_ids)
+            final_mask = torch.max(random_mask, is_protected.float())
+            embeddings = embeddings * final_mask.unsqueeze(-1)
+        return embeddings
+
 
 class GptDecoder(Decoder):
     def __init__(
@@ -95,6 +124,7 @@ class GptDecoder(Decoder):
         bos_token: int,
         eos_token: int,
         dropout: float,
+        input_dropout: float,
     ) -> None:
         super(GptDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -108,6 +138,7 @@ class GptDecoder(Decoder):
             dropout=dropout,
             hidden_size=hidden_size,
             num_decoder_layers=num_decoder_layers,
+            input_dropout=input_dropout,
         )
 
         self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
@@ -152,6 +183,8 @@ class GptDecoder(Decoder):
 
         token_emb = self.token_embeddings(input_sequence)
 
+        token_emb = self.input_dropout(token_emb, input_sequence)
+
         decoder_input = token_emb + latent_vector_projection + pos_emb
         decoder_input = decoder_input.permute(1, 0, 2)
 
@@ -188,6 +221,7 @@ class TransformerXL(Decoder):
         bos_token: int,
         eos_token: int,
         attention_dropout: float,
+        input_dropout: float,
     ) -> None:
         super(TransformerXL, self).__init__(
             latent_dim=latent_dim,
@@ -201,6 +235,7 @@ class TransformerXL(Decoder):
             dropout=dropout,
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
+            input_dropout=input_dropout,
         )
 
         config = TransfoXLConfig(
@@ -237,6 +272,7 @@ class TransformerXL(Decoder):
         # input_sequence: [Batch, Seq_Len]
         batch_size, current_sequence_len = input_sequence.shape
         token_emb = self.token_embeddings(input_sequence)
+        token_emb = self.input_dropout(token_emb, input_sequence)
 
         # [B, Latent] -> [B, Hidden]
         latent_proj = self.latent_proj(latent_vector)
@@ -279,6 +315,7 @@ class TransformerRope(Decoder):
         bos_token: int,
         rotary_pct: float,
         rotary_emb_base: int,
+        input_dropout: float = 0.0,
     ) -> None:
         super(TransformerRope, self).__init__(
             latent_dim=latent_dim,
@@ -292,6 +329,7 @@ class TransformerRope(Decoder):
             dropout=dropout,
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
+            input_dropout=input_dropout,
         )
 
         config = GPTNeoXConfig(
@@ -328,6 +366,7 @@ class TransformerRope(Decoder):
         # input_sequence: [Batch, Seq_Len]
         batch_size, current_sequence_len = input_sequence.shape
         token_emb = self.token_embeddings(input_sequence)
+        token_emb = self.input_dropout(token_emb, input_sequence)
 
         # [B, Latent] -> [B, Hidden]
         latent_proj = self.latent_proj(latent_vector)
@@ -374,6 +413,7 @@ class MistralDecoder(Decoder):
         bos_token: int,
         sliding_window: int,
         num_key_value_heads: int,
+        input_dropout: float,
     ) -> None:
         super(MistralDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -387,6 +427,7 @@ class MistralDecoder(Decoder):
             hidden_size=hidden_size,
             dropout=attention_dropout,
             num_decoder_layers=num_decoder_layers,
+            input_dropout=input_dropout,
         )
         self.hidden_size = hidden_size
         config = MistralConfig(
@@ -422,6 +463,7 @@ class MistralDecoder(Decoder):
         batch_size, current_sequence_len = input_sequence.shape
 
         token_emb = self.token_embeddings(input_sequence)  # [B, L, D]
+        token_emb = self.input_dropout(token_emb, input_sequence)
 
         latent_proj = self.latent_proj(latent_vector)  # [B, D]
         latent_proj_expanded = latent_proj.unsqueeze(1).expand(
@@ -462,6 +504,7 @@ class MambaDecoder(Decoder):
         bos_token: int,
         expand: int,
         conv_kernel: int,
+        input_dropout: float,
     ) -> None:
         super(MambaDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -474,6 +517,7 @@ class MambaDecoder(Decoder):
             pad_token=pad_token,
             hidden_size=hidden_size,
             num_decoder_layers=num_decoder_layers,
+            input_dropout=input_dropout,
         )
         self.hidden_size = hidden_size
         config = MambaConfig(
@@ -506,6 +550,7 @@ class MambaDecoder(Decoder):
         batch_size, current_sequence_len = input_sequence.shape
 
         token_emb = self.token_embeddings(input_sequence)  # [B, L, D]
+        token_emb = self.input_dropout(token_emb, input_sequence)
 
         latent_proj = self.latent_proj(latent_vector)  # [B, D]
         latent_proj_expanded = latent_proj.unsqueeze(1).expand(
@@ -545,7 +590,8 @@ class LinearAttentionDecoder(Decoder):
         bos_token: int,
         eos_token: int,
         pad_token: int,
-        dropout: float = 0.1,
+        dropout: float,
+        input_dropout: float,
     ) -> None:
         super().__init__(
             latent_dim=latent_dim,
@@ -559,6 +605,7 @@ class LinearAttentionDecoder(Decoder):
             dropout=dropout,
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
+            input_dropout=input_dropout,
         )
 
         self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
@@ -593,18 +640,18 @@ class LinearAttentionDecoder(Decoder):
         batch_size, seq_len = input_sequence.shape
 
         # Embeddings
-        x = self.token_embeddings(input_sequence)
+        token_emb = self.token_embeddings(input_sequence)
+        token_emb = self.input_dropout(token_emb, input_sequence)
 
         # Add position
         if not use_cache:  # W treningu dodajemy pozycje dla całego ciągu
-            positions = torch.arange(0, seq_len, device=x.device).unsqueeze(0)
-            x = x + self.position_embeddings(positions)
+            positions = torch.arange(0, seq_len, device=token_emb.device).unsqueeze(0)
+            token_emb = token_emb + self.position_embeddings(positions)
         else:  # W inference dla pojedynczego kroku (trzeba by śledzić index, tu uproszczenie)
             pass
-
             # Conditioning
         latent_proj = self.latent_proj(latent_vector).unsqueeze(1)
-        x = x + latent_proj  # Broadcasting
+        token_emb = token_emb + latent_proj  # Broadcasting
 
         new_states = []
 
@@ -612,12 +659,12 @@ class LinearAttentionDecoder(Decoder):
             layer_state = (
                 self._cache_params[i] if self._cache_params is not None else None
             )
-            x, new_s = layer(x, state=layer_state, use_cache=use_cache)
+            token_emb, new_s = layer(token_emb, state=layer_state, use_cache=use_cache)
             if use_cache:
                 new_states.append(new_s)
 
-        x = self.ln_f(x)
-        logits = self.output_proj(x)
+        token_emb = self.ln_f(token_emb)
+        logits = self.output_proj(token_emb)
 
         if recv_in_music_form:
             logits = self.transform_to_music_form(logits)
@@ -647,6 +694,7 @@ class MistralCompoundDecoder(Decoder):
         bos_token: int,
         sliding_window: int,
         num_key_value_heads: int,
+        input_dropout: float,
     ) -> None:
         super().__init__(
             latent_dim=latent_dim,
@@ -660,6 +708,7 @@ class MistralCompoundDecoder(Decoder):
             dropout=attention_dropout,
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
+            input_dropout=input_dropout,
         )
         self.hidden_size = hidden_size
 

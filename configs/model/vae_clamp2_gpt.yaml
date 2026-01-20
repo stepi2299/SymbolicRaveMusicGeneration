@@ -26,3 +26,6 @@ decoder:
       # - Decrease if you have massive data or the model is underfitting.
       # STANDARD: 0.1 (10%).
       dropout: 0.1
+
+      # Probability of dropping input neurons during training.
+      input_dropout: 0
