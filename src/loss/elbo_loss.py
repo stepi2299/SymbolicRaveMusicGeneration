@@ -39,7 +39,7 @@ class ElboLoss(BaseVaeLoss):
         mu: torch.Tensor,
         logvar: torch.Tensor,
         global_step: int,
-        train: bool
+        train: bool,
     ) -> Tuple[torch.Tensor, dict]:
         """
         Args:

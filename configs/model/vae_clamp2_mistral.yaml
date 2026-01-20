@@ -21,7 +21,7 @@ decoder:
       # STANDARD: 32.
       # FOR MUSIC: 8-12. Music has complex hierarchical structures (phrasing, repetition)
       # that require depth to be modeled correctly.
-      num_decoder_layers: 6
+      num_decoder_layers: 4
 
       # --- GROUPED QUERY ATTENTION (GQA) ---
       # The core efficiency parameter. Instead of each Query head having its own Key/Value head,

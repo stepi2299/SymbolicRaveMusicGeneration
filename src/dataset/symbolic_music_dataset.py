@@ -3,14 +3,17 @@ from typing import Callable
 from torch.utils.data import Dataset
 from abc import ABC, abstractmethod
 import random
+import logging as lg
 
 import torch
 
 from miditoolkit import MidiFile
 
-from src.utils import load_midi_song, load_abc_song, convert_mido_to_score
+from src.utils import load_midi_song, load_abc_song
 from src.adapter import MusicAdapter
 from src.constants import SymbolicMusicFormat
+
+logger = lg.getLogger(__name__)
 
 
 class SymbolicMusicDataset(Dataset, ABC):
@@ -20,13 +23,12 @@ class SymbolicMusicDataset(Dataset, ABC):
         adapter: MusicAdapter,
         music_format: SymbolicMusicFormat,
         load_music_function: Callable[[Path], str | MidiFile],
-        transform: Callable[[str], str] | None = None,
         single_data_training: bool = False,
         index_of_overtrained: int | None = None,
     ) -> None:
         self.dataset_path = dataset_path
         self.load_music_function = load_music_function
-        self.transform = transform
+        self._augment: bool | None = None
         self._single_data_training = single_data_training
         self._index_of_overtrained = index_of_overtrained
         self.music_adapter = adapter
@@ -55,17 +57,22 @@ class SymbolicMusicDataset(Dataset, ABC):
     def _preprocess_music_file(self) -> str | MidiFile:
         pass
 
+    def turn_augmentation(self, augment: bool) -> None:
+        self._augment = augment
+        logger.info(f"Augmentation set to: {self._augment}")
+
     def __len__(self):
         return len(self.music_files_paths)
 
     def __getitem__(self, idx: int) -> torch.Tensor:
         music_file_path = self.music_files_paths[idx]
         music_file = self.load_music_function(music_file_path)
-        if self.transform:
-            music_file = self.transform(music_file)
         music_file = self.music_adapter.encode(music_file)
         music_file = self._get_padded_data(music_file)
-        return torch.tensor(music_file)
+        tensor_data = torch.tensor(music_file)
+        if self._augment:
+            tensor_data = self.music_adapter.augment(tensor_data)
+        return tensor_data
 
     def _get_padded_data(
         self, music_file: list[list[int]] | list[int]
@@ -85,7 +92,6 @@ class MidiDataset(SymbolicMusicDataset):
         dataset_path: Path,
         adapter: MusicAdapter,
         load_music_function: Callable[[Path], str] = load_midi_song,
-        transform: Callable[[str], str] | None = None,
         single_data_training: bool = False,
         index_of_overtrained: int | None = None,
     ) -> None:
@@ -94,7 +100,6 @@ class MidiDataset(SymbolicMusicDataset):
             load_music_function=load_music_function,
             music_format=SymbolicMusicFormat.MIDI,
             adapter=adapter,
-            transform=transform,
             single_data_training=single_data_training,
             index_of_overtrained=index_of_overtrained,
         )
@@ -111,7 +116,6 @@ class AbcDataset(SymbolicMusicDataset):
         dataset_path: Path,
         adapter: MusicAdapter,
         load_music_function: Callable[[Path], str] = load_abc_song,
-        transform: Callable[[str], str] | None = None,
         single_data_training: bool = False,
         index_of_overtrained: int | None = None,
     ) -> None:
@@ -120,7 +124,6 @@ class AbcDataset(SymbolicMusicDataset):
             load_music_function=load_music_function,
             music_format=SymbolicMusicFormat.ABC,
             adapter=adapter,
-            transform=transform,
             single_data_training=single_data_training,
             index_of_overtrained=index_of_overtrained,
         )

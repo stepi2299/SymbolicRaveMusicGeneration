@@ -1,6 +1,7 @@
 import random
 import re
 from typing import Iterable
+import torch
 
 from mido import MidiFile as MidoMidiFile
 from pathlib import Path
@@ -159,3 +160,7 @@ class MusicPatchilizer:
     @property
     def song_dim(self) -> int:
         return 2
+
+    def augment(self, music_tensor: torch.Tensor) -> torch.Tensor:
+        # TODO
+        return music_tensor

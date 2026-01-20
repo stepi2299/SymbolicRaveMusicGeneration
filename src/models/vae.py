@@ -132,9 +132,7 @@ class VAE(nn.Module):
 
     def _generate_song_for_2_dim(self, latent_vector: torch.Tensor) -> list[list[int]]:
         logger.info("Generating song for 2D representation")
-        generated_sequence = [
-            [self._adapter.bos_token_id] * self._adapter.patch_size
-        ]
+        generated_sequence = [[self._adapter.bos_token_id] * self._adapter.patch_size]
         self.decoder.clean_cache()
         for i in range(self.decoder.sequence_length - 1):
             logger.debug(f"Generated sequence: {generated_sequence}")

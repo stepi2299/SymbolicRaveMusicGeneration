@@ -639,7 +639,6 @@ class MistralCompoundDecoder(Decoder):
         hidden_size: int,
         sequence_length: int,
         patch_size: int,
-        token_types: dict[str, int],
         num_decoder_layers: int,
         attention_dropout: float,
         rope_theta: float,
@@ -662,11 +661,10 @@ class MistralCompoundDecoder(Decoder):
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
         )
-        self.token_types = token_types
         self.hidden_size = hidden_size
 
         # 1. Input Module (Adaptive Embeddings)
-        self.cp_embedding = CompoundWordEmbedding(self.token_types, self.hidden_size)
+        self.cp_embedding = CompoundWordEmbedding(self.hidden_size)
 
         # 2. Latent Projection (VAE Conditioning)
         self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
@@ -692,7 +690,7 @@ class MistralCompoundDecoder(Decoder):
         self.model = MistralModel(config)
 
         # 4. Output Module (Multi-head)
-        self.output_heads = MultiHeadOutput(hidden_size, token_types)
+        self.output_heads = MultiHeadOutput(hidden_size)
 
     def forward(
         self,

@@ -4,3 +4,8 @@ params:
   training_model: BPE  # BPE | Unigram | WordPiece
   vocab_size: 20000
   sequence_length: 1024
+  augmenter_params:
+    augment_velocity: true
+    augment_pitch: false
+    velocity_interval: 3
+    pitch_interval: 6

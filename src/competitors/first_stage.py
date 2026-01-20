@@ -1,11 +1,13 @@
 from __future__ import annotations
 from typing import Any
+import copy
 
 import torch
 import math
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import grad_norm
 from torch.optim.lr_scheduler import LambdaLR
+from torch.utils.data import Subset
 from pathlib import Path
 
 from src.models.vae import VAE
@@ -30,6 +32,8 @@ class FirstStage(pl.LightningModule):
         max_decoder_learning_rate: float = 1e-3,
         encoder_weight_decay: float = 0.01,
         decoder_weight_decay: float = 0.01,
+        train_augment: bool = False,
+        val_augment: bool = False,
         single_data_training: bool = False,
         monitor_metric: str = "val_loss",
         warmup_steps=100,
@@ -37,14 +41,21 @@ class FirstStage(pl.LightningModule):
         super(FirstStage, self).__init__()
         self.vae = vae
         if len(symbolic_music_dataset) >= 5:
-            self.train_dataset, self.val_dataset = split_dataset(
+            train_subset, val_subset = split_dataset(
                 symbolic_music_dataset, train_split
             )
+            train_dataset_copy = copy.deepcopy(train_subset.dataset)
+            train_dataset_copy.turn_augmentation(augment=train_augment)
+            val_subset.dataset.turn_augmentation(augment=val_augment)
+            self.train_dataset = Subset(train_dataset_copy, train_subset.indices)
+            self.val_dataset = val_subset
         else:
             self.train_dataset, self.val_dataset = (
                 symbolic_music_dataset,
-                symbolic_music_dataset,
+                copy.deepcopy(symbolic_music_dataset),
             )
+            self.val_dataset.turn_augmentation(augment=val_augment)
+            self.train_dataset.turn_augmentation(augment=train_augment)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.max_encoder_learning_rate = max_encoder_learning_rate
@@ -56,6 +67,8 @@ class FirstStage(pl.LightningModule):
         self._warmup_steps = warmup_steps
         self._encoder_weight_decay = encoder_weight_decay
         self._decoder_weight_decay = decoder_weight_decay
+        self._train_augment = train_augment
+        self._val_augment = val_augment
         self.save_hyperparameters()
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:

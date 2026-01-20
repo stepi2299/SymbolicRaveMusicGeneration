@@ -8,7 +8,9 @@ from src.adapter import MusicAdapter
 
 
 def get_vae_model(
-    model_cfg: DictConfig, adapter: MusicAdapter, vae_params: DictConfig
+    model_cfg: DictConfig,
+    adapter: MusicAdapter,
+    vae_params: DictConfig,
 ) -> VAE:
     encoder_obj = encoder_mapper(model_cfg.encoder.name)(
         latent_dim=model_cfg.latent_dim,

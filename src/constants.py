@@ -23,3 +23,11 @@ CP_WORD_INDEXES = {
     "velocity": 3,
     "duration": 4,
 }
+
+CP_TOKEN_SIZE = {
+    "family": 6,  # Np. 0=Note, 1=Rest, 2=EOS...
+    "position": 38,  # Pozycje w takcie
+    "pitch": 128,  # MIDI pitch (0-127)
+    "velocity": 38,  # Skwantyzowana głośność
+    "duration": 70,  # Skwantyzowany czas trwania nuty
+}

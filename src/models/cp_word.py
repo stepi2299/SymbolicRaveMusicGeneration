@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import logging as lg
 
-from src.constants import CP_WORD_INDEXES
+from src.constants import CP_WORD_INDEXES, CP_TOKEN_SIZE
 
 logger = lg.getLogger(__name__)
 
@@ -14,11 +14,12 @@ class CompoundWordEmbedding(nn.Module):
     który jest następnie rzutowany do wymiaru modelu i sumowany.
     """
 
-    def __init__(self, token_types: dict[str, int], hidden_size: int):
+    def __init__(self, hidden_size: int):
         super().__init__()
         self.embeddings = nn.ModuleDict()
         self.projections = nn.ModuleDict()
         self._hidden_size = hidden_size
+        token_types = CP_TOKEN_SIZE
 
         if len(token_types) != len(CP_WORD_INDEXES):
             raise ValueError(
@@ -82,10 +83,10 @@ class MultiHeadOutput(nn.Module):
     Zamiast jednego wielkiego Softmaxa, mamy osobne klasyfikatory dla każdego atrybutu.
     """
 
-    def __init__(self, hidden_size: int, token_types: dict[str, int]):
+    def __init__(self, hidden_size: int):
         super().__init__()
         self.heads = nn.ModuleDict()
-        for name, vocab_size in token_types.items():
+        for name, vocab_size in CP_TOKEN_SIZE.items():
             self.heads[name] = nn.Linear(hidden_size, vocab_size)
 
     def forward(self, hidden_states: torch.Tensor) -> dict[str, torch.Tensor]:

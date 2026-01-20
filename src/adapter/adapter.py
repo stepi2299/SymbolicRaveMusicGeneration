@@ -1,3 +1,4 @@
+import torch
 from omegaconf import DictConfig
 
 from src.adapter.patchilizer import MusicPatchilizer
@@ -7,6 +8,7 @@ from mido import MidiFile as MidoMidiFile
 from pathlib import Path
 
 from src.constants import SymbolicMusicFormat, MusicAdapterType, ExportFormat
+
 
 class MusicAdapter:
     def __init__(
@@ -40,6 +42,9 @@ class MusicAdapter:
         if isinstance(ret_music, str):
             ret_music = ret_music.strip()
         return ret_music
+
+    def augment(self, music_data: torch.Tensor) -> torch.Tensor:
+        return self._adapter.augment(music_data)
 
     def _get_single_dim_padded_sequence(self, music_file: list[int]) -> list[int]:
         return music_file + [self.pad_token_id] * (

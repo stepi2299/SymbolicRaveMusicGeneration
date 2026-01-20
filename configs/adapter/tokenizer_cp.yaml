@@ -8,4 +8,9 @@ params:
     use_programs: false
     one_token_stream_for_programs: true
     special_tokens: ['PAD', 'BOS', "EOS", "MASK"]
+  augmenter_params:
+    augment_velocity: true
+    augment_pitch: false
+    velocity_interval: 3
+    pitch_interval: 6
 

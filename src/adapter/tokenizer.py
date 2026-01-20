@@ -22,6 +22,7 @@ from src.utils import (
     convert_mido_to_score,
     export_to_wav,
 )
+from src.adapter.augmenter import OneLevelTokAugmenter, CpWordAugmenter
 from src.constants import SymbolicMusicFormat, ExportFormat
 
 
@@ -49,6 +50,16 @@ class Tokenizer:
         "mumidi": 1,
         "mmm": 1,
     }
+    AUGMENTATION_MAPPER = {
+        "remi": OneLevelTokAugmenter,
+        "midilike": OneLevelTokAugmenter,
+        "tsd": OneLevelTokAugmenter,
+        "structured": OneLevelTokAugmenter,
+        "cpword": CpWordAugmenter,
+        "octuple": OneLevelTokAugmenter,
+        "mumidi": OneLevelTokAugmenter,
+        "mmm": OneLevelTokAugmenter,
+    }
     TOKENIZER_BASE_PATH = base_weights_path / "tokenizers"
 
     def __init__(
@@ -60,6 +71,7 @@ class Tokenizer:
         sequence_length: int,
         add_special_patches: bool = True,
         config: dict | None = None,
+        augmenter_params: dict | None = None,
         **kwargs,
     ) -> None:
         self.tokenizer_name = tokenizer_name
@@ -69,6 +81,9 @@ class Tokenizer:
         self.add_special_patches = add_special_patches
         self._dataset_name = dataset_name
         self.patch_size = self.PATCH_MAPPER[tokenizer_name]
+        self._augmenter_params = (
+            augmenter_params if augmenter_params is not None else {}
+        )
         if tokenizer_name not in self.TOKENIZER_MAPPER:
             raise ValueError(
                 f"Tokenizer {tokenizer_name} not supported, supported tokenizers "
@@ -92,6 +107,10 @@ class Tokenizer:
             )
             self._is_trained = False
         self._dim_of_song = 2 if self.patch_size > 1 else 1
+        augmenter_class = self.AUGMENTATION_MAPPER[tokenizer_name]
+        self.augmenter = augmenter_class(
+            tokenizer_config=self.tokenizer.config, **self._augmenter_params
+        )
 
     def encode(
         self, music_file: MidoMidiFile, symbolic_format: SymbolicMusicFormat
@@ -106,19 +125,6 @@ class Tokenizer:
         tok_sequence = self.tokenizer(midi_score)[0].ids[: self.sequence_length - 2]
         if self.add_special_patches:
             tok_sequence = self._add_special_tokens(tok_sequence)
-        pitch_interval = random.randint(-6, 6)
-        pitch_range = self.tokenizer.config.pitch_range[1] - self.tokenizer.config.pitch_range[0]
-        min_pitch = 4
-        tok_sequence = self._augment_single_dim(
-            tok_sequence,
-            min_range=min_pitch,
-            max_range=min_pitch + pitch_range, shift_interval=pitch_interval)
-        vel_interval = random.randint(-5, 5)
-        min_vel = min_pitch + pitch_range + 1
-        tok_sequence = self._augment_single_dim(
-            tok_sequence,
-            min_range=min_pitch + pitch_range + 1,
-            max_range=min_vel + self.tokenizer.config.num_velocities, shift_interval=vel_interval)
         return tok_sequence
 
     def decode(
@@ -146,6 +152,9 @@ class Tokenizer:
             case _:
                 raise ValueError(f"Export format {export_format} is not supported")
 
+    def augment(self, music_data: torch.Tensor) -> torch.Tensor:
+        return self.augmenter.augment(music_data)
+
     def train(self, files_path: Path) -> None:
         files_paths = []
         for item in files_path.iterdir():
@@ -161,6 +170,9 @@ class Tokenizer:
             )
             self._is_trained = True
             self.save()
+            self.augmenter = self.AUGMENTATION_MAPPER[self.tokenizer_name](
+                tokenizer_config=self.tokenizer.config, **self._augmenter_params
+            )
         else:
             logger.info(f"Current tokenizer is CPWord, skipping training step.")
             self._is_trained = True
@@ -210,16 +222,6 @@ class Tokenizer:
         else:
             raise ValueError(f"Unsupported song dimension {self._dim_of_song}")
 
-    @staticmethod
-    def _augment_single_dim(tok_sequence: list[int], min_range: int, max_range: int, shift_interval: int) -> list[int]:
-        seq_tensor = torch.tensor(tok_sequence, dtype=torch.long)
-
-        mask = (seq_tensor >= min_range) & (seq_tensor <= max_range)
-        shifted_values = seq_tensor[mask] + shift_interval
-        seq_tensor[mask] = torch.clamp(shifted_values, min=min_range, max=max_range)
-
-        return seq_tensor.tolist()
-
 
 def get_tokenizer(
     tokenizer: str,
@@ -238,4 +240,3 @@ def get_tokenizer(
         dataset_path = (base_dataset_path / dataset_name).resolve(True)
         tokenizer.train(files_path=dataset_path)
     return tokenizer
-

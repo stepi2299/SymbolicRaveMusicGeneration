@@ -10,16 +10,6 @@ encoder:
 decoder:
     name: cp_decoder
     params:
-      # --- Struktura Danych Muzycznych (CP) ---
-      # Definiuje wymiary słowników dla każdego atrybutu.
-      # Kolejność tutaj definiuje kolejność w tensorze wejściowym!
-      token_types:
-        family: 6      # Np. 0=Note, 1=Rest, 2=EOS...
-        position: 38    # Pozycje w takcie
-        pitch: 128      # MIDI pitch (0-127)
-        velocity: 38    # Skwantyzowana głośność
-        duration: 70    # Skwantyzowany czas trwania nuty
-
       # Determines the vector size for each token.
       # IMPACT: Higher values allow capturing complex harmonics and musical textures.
       # STANDARD: 768 or 1024. Must be divisible by 64.
@@ -29,7 +19,7 @@ decoder:
       # STANDARD: 32.
       # FOR MUSIC: 8-12. Music has complex hierarchical structures (phrasing, repetition)
       # that require depth to be modeled correctly.
-      num_decoder_layers: 2
+      num_decoder_layers: 4
 
       # --- GROUPED QUERY ATTENTION (GQA) ---
       # The core efficiency parameter. Instead of each Query head having its own Key/Value head,

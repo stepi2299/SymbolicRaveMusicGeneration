@@ -1,8 +1,8 @@
 
 defaults:
-  - dataset: maestro     # default dataset
+  - dataset: pop909     # default dataset
   - adapter: tokenizer  # default adapter
-  - model: vae_clamp2_trans_xl  # default model
+  - model: vae_clamp2_mistral  # default model
   - loss: elbo         # default loss
   - _self_
 
@@ -20,8 +20,10 @@ competitor:
   max_decoder_learning_rate: 0.0003
   encoder_weight_decay: 0.01
   decoder_weight_decay: 0.1
+  train_augment: false  # whether to apply data augmentation during training
+  val_augment: false  # whether to apply data augmentation during validation
 
-epochs: 1000  # number of epochs to train the model
+epochs: 1500  # number of epochs to train the model
 seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 log_format: "[%(asctime)s] - [%(name)s] - [%(levelname)s] - %(message)s"
@@ -30,7 +32,7 @@ pretrained: true  # possible values: true | false, if true, the model will be lo
 single_data_training: false # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
 grad_clip_val: 0.5  # gradient clipping value, set to null to disable gradient clipping
 monitor_metric: "val_loss"  # metric to monitor for early stopping and model checkpointing
-warmup_steps: 300  # number of warmup steps for learning rate scheduler (for single data training, set small value like 10/50)
+warmup_steps: 500  # number of warmup steps for learning rate scheduler (for single data training, set small value like 10/50)
 
 vae_params:
   use_cache_generation: false  # whether to use cache during generation (inference) - requires more VRAM but speeds up generation
