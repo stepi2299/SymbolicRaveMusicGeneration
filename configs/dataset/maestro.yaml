@@ -1,3 +1,10 @@
 name: maestro
 extension: "midi"
 data_dir: "maestro"
+augmentation_params:
+  allow_track_drop: false
+  allow_humanize: false
+  allow_voicing_change: false
+  humanize_sigma: 10  # Standard deviation for humanization in milliseconds (Noise added to note start times)
+  track_drop_probability: 0.4  # Probability of dropping a track
+  octave_shift_prob: 0.3

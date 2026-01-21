@@ -25,6 +25,7 @@ def get_dataset(
         return MidiDataset(
             dataset_path,
             adapter=music_adapter,
+            augmentation_params=dataset_config.augmentation_params,
             single_data_training=single_data_training,
             index_of_overtrained=chosen_index,
         )
@@ -32,6 +33,7 @@ def get_dataset(
         return AbcDataset(
             dataset_path,
             adapter=music_adapter,
+            augmentation_params=dataset_config.augmentation_params,
             single_data_training=single_data_training,
             index_of_overtrained=chosen_index,
         )

@@ -12,6 +12,7 @@ from miditoolkit import MidiFile
 from src.utils import load_midi_song, load_abc_song
 from src.adapter import MusicAdapter
 from src.constants import SymbolicMusicFormat
+from src.dataset.music_augmenter import get_augmenter
 
 logger = lg.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class SymbolicMusicDataset(Dataset, ABC):
         dataset_path: Path,
         adapter: MusicAdapter,
         music_format: SymbolicMusicFormat,
+        augmentation_params: dict,
         load_music_function: Callable[[Path], str | MidiFile],
         single_data_training: bool = False,
         index_of_overtrained: int | None = None,
@@ -33,6 +35,9 @@ class SymbolicMusicDataset(Dataset, ABC):
         self._index_of_overtrained = index_of_overtrained
         self.music_adapter = adapter
         self.music_format = music_format
+        self._music_augmenter = get_augmenter(
+            music_format=music_format, **augmentation_params
+        )
         self.music_files_paths = self.imread_music_files()
         if self._single_data_training:
             if self._index_of_overtrained is not None:
@@ -67,6 +72,8 @@ class SymbolicMusicDataset(Dataset, ABC):
     def __getitem__(self, idx: int) -> torch.Tensor:
         music_file_path = self.music_files_paths[idx]
         music_file = self.load_music_function(music_file_path)
+        if self._augment:
+            music_file = self._music_augmenter(music_file)
         music_file = self.music_adapter.encode(music_file)
         music_file = self._get_padded_data(music_file)
         tensor_data = torch.tensor(music_file)
@@ -91,6 +98,7 @@ class MidiDataset(SymbolicMusicDataset):
         self,
         dataset_path: Path,
         adapter: MusicAdapter,
+        augmentation_params: dict,
         load_music_function: Callable[[Path], str] = load_midi_song,
         single_data_training: bool = False,
         index_of_overtrained: int | None = None,
@@ -98,6 +106,7 @@ class MidiDataset(SymbolicMusicDataset):
         super(MidiDataset, self).__init__(
             dataset_path=dataset_path,
             load_music_function=load_music_function,
+            augmentation_params=augmentation_params,
             music_format=SymbolicMusicFormat.MIDI,
             adapter=adapter,
             single_data_training=single_data_training,
@@ -115,6 +124,7 @@ class AbcDataset(SymbolicMusicDataset):
         self,
         dataset_path: Path,
         adapter: MusicAdapter,
+        augmentation_params: dict,
         load_music_function: Callable[[Path], str] = load_abc_song,
         single_data_training: bool = False,
         index_of_overtrained: int | None = None,
@@ -122,6 +132,7 @@ class AbcDataset(SymbolicMusicDataset):
         super(AbcDataset, self).__init__(
             dataset_path=dataset_path,
             load_music_function=load_music_function,
+            augmentation_params=augmentation_params,
             music_format=SymbolicMusicFormat.ABC,
             adapter=adapter,
             single_data_training=single_data_training,

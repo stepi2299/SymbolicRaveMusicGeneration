@@ -1,3 +1,10 @@
 name: pop909
 extension: "mid"
 data_dir: "pop909"
+augmentation_params:
+  allow_track_drop: true
+  allow_humanize: true
+  allow_voicing_change: true
+  humanize_sigma: 10  # Standard deviation for humanization in milliseconds (Noise added to note start times)
+  track_drop_probability: 0.4  # Probability of dropping a track
+  octave_shift_prob: 0.3

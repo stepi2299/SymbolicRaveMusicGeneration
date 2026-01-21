@@ -1,6 +1,6 @@
 
 defaults:
-  - dataset: pop909     # default dataset
+  - dataset: maestro     # default dataset
   - adapter: tokenizer  # default adapter
   - model: vae_clamp2_mistral  # default model
   - loss: elbo         # default loss
@@ -16,11 +16,11 @@ competitor:
   batch_size: 1
   num_workers: 16
   train_split: 0.8
-  max_encoder_learning_rate: 0.0003
+  max_encoder_learning_rate: 0.0001
   max_decoder_learning_rate: 0.0003
   encoder_weight_decay: 0.01
   decoder_weight_decay: 0.1
-  train_augment: false  # whether to apply data augmentation during training
+  train_augment: true  # whether to apply data augmentation during training
   val_augment: false  # whether to apply data augmentation during validation
 
 epochs: 1500  # number of epochs to train the model
