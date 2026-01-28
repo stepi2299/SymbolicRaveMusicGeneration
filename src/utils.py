@@ -1,4 +1,3 @@
-from music21 import converter
 from typing import Tuple, Dict
 import requests
 import symusic
@@ -6,6 +5,8 @@ import torch
 from tqdm import tqdm
 import logging as lg
 import math
+from torch.nn import functional as F
+
 
 import mido
 from mido.messages.messages import Message
@@ -360,3 +361,68 @@ def get_song_dim(tokens: list[int] | list[list[int]]) -> int:
     if tokens and all(isinstance(el, list) for el in tokens):
         return 2
     return 1
+
+
+def sample_next_cp_word(
+    logits: dict[str, torch.Tensor], strict: bool = True
+) -> list[int]:
+    """
+    Sample next patch tokens from the logits for each attribute.
+    Args:
+        logits: Dict of [batch_size, vocab_size] with key as attribute name (Logits for last sequence position)
+        strict: If True, use argmax sampling
+    Returns:
+        next_patch: List of length patch_size with sampled tokens
+    """
+    next_patch = []
+    for attr, attr_logits in logits.items():
+        if strict:
+            all_current_tokens = attr_logits.argmax(
+                dim=-1
+            )  # [batch_size, sequence_length]
+            next_token = all_current_tokens[0, -1]
+        else:
+            probs = torch.softmax(attr_logits, dim=-1)  # [batch_size, vocab_size]
+            next_token = torch.multinomial(probs, num_samples=1).squeeze(-1)[-1]
+        logger.debug(f"Next token for attribute {attr}: {next_token.item()}")
+        next_patch.append(next_token.item())
+    return next_patch
+
+
+def sample_next_token(logits, temperature=1.0, strict: bool = False) -> int:
+    if strict:
+        return logits.argmax().item()
+    probs = F.softmax(logits / temperature, dim=-1)
+    next_token_idx = torch.multinomial(probs, num_samples=1).item()
+    return next_token_idx
+
+
+def sample_next_patch(
+    patch_logits: torch.Tensor, temperature: float = 1.0, strict: bool = False
+) -> list[int]:
+    """
+    Sampluje cały patch (np. 64 tokeny) z logitów.
+
+    Args:
+        patch_logits: Tensor o kształcie [Patch_Size, Vocab_Size] lub [1, Patch_Size, Vocab_Size]
+        temperature: Parametr temperatury (im wyższa, tym bardziej losowe)
+        strict: Jeśli True, używa argmax (greedy decoding) - zawsze najbardziej prawdopodobny patch.
+
+    Returns:
+        Lista intów reprezentująca wygenerowany patch (np. [45, 12, 0, ...])
+    """
+    # 1. Obsługa wymiarów - chcemy mieć [Patch_Size, Vocab_Size]
+    # Jeśli dostaliśmy [1, Patch_Size, Vocab_Size], usuwamy jedynkę.
+    if patch_logits.dim() != 2:
+        raise ValueError(
+            f"Expected patch_logits to have shape [Patch_Size, Vocab_Size], but got shape: {patch_logits.shape}"
+        )
+
+    if strict:
+        tokens = patch_logits.argmax(dim=-1)
+        return tokens.tolist()
+    else:
+        scaled_logits = patch_logits / temperature
+        probs = F.softmax(scaled_logits, dim=-1)
+        next_patch_indices = torch.multinomial(probs, num_samples=1)
+        return next_patch_indices.squeeze(-1).tolist()

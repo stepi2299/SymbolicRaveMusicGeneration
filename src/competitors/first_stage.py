@@ -16,7 +16,6 @@ from src.utils import split_dataset
 from src.dataset.dataloader import get_dataloader
 from src.loss import BaseVaeLoss
 from src.constants import ExportFormat
-from src.constants import CP_WORD_INDEXES
 
 
 class FirstStage(pl.LightningModule):
@@ -89,14 +88,18 @@ class FirstStage(pl.LightningModule):
             train=True,
         )
         if self._single_data_training:
-            if isinstance(reconstruction, torch.Tensor):
-                self._reconstruct_single_dim_token(
-                    reconstruction=reconstruction, x_target=x_target
-                )
-            else:
-                self._reconstruct_cp_tensor(
-                    reconstruction=reconstruction, x_target=x_target
-                )
+            reconstruct_success, metadata = self.vae.decoder.reconstruct(
+                reconstruction, x_target
+            )
+            if metadata:
+                self.log_dict(metadata, on_step=False, on_epoch=True, prog_bar=True)
+            self.log(
+                "reconstruct_success",
+                reconstruct_success,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+            )
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
@@ -265,45 +268,3 @@ class FirstStage(pl.LightningModule):
                     on_epoch=True,
                     on_step=False,
                 )
-
-    def _reconstruct_single_dim_token(
-        self, reconstruction: torch.Tensor, x_target: torch.Tensor
-    ) -> None:
-        token_reconstruction = reconstruction.argmax(dim=-1)
-        correctness_reconstruction = (
-            token_reconstruction == x_target
-        ).float().mean().item() * 100
-        self.log(
-            "reconstruction_success",
-            correctness_reconstruction,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-        )
-
-    def _reconstruct_cp_tensor(
-        self, reconstruction: dict[str, torch.Tensor], x_target: torch.Tensor
-    ) -> None:
-        total_accuracy = 0.0
-        for attr_name, logits in reconstruction.items():
-            attr_index = CP_WORD_INDEXES[attr_name]
-            token_reconstruction = logits.argmax(dim=-1)
-            correctness_reconstruction = (
-                token_reconstruction == x_target[:, :, attr_index]
-            ).float().mean().item() * 100
-            total_accuracy += correctness_reconstruction
-            self.log(
-                f"reconstruction_success_{attr_name}",
-                correctness_reconstruction,
-                on_step=False,
-                on_epoch=True,
-                prog_bar=True,
-            )
-        avg_accuracy = total_accuracy / len(reconstruction)
-        self.log(
-            "reconstruction_success_avg",
-            avg_accuracy,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-        )

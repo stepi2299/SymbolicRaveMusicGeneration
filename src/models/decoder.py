@@ -16,6 +16,8 @@ from transformers import (
 from src.models.linear_attention import LinearTransformerBlock
 from src.models.cp_word import MultiHeadOutput, CompoundWordEmbedding
 from src.constants import CP_WORD_INDEXES
+from src.models.patch_models import PatchEmbeddings, PatchOutputHead
+from src.utils import sample_next_cp_word, sample_next_token, sample_next_patch
 
 logger = lg.getLogger(__name__)
 
@@ -109,6 +111,53 @@ class Decoder(nn.Module, ABC):
             final_mask = torch.max(random_mask, is_protected.float())
             embeddings = embeddings * final_mask.unsqueeze(-1)
         return embeddings
+
+    @staticmethod
+    def reconstruct(
+        reconstruction: torch.Tensor, x_target: torch.Tensor
+    ) -> tuple[float, dict]:
+        token_reconstruction = reconstruction.argmax(dim=-1)
+        correctness_reconstruction = (
+            token_reconstruction == x_target
+        ).float().mean().item() * 100
+        return correctness_reconstruction, {}
+
+    def generate(
+        self,
+        latent_vector: torch.Tensor,
+        strict_sampling: bool = True,
+        use_cache: bool = False,
+    ) -> list[int]:
+        logger.info(f"Starting generation with decoder: {self.name}")
+        generated_sequence = [self.bos_token]
+        self.clean_cache()
+        for _ in range(self.sequence_length):
+            input_seq = (
+                torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
+            )
+            logits = self(
+                latent_vector,
+                input_seq,
+                recv_in_music_form=False,
+                use_cache=use_cache,
+            )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
+            next_token_logits = logits[
+                0, -1, :
+            ]  # taking last one (logits for next token)
+
+            next_token_idx = sample_next_token(
+                next_token_logits, strict=strict_sampling
+            )
+            generated_sequence.append(next_token_idx)
+
+            if (
+                next_token_idx == self.eos_token
+                or len(generated_sequence) >= self.sequence_length
+            ):
+                logger.debug(f"Generated sequence: {generated_sequence}")
+                break
+        self.clean_cache()
+        return generated_sequence[1:]
 
 
 class GptDecoder(Decoder):
@@ -719,7 +768,6 @@ class MistralCompoundDecoder(Decoder):
         self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
 
         # 3. Transformer Backbone (Mistral)
-        self.num_heads = hidden_size // 64
         config = MistralConfig(
             hidden_size=self.hidden_size,
             num_attention_heads=self.num_heads,
@@ -806,6 +854,194 @@ class MistralCompoundDecoder(Decoder):
         music_form = torch.stack(music_form, dim=-1)
         return music_form
 
+    @staticmethod
+    def reconstruct(
+        reconstruction: dict[str, torch.Tensor], x_target: torch.Tensor
+    ) -> tuple[float, dict]:
+        total_accuracy = 0.0
+        metadata = {}
+        for attr_name, logits in reconstruction.items():
+            attr_index = CP_WORD_INDEXES[attr_name]
+            token_reconstruction = logits.argmax(dim=-1)
+            correctness_reconstruction = (
+                token_reconstruction == x_target[:, :, attr_index]
+            ).float().mean().item() * 100
+            total_accuracy += correctness_reconstruction
+            metadata[f"reconstruction_success_{attr_name}"] = correctness_reconstruction
+        avg_accuracy = total_accuracy / len(reconstruction)
+        return avg_accuracy, metadata
+
+    def generate(
+        self,
+        latent_vector: torch.Tensor,
+        strict_sampling: bool = True,
+        use_cache: bool = False,
+    ) -> list[list[int]]:
+        logger.info(f"Starting generation with decoder: {self.name}")
+        generated_sequence = [[self.bos_token] * self.patch_size]
+        self.clean_cache()
+        for i in range(self.sequence_length - 1):
+            input_seq = (
+                torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
+            )
+            dict_logits = self(
+                latent_vector,
+                input_seq,
+                recv_in_music_form=False,
+                use_cache=use_cache,
+            )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
+
+            next_patch = sample_next_cp_word(dict_logits, strict=strict_sampling)
+            generated_sequence.append(next_patch)
+            if (
+                len(generated_sequence) >= self.sequence_length
+                or next_patch == [self.eos_token] * self.patch_size
+            ):
+                break
+        self.clean_cache()
+        return generated_sequence[1:]
+
+
+class MistralPatchDecoder(Decoder):
+    def __init__(
+        self,
+        latent_dim: int,
+        vocab_size: int,
+        hidden_size: int,
+        sequence_length: int,
+        patch_size: int,
+        num_decoder_layers: int,
+        attention_dropout: float,
+        rope_theta: float,
+        eos_token: int,
+        pad_token: int,
+        bos_token: int,
+        sliding_window: int,
+        num_key_value_heads: int,
+        input_dropout: float,
+        token_embedding_size: int,
+    ) -> None:
+        super().__init__(
+            latent_dim=latent_dim,
+            name="patch_mistral_decoder",
+            vocab_size=vocab_size,
+            sequence_length=sequence_length,
+            patch_size=patch_size,
+            bos_token=bos_token,
+            eos_token=eos_token,
+            pad_token=pad_token,
+            dropout=attention_dropout,
+            num_decoder_layers=num_decoder_layers,
+            hidden_size=hidden_size,
+            input_dropout=input_dropout,
+        )
+        self.hidden_size = hidden_size
+
+        self.patch_embedding = PatchEmbeddings(
+            vocab_size=vocab_size,
+            hidden_size=hidden_size,
+            patch_size=patch_size,
+            token_embedding_size=token_embedding_size,
+        )
+        self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
+
+        config = MistralConfig(
+            hidden_size=self.hidden_size,
+            num_attention_heads=self.num_heads,
+            num_hidden_layers=self.num_decoder_layers,
+            num_key_value_heads=num_key_value_heads,
+            intermediate_size=self.intermediate_ff_size,
+            vocab_size=1,
+            max_position_embeddings=self.sequence_length,
+            attention_dropout=attention_dropout,
+            bos_token_id=self.bos_token,
+            eos_token_id=self.eos_token,
+            pad_token_id=self.pad_token,
+            use_cache=False,
+            rope_theta=rope_theta,
+            sliding_window=sliding_window,
+        )
+        self.model = MistralModel(config)
+
+        self.patch_output_head = PatchOutputHead(
+            vocab_size=self.vocab_size,
+            patch_size=self.patch_size,
+            hidden_size=self.hidden_size,
+        )
+
+    def forward(
+        self,
+        latent_vector: torch.Tensor,
+        input_sequence: torch.Tensor,
+        *,
+        recv_in_music_form: bool = False,
+        use_cache: bool = False,
+    ) -> torch.Tensor:
+        batch_size, seq_len, patch_size = input_sequence.shape
+        assert (
+            patch_size == self.patch_size
+        ), f"Expected patch size {self.patch_size}, got {patch_size}"
+
+        patch_emb = self.patch_embedding(input_sequence)
+        # TODO patch_emb = self.input_dropout(patch_emb, input_sequence)
+
+        latent_proj = self.latent_proj(latent_vector)
+        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
+            batch_size, seq_len, self.hidden_size
+        )
+        decoder_inputs_embeds = patch_emb + latent_proj_expanded
+
+        outputs = self.model(
+            inputs_embeds=decoder_inputs_embeds,
+            past_key_values=self._cache_params,
+            return_dict=True,
+            use_cache=use_cache,
+        )
+        hidden_states = outputs.last_hidden_state
+        logits = self.patch_output_head(hidden_states)
+
+        if recv_in_music_form:
+            logits = self.transform_to_music_form(logits)
+        if use_cache:
+            self._cache_params = outputs.past_key_values
+        return logits
+
+    def get_layers_to_track(self):
+        return self.model.layers
+
+    def generate(
+        self,
+        latent_vector: torch.Tensor,
+        strict_sampling: bool = True,
+        use_cache: bool = False,
+    ) -> list[list[int]]:
+        logger.info(f"Starting generation with decoder: {self.name}")
+        generated_sequence = [[self.bos_token] * self.patch_size]
+        self.clean_cache()
+        for _ in range(self.sequence_length):
+            input_seq = (
+                torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
+            )
+            logits = self(
+                latent_vector,
+                input_seq,
+                recv_in_music_form=False,
+                use_cache=use_cache,
+            )
+            next_token_logits = logits[
+                0, -1, :, :
+            ]  # taking last ones (logits for next patch)
+            next_patch = sample_next_patch(next_token_logits, strict=strict_sampling)
+            generated_sequence.append(next_patch)
+            if (
+                next_patch == [self.eos_token] * self.patch_size
+                or len(generated_sequence) >= self.sequence_length
+            ):
+                logger.debug(f"Generated sequence: {generated_sequence}")
+                break
+        self.clean_cache()
+        return generated_sequence[1:]
+
 
 def decoder_mapper(decoder_name: str) -> Type[Decoder]:
     if decoder_name == "gpt_decoder":
@@ -822,5 +1058,7 @@ def decoder_mapper(decoder_name: str) -> Type[Decoder]:
         return LinearAttentionDecoder
     elif decoder_name == "cp_decoder":
         return MistralCompoundDecoder
+    elif decoder_name == "patch_mistral":
+        return MistralPatchDecoder
     else:
         raise ValueError(f"Unknown decoder: {decoder_name}, possible: ['simple_conv']")

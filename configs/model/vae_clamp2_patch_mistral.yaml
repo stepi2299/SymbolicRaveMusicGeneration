@@ -1,0 +1,56 @@
+name: vae_clamp2_patch_mistral
+latent_dim: 768
+encoder:
+  name: clamp2
+  params:
+    clamp2_vocab_size: 1
+    hidden_size: 768  # multiplication of 64
+    weights_url: "https://huggingface.co/sander-wood/clamp2/resolve/main/weights_clamp2_h_size_768_lr_5e-05_batch_128_scale_1_t_length_128_t_model_FacebookAI_xlm-roberta-base_t_dropout_True_m3_True.pth"
+    num_hidden_layers: 12
+decoder:
+    name: patch_mistral
+    params:
+      # Determines the vector size for each token.
+      # IMPACT: Higher values allow capturing complex harmonics and musical textures.
+      # STANDARD: 768 or 1024. Must be divisible by 64.
+      hidden_size: 768
+
+      # The depth of the network (number of Transformer blocks).
+      # STANDARD: 32.
+      # FOR MUSIC: 8-12. Music has complex hierarchical structures (phrasing, repetition)
+      # that require depth to be modeled correctly.
+      num_decoder_layers: 4
+
+      # --- GROUPED QUERY ATTENTION (GQA) ---
+      # The core efficiency parameter. Instead of each Query head having its own Key/Value head,
+      # multiple Query heads share a single Key/Value head.
+      # LOGIC: num_groups = num_heads / num_key_value_heads.
+      # EXAMPLE: If hidden_size=768, you have 12 heads. Setting this to 4 means
+      # 3 Query heads share 1 KV head (3:1 ratio).
+      # IMPACT: drastically reduces memory usage (KV Cache) during generation (inference) with minimal quality loss.
+      num_key_value_heads: 4
+
+      # --- SLIDING WINDOW ATTENTION (SWA) ---
+      # The size of the local attention window. The model only attends to the last N tokens directly.
+      # Global context is still captured as information propagates through deep layers.
+      # IMPACT: Reduces attention complexity from O(N^2) to O(N).
+      # CRITICAL: Allows training on very long musical sequences without running out of GPU memory.
+      sliding_window: 512
+
+      # --- ROPE (Rotary Embeddings) ---
+      # The base frequency for positional encoding.
+      # STANDARD: 10000.0.
+      # ADVICE: Increase (e.g., to 100000.0) if you plan to generate tracks significantly
+      # longer than the sequence length seen during training.
+      rope_theta: 10000.0
+
+      # --- REGULARIZATION ---
+      # Probability of dropping attention weights during training.
+      attention_dropout: 0.1
+
+      # Probability of dropping input neurons during training.
+      input_dropout: 0
+
+      # Dimension of the token embeddings. (Smaller values reduce memory usage because every token in patch has its own embedding)
+      # Typical: 32/64
+      token_embedding_size: 32
