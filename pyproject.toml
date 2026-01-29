@@ -24,6 +24,14 @@ mypy = "^1.14.1"
 poethepoet = "^0.32.0"
 pytest = "^8.3.4"
 
+
+[tool.poetry.group.mamba]
+optional = true
+
+[tool.poetry.group.mamba.dependencies]
+mamba-ssm = "^2.3.0"
+causal-conv1d = "^1.6.0"
+
 [tool.poe.tasks]
 ruff = "ruff format src/"
 mypy = "mypy src/"
@@ -32,7 +40,6 @@ train-repr = "python src/scripts/train_repr.py"
 train-decoder = "python src/scripts/train_decoder.py"
 generate-song = "python src/scripts/generate_song.py"
 collect-dataset = "python src/scripts/collect_datasets.py"
-
 
 
 [build-system]
