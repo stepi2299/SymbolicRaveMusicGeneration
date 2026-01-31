@@ -6,6 +6,6 @@ params:
   sequence_length: 1024
   augmenter_params:
     augment_velocity: true
-    augment_pitch: false
+    augment_pitch: true
     velocity_interval: 3
     pitch_interval: 6

@@ -50,4 +50,4 @@ decoder:
       rotary_emb_base: 10_000
 
       # Probability of dropping input neurons during training.
-      input_dropout: 0
+      input_dropout: 0.2
