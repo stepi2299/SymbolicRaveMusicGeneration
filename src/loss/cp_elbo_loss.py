@@ -29,12 +29,12 @@ class CpElboLoss(BaseVaeLoss):
 
     def __call__(
         self,
-        org_data: torch.Tensor,  # Prawdziwe dane: [B, L, Num_Attrs]
+        org_data: torch.Tensor,
         reconstruction: dict[
             str, torch.Tensor
         ],  # Wyjście z modelu: {'pitch': [B, L, 128], ...}
-        mu: torch.Tensor,  # Średnia z Encodera VAE [B, Latent]
-        logvar: torch.Tensor,  # Logariytm wariancji z Encodera VAE [B, Latent]
+        mu: torch.Tensor,
+        logvar: torch.Tensor,
         global_step: int,
         train: bool = True,
     ) -> tuple[torch.Tensor, dict]:
@@ -55,20 +55,13 @@ class CpElboLoss(BaseVaeLoss):
         total_recon_loss = 0.0
 
         for attr_name, index in CP_WORD_INDEXES.items():
-            # Pobieramy predykcje dla danego atrybutu
-            # logits: [Batch, Seq_Len, Vocab_Size] -> spłaszczamy do [Batch*Seq_Len, Vocab]
             attr_logits = reconstruction[attr_name]
             B, L, V = attr_logits.shape
             attr_logits_flat = attr_logits.view(-1, V)
-
-            # Pobieramy prawdziwe wartości dla tego atrybutu (i-ta kolumna targets)
-            # targets: [Batch, Seq_Len, Num_Attrs] -> [Batch, Seq_Len] -> spłaszczamy do [Batch*Seq_Len]
             attr_targets = org_data[:, :, index].reshape(-1)
 
-            # Obliczamy stratę
             loss = self.ce_loss(attr_logits_flat, attr_targets)
 
-            # Dodajemy do sumy z uwzględnieniem wagi atrybutu
             if attr_name not in self.attr_weights:
                 raise ValueError(
                     f"Attribute '{attr_name}' not found in attribute weights dictionary. "
@@ -76,11 +69,8 @@ class CpElboLoss(BaseVaeLoss):
                 )
             total_recon_loss += loss * self.attr_weights[attr_name]
 
-        # 2. Obliczanie KL Divergence Loss (Wzór analityczny dla rozkładów Gaussa)
-        # -0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-        # Normalizacja KL przez wielkość batcha (żeby nie dominowało przy dużym batchu)
         batch_size = org_data.shape[0]
         kl_loss = kl_loss / batch_size
 

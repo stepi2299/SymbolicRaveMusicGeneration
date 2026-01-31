@@ -2,7 +2,7 @@ name: patchilizer
 params:
   patch_size : 64  # Size of each patch
   sequence_length : 512  # Number of the patches in whole processing vector
-  add_special_patches : False  # Add special patches to the input
+  add_special_patches : true  # Add special patches to the input
   truncate : True  # Truncate the input to the patch length
   random_truncate : False  # Randomly truncate the input to the patch length
   vocab_size : 128  # Vocabulary size for the patchilizer

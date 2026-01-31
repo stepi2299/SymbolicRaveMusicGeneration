@@ -806,6 +806,7 @@ class MistralCompoundDecoder(Decoder):
         # A. Embed Inputs
         # Zamieniamy [B, L, Attrs] -> [B, L, Hidden]
         inputs_embeds = self.cp_embedding(input_sequence)
+        inputs_embeds = self.input_dropout(inputs_embeds, input_sequence, CP_WORD_INDEXES["family"])
 
         # B. Inject Latent Vector (Global Conditioning)
         # [B, Latent] -> [B, Hidden]
@@ -901,6 +902,42 @@ class MistralCompoundDecoder(Decoder):
         self.clean_cache()
         return generated_sequence[1:]
 
+    def input_dropout(
+            self,
+            embeddings: torch.Tensor,
+            input_sequence: torch.Tensor,
+            family_attr_index: int = 0
+    ) -> torch.Tensor:
+        """
+        Dropout only on non-protected tokens based on 'family' attribute.
+
+        Args:
+            embeddings: [Batch, Seq_Len, Hidden_Size] (Embedded input sequence)
+            input_sequence: [Batch, Seq_Len, Num_Attributes] (Original input sequence with attributes)
+            family_attr_index: Index of the 'family' attribute in input_sequence
+        Returns:
+            embeddings: [Batch, Seq_Len, Hidden_Size]
+        """
+        if self.training and self._input_dropout > 0.0:
+            keep_prob = 1.0 - self._input_dropout
+            random_mask = torch.bernoulli(
+                torch.full(
+                    (embeddings.shape[0], embeddings.shape[1]),
+                    keep_prob,
+                    device=embeddings.device
+                )
+            )
+
+            family_tokens = input_sequence[:, :, family_attr_index]
+            is_protected = torch.isin(
+                family_tokens,
+                torch.tensor(self.special_ids, device=embeddings.device)
+            )
+            final_mask = torch.max(random_mask, is_protected.float())
+            embeddings = embeddings * final_mask.unsqueeze(-1)
+
+        return embeddings
+
 
 class MistralPatchDecoder(Decoder):
     def __init__(
@@ -983,7 +1020,7 @@ class MistralPatchDecoder(Decoder):
         ), f"Expected patch size {self.patch_size}, got {patch_size}"
 
         patch_emb = self.patch_embedding(input_sequence)
-        # TODO patch_emb = self.input_dropout(patch_emb, input_sequence)
+        patch_emb = self.input_dropout(patch_emb, input_sequence)
 
         latent_proj = self.latent_proj(latent_vector)
         latent_proj_expanded = latent_proj.unsqueeze(1).expand(
@@ -1041,6 +1078,26 @@ class MistralPatchDecoder(Decoder):
                 break
         self.clean_cache()
         return generated_sequence[1:]
+
+    def input_dropout(
+        self, embeddings: torch.Tensor, input_sequence: torch.Tensor
+    ) -> torch.Tensor:
+        if self.training and self._input_dropout > 0.0:
+            keep_prob = 1.0 - self._input_dropout
+            random_mask = torch.bernoulli(
+                torch.full(
+                    (input_sequence.shape[0], input_sequence.shape[1], 1),
+                    keep_prob,
+                    device=input_sequence.device
+                )
+            )
+            first_tokens = input_sequence[:, :, 0]
+            is_protected = torch.isin(first_tokens, self.special_ids)
+            protected_mask = is_protected.unsqueeze(-1).float()
+
+            final_mask = torch.max(random_mask, protected_mask)
+            embeddings = embeddings * final_mask
+        return embeddings
 
 
 def decoder_mapper(decoder_name: str) -> Type[Decoder]:

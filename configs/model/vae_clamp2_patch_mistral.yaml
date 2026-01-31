@@ -49,7 +49,7 @@ decoder:
       attention_dropout: 0.1
 
       # Probability of dropping input neurons during training.
-      input_dropout: 0
+      input_dropout: 0.2
 
       # Dimension of the token embeddings. (Smaller values reduce memory usage because every token in patch has its own embedding)
       # Typical: 32/64

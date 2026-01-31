@@ -54,19 +54,6 @@ class CompoundWordEmbedding(nn.Module):
         for key_name, index in CP_WORD_INDEXES.items():
             attr_indices = inputs[:, :, index]  # [B, L]
 
-            vocab_limit = self.embeddings[key_name].num_embeddings
-            max_val_in_batch = attr_indices.max().item()
-            min_val_in_batch = attr_indices.min().item()
-
-            if max_val_in_batch >= vocab_limit or min_val_in_batch < 0:
-                logger.error(f"Attribute: '{key_name}'")
-                logger.error(f"Embedding Size (Vocab Limit): {vocab_limit}")
-                logger.error(f"Found Index in Data: {max_val_in_batch}")
-                logger.error(f"Min Index in Data: {min_val_in_batch}")
-                raise ValueError(
-                    f"Index {max_val_in_batch} out of bounds for attribute '{key_name}' (limit {vocab_limit})"
-                )
-
             # Embed & Project
             emb = self.embeddings[key_name](attr_indices)  # [B, L, embed_dim]
             proj = self.projections[key_name](emb)  # [B, L, hidden_size]
