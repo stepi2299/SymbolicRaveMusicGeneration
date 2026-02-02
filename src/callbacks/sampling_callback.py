@@ -50,15 +50,11 @@ class SamplingCallback(Callback):
                     f"=== [SamplingCallback] Samples at epoch {current_epoch} ==="
                 )
                 try:
-                    paths_to_gen = pl_module.generate(
+                    pl_module.generate(
                         z,
                         folder_path=self.output_dir,
                         file_name=f"sample_{current_epoch}",
                         export_format=self.export_format,
-                    )
-                    logger.info(
-                        f"Generated samples from epoch: {current_epoch} in format: {self.export_format} "
-                        f"in path: {paths_to_gen}"
                     )
                 except Exception as e:
                     logger.warning(

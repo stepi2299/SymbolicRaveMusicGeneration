@@ -127,8 +127,9 @@ class Decoder(nn.Module, ABC):
         latent_vector: torch.Tensor,
         strict_sampling: bool = True,
         use_cache: bool = False,
-    ) -> list[int]:
-        logger.info(f"Starting generation with decoder: {self.name}")
+        temperature: float = 1.0,
+    ) -> list[int] | list[list[int]]:
+        logger.debug(f"Starting generation with decoder: {self.name}")
         generated_sequence = [self.bos_token]
         self.clean_cache()
         for _ in range(self.sequence_length):
@@ -146,7 +147,7 @@ class Decoder(nn.Module, ABC):
             ]  # taking last one (logits for next token)
 
             next_token_idx = sample_next_token(
-                next_token_logits, strict=strict_sampling
+                next_token_logits, strict=strict_sampling, temperature=temperature
             )
             generated_sequence.append(next_token_idx)
 
@@ -806,7 +807,9 @@ class MistralCompoundDecoder(Decoder):
         # A. Embed Inputs
         # Zamieniamy [B, L, Attrs] -> [B, L, Hidden]
         inputs_embeds = self.cp_embedding(input_sequence)
-        inputs_embeds = self.input_dropout(inputs_embeds, input_sequence, CP_WORD_INDEXES["family"])
+        inputs_embeds = self.input_dropout(
+            inputs_embeds, input_sequence, CP_WORD_INDEXES["family"]
+        )
 
         # B. Inject Latent Vector (Global Conditioning)
         # [B, Latent] -> [B, Hidden]
@@ -903,10 +906,10 @@ class MistralCompoundDecoder(Decoder):
         return generated_sequence[1:]
 
     def input_dropout(
-            self,
-            embeddings: torch.Tensor,
-            input_sequence: torch.Tensor,
-            family_attr_index: int = 0
+        self,
+        embeddings: torch.Tensor,
+        input_sequence: torch.Tensor,
+        family_attr_index: int = 0,
     ) -> torch.Tensor:
         """
         Dropout only on non-protected tokens based on 'family' attribute.
@@ -924,14 +927,13 @@ class MistralCompoundDecoder(Decoder):
                 torch.full(
                     (embeddings.shape[0], embeddings.shape[1]),
                     keep_prob,
-                    device=embeddings.device
+                    device=embeddings.device,
                 )
             )
 
             family_tokens = input_sequence[:, :, family_attr_index]
             is_protected = torch.isin(
-                family_tokens,
-                torch.tensor(self.special_ids, device=embeddings.device)
+                family_tokens, torch.tensor(self.special_ids, device=embeddings.device)
             )
             final_mask = torch.max(random_mask, is_protected.float())
             embeddings = embeddings * final_mask.unsqueeze(-1)
@@ -1088,7 +1090,7 @@ class MistralPatchDecoder(Decoder):
                 torch.full(
                     (input_sequence.shape[0], input_sequence.shape[1], 1),
                     keep_prob,
-                    device=input_sequence.device
+                    device=input_sequence.device,
                 )
             )
             first_tokens = input_sequence[:, :, 0]

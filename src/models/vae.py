@@ -1,10 +1,12 @@
 import torch
 from torch import nn
 import logging as lg
+from pathlib import Path
 
 from src.models.encoder import Encoder
 from src.models.decoder import Decoder
 from src.adapter import MusicAdapter
+from src.constants import ExportFormat
 
 logger = lg.getLogger(__name__)
 
@@ -26,6 +28,7 @@ class VAE(nn.Module):
         self._orig_sample = None
         self._use_cache = use_cache_generation
         self._strict_sampling = strict_sampling
+        self._temperature = 1.0
 
     def _validate_if_latent_dimensions_match(self) -> None:
         if self.encoder.latent_dim != self.decoder.latent_dim:
@@ -61,25 +64,57 @@ class VAE(nn.Module):
         for param in self.encoder.parameters():
             param.requires_grad = True
 
+    def set_generation_params(
+        self,
+        use_cache: bool = False,
+        strict_sampling: bool = True,
+        temperature: float = 1,
+    ) -> None:
+        logger.error(
+            f"Setting generation params: use_cache={use_cache}, strict_sampling={strict_sampling}, temperature={temperature}"
+        )
+        self._use_cache = use_cache
+        self._strict_sampling = strict_sampling
+        self._temperature = temperature
+
     @torch.no_grad()
-    def generate(self, latent_vector: torch.Tensor) -> list[list[int]]:
+    def generate(
+        self,
+        latent_vector: torch.Tensor,
+        folder_path: Path,
+        file_name: str = "generated_song",
+        export_format: ExportFormat = ExportFormat.WAV,
+    ) -> list[Path]:
         self.decoder.eval()
         if latent_vector.shape[1] != self.latent_dim:
             raise ValueError(
                 f"Latent vector must have shape (batch_size, {self.latent_dim}), got {latent_vector.shape}"
             )
-        songs = []
+        folder_path.resolve(True)
+        if not folder_path.is_dir():
+            raise ValueError(
+                f"{folder_path} is not a valid directory when trying to generate songs."
+            )
+        generated_songs = []
         for i, single_condition_latent in enumerate(latent_vector):
             try:
-                song = self.decoder.generate(
-                    single_condition_latent.unsqueeze(0), self._strict_sampling
+                output_path = folder_path / f"{file_name}_{i}"
+                coded_song = self.decoder.generate(
+                    single_condition_latent.unsqueeze(0),
+                    use_cache=self._use_cache,
+                    strict_sampling=self._strict_sampling,
+                    temperature=self._temperature,
                 )
-                songs.append(song)
+                song_path = self._adapter.decode(coded_song, output_path, export_format)
+                logger.info(
+                    f"Generated song for latent vector for index: {i} at path: {song_path}"
+                )
+                generated_songs.append(song_path)
             except Exception as e:
                 logger.error(
                     f"Error generating song for latent vector for index: {i}: {e}"
                 )
-        return songs
+        return generated_songs
 
     def load_pretrained(self) -> None:
         self.encoder.load_pretrained()

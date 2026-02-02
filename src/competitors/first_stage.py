@@ -200,24 +200,13 @@ class FirstStage(pl.LightningModule):
         self,
         z: torch.Tensor,
         folder_path: Path,
-        file_name: str = "generated_song",
-        export_format: ExportFormat = ExportFormat.WAV,
-    ) -> list[str]:
-        tokenized_songs = self.vae.generate(z)
-        folder_path.resolve(True)
-        if not folder_path.is_dir():
-            raise ValueError(
-                f"{folder_path} is not a valid directory when trying to generate songs."
-            )
-        songs = []
-        for i, tokenized_song in enumerate(tokenized_songs):
-            output_path = folder_path / f"{file_name}_{i}"
-            songs.append(
-                self.adapter.decode(
-                    tokenized_song, output_path=output_path, export_format=export_format
-                )
-            )
-        return songs
+        file_name: str,
+        export_format: ExportFormat,
+        generation_params: dict | None = None,
+    ) -> list[Path]:
+        generation_params = generation_params or {}
+        self.vae.set_generation_params(**generation_params)
+        return self.vae.generate(z, folder_path, file_name, export_format)
 
     def on_before_optimizer_step(self, optimizer):
         global_norms = grad_norm(self, norm_type=2)

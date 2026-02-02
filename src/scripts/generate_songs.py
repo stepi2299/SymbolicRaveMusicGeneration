@@ -7,7 +7,8 @@ from datetime import datetime
 import torch
 
 from src.competitors.first_stage import FirstStage
-from src.utils import output_songs_path, save_midi_song_from_string
+from src.utils import output_songs_path
+from src.constants import ExportFormat
 
 
 @hydra.main(
@@ -20,20 +21,26 @@ def main(cfg: DictConfig) -> None:
     logger = lg.getLogger(__name__)
 
     checkpoint_path = Path(cfg.checkpoint_path).resolve(True)
-    competitor = FirstStage.load_from_checkpoint(checkpoint_path)
-    latent_values = torch.randn(1, competitor.vae.latent_dim, device=competitor.device)
-    songs = competitor.generate(latent_values)
-    logger.info(f"Number generated songs: {len(songs)}")
     current_output_songs_path = output_songs_path / datetime.now().strftime(
         "%Y-%m-%d_%H-%M-%S"
     )
     current_output_songs_path.mkdir(parents=True, exist_ok=False)
-    logger.info(f"Generated songs will be saved in {current_output_songs_path}")
-    for i, song in enumerate(songs):
-        file_path = current_output_songs_path / f"{i}.mid"
-        save_midi_song_from_string(song, file_path)
-        logger.info(f"Saved song {i + 1} to {file_path} with length {len(song)} notes")
-    logger.info(f"Successfully saved {len(songs)} songs in {current_output_songs_path}")
+    competitor = FirstStage.load_from_checkpoint(checkpoint_path, weights_only=False)
+    logger.info(
+        f"Starting Generation Script! Expected number generated songs: {cfg.songs_to_generate}, "
+        f"Checkpoint path: {current_output_songs_path.as_posix()}"
+    )
+    latent_values = torch.randn(
+        cfg.songs_to_generate, competitor.vae.latent_dim, device=competitor.device
+    )
+    songs = competitor.generate(
+        latent_values,
+        current_output_songs_path,
+        file_name="generated_song",
+        export_format=ExportFormat.WAV,
+        generation_params=cfg.generation_params,
+    )
+    logger.info(f"Generated songs: {len(songs)}")
 
 
 if __name__ == "__main__":
