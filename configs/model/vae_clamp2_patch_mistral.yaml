@@ -54,3 +54,6 @@ decoder:
       # Dimension of the token embeddings. (Smaller values reduce memory usage because every token in patch has its own embedding)
       # Typical: 32/64
       token_embedding_size: 32
+
+      # how to condition the decoder input on the latent representation: add | concatenation
+      conditioning: add

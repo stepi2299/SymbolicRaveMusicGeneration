@@ -1,17 +1,17 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class SymbolicMusicFormat(Enum):
+class SymbolicMusicFormat(StrEnum):
     MIDI = "midi"
     ABC = "abc"
 
 
-class MusicAdapterType(Enum):
+class MusicAdapterType(StrEnum):
     PATCHILIZER = "patchilizer"
     TOKENIZER = "tokenizer"
 
 
-class ExportFormat(Enum):
+class ExportFormat(StrEnum):
     SYMBOLIC = "midi"
     WAV = "wav"
 
@@ -31,3 +31,8 @@ CP_TOKEN_SIZE = {
     "velocity": 38,  # Skwantyzowana głośność
     "duration": 70,  # Skwantyzowany czas trwania nuty
 }
+
+
+class Conditioning(StrEnum):
+    CONCATENATION = "concatenation"
+    ADD = "add"

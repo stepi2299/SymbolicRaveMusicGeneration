@@ -29,3 +29,7 @@ decoder:
 
       # Probability of dropping input neurons during training.
       input_dropout: 0
+
+      # how to condition the decoder input on the latent representation: add | concatenation
+      conditioning: add
+

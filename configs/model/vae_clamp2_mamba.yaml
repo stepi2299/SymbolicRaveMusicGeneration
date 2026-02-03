@@ -42,4 +42,4 @@ decoder:
       conv_kernel: 4
 
       # Probability of dropping input neurons during training.
-      input_dropout: 0
+      input_dropout: 0.1

@@ -15,7 +15,7 @@ from transformers import (
 )
 from src.models.linear_attention import LinearTransformerBlock
 from src.models.cp_word import MultiHeadOutput, CompoundWordEmbedding
-from src.constants import CP_WORD_INDEXES
+from src.constants import CP_WORD_INDEXES, Conditioning
 from src.models.patch_models import PatchEmbeddings, PatchOutputHead
 from src.utils import sample_next_cp_word, sample_next_token, sample_next_patch
 
@@ -34,6 +34,7 @@ class Decoder(nn.Module, ABC):
         eos_token: int,
         pad_token: int,
         hidden_size: int,
+        conditioning: str,
         dropout: float = 0.1,
         num_decoder_layers: int = 1,
         input_dropout: float = 0.0,
@@ -57,6 +58,48 @@ class Decoder(nn.Module, ABC):
         special_token_ids = [self.bos_token, self.eos_token, self.pad_token]
         self.register_buffer(
             "special_ids", torch.tensor(special_token_ids, dtype=torch.long)
+        )
+        self.token_embeddings = nn.Embedding(self.vocab_size, self.hidden_size)
+        self.latent_proj = nn.Linear(latent_dim, self.hidden_size)
+        self.output_proj = nn.Linear(self.hidden_size, self.vocab_size)
+        self._concat_proj = nn.Linear(self.hidden_size * 2, self.hidden_size)
+        self._conditioning = Conditioning(conditioning)
+        logger.info(
+            f"Initialize Decoder: {self.__class__.__name__} with conditioning: {self._conditioning}"
+        )
+
+    def _condition_input(
+        self, token_embedding: torch.Tensor, latent_projection: torch.Tensor
+    ) -> torch.Tensor:
+        match self._conditioning:
+            case Conditioning.ADD:
+                return token_embedding + latent_projection
+            case Conditioning.CONCATENATION:
+                concat_input = torch.cat(
+                    [token_embedding, latent_projection], dim=-1
+                )  # [B, Seq_Len, Hidden*2]
+                return self._concat_proj(concat_input)  # [B, Seq_Len, Hidden]
+            case _:
+                raise ValueError(
+                    f"Unsupported conditioning method: {self._conditioning}"
+                )
+
+    def _prepare_input(
+        self, input_sequence: torch.Tensor, latent_vector: torch.Tensor
+    ) -> torch.Tensor:
+        batch_size, current_sequence_len = input_sequence.shape
+        token_emb = self.token_embeddings(input_sequence)
+        token_emb = self.input_dropout(token_emb, input_sequence)
+
+        # [B, Latent] -> [B, Hidden]
+        latent_proj = self.latent_proj(latent_vector)
+
+        # [B, 1, Hidden] -> [B, Seq_Len, Hidden]
+        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
+            batch_size, current_sequence_len, self.hidden_size
+        )
+        return self._condition_input(
+            token_embedding=token_emb, latent_projection=latent_proj_expanded
         )
 
     @abstractmethod
@@ -175,6 +218,7 @@ class GptDecoder(Decoder):
         eos_token: int,
         dropout: float,
         input_dropout: float,
+        conditioning: str,
     ) -> None:
         super(GptDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -189,10 +233,9 @@ class GptDecoder(Decoder):
             hidden_size=hidden_size,
             num_decoder_layers=num_decoder_layers,
             input_dropout=input_dropout,
+            conditioning=conditioning,
         )
 
-        self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
-        self.token_embeddings = nn.Embedding(self.vocab_size, self.hidden_size)
         self.positional_embeddings = nn.Embedding(
             self.sequence_length, self.hidden_size
         )
@@ -204,8 +247,6 @@ class GptDecoder(Decoder):
             norm_first=True,
         )
         self.model = nn.TransformerDecoder(layer, num_layers=self.num_decoder_layers)
-
-        self.output_proj = nn.Linear(self.hidden_size, self.vocab_size)
 
     def forward(
         self,
@@ -224,18 +265,8 @@ class GptDecoder(Decoder):
         position_idx = position_idx.unsqueeze(0).repeat(batch_size, 1)
         pos_emb = self.positional_embeddings(position_idx)  # [1, seq_len, hidden]
 
-        latent_vector_projection = self.latent_proj(
-            latent_vector
-        )  # [B, latent_dim] -> [B, embedding_size]
-        latent_vector_projection = latent_vector_projection.unsqueeze(1).repeat(
-            1, current_sequence_len, 1
-        )  # [batch_size, seq_len, embedding_size]
-
-        token_emb = self.token_embeddings(input_sequence)
-
-        token_emb = self.input_dropout(token_emb, input_sequence)
-
-        decoder_input = token_emb + latent_vector_projection + pos_emb
+        decoder_input = self._prepare_input(input_sequence, latent_vector)
+        decoder_input = decoder_input + pos_emb
         decoder_input = decoder_input.permute(1, 0, 2)
 
         mask = nn.Transformer.generate_square_subsequent_mask(current_sequence_len).to(
@@ -272,6 +303,7 @@ class TransformerXL(Decoder):
         eos_token: int,
         attention_dropout: float,
         input_dropout: float,
+        conditioning: str,
     ) -> None:
         super(TransformerXL, self).__init__(
             latent_dim=latent_dim,
@@ -286,6 +318,7 @@ class TransformerXL(Decoder):
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
             input_dropout=input_dropout,
+            conditioning=conditioning,
         )
 
         config = TransfoXLConfig(
@@ -307,9 +340,6 @@ class TransformerXL(Decoder):
         )
 
         self.model = TransfoXLModel(config)
-        self.token_embeddings = nn.Embedding(self.vocab_size, self.hidden_size)
-        self.latent_proj = nn.Linear(latent_dim, self.hidden_size)
-        self.output_proj = nn.Linear(self.hidden_size, self.vocab_size)
 
     def forward(
         self,
@@ -319,19 +349,7 @@ class TransformerXL(Decoder):
         recv_in_music_form: bool = False,
         use_cache: bool = False,
     ) -> torch.Tensor:
-        # input_sequence: [Batch, Seq_Len]
-        batch_size, current_sequence_len = input_sequence.shape
-        token_emb = self.token_embeddings(input_sequence)
-        token_emb = self.input_dropout(token_emb, input_sequence)
-
-        # [B, Latent] -> [B, Hidden]
-        latent_proj = self.latent_proj(latent_vector)
-
-        # [B, 1, Hidden] -> [B, Seq_Len, Hidden]
-        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
-            batch_size, current_sequence_len, self.hidden_size
-        )
-        decoder_inputs_embeds = token_emb + latent_proj_expanded
+        decoder_inputs_embeds = self._prepare_input(input_sequence, latent_vector)
 
         outputs = self.model(
             inputs_embeds=decoder_inputs_embeds, mems=self._cache_params
@@ -365,6 +383,7 @@ class TransformerRope(Decoder):
         bos_token: int,
         rotary_pct: float,
         rotary_emb_base: int,
+        conditioning: str,
         input_dropout: float = 0.0,
     ) -> None:
         super(TransformerRope, self).__init__(
@@ -380,6 +399,7 @@ class TransformerRope(Decoder):
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
             input_dropout=input_dropout,
+            conditioning=conditioning,
         )
 
         config = GPTNeoXConfig(
@@ -401,9 +421,6 @@ class TransformerRope(Decoder):
         )
 
         self.model = GPTNeoXModel(config)
-        self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
-        self.latent_proj = nn.Linear(latent_dim, hidden_size)
-        self.output_proj = nn.Linear(hidden_size, vocab_size)
 
     def forward(
         self,
@@ -413,22 +430,9 @@ class TransformerRope(Decoder):
         recv_in_music_form: bool = False,
         use_cache: bool = False,  # set True during inference
     ) -> torch.Tensor:
-        # input_sequence: [Batch, Seq_Len]
-        batch_size, current_sequence_len = input_sequence.shape
-        token_emb = self.token_embeddings(input_sequence)
-        token_emb = self.input_dropout(token_emb, input_sequence)
-
-        # [B, Latent] -> [B, Hidden]
-        latent_proj = self.latent_proj(latent_vector)
-
-        # [B, 1, Hidden] -> [B, Seq_Len, Hidden]
-        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
-            batch_size, current_sequence_len, self.hidden_size
-        )
-        decoder_inputs_embeds = token_emb + latent_proj_expanded
-
+        decoder_input_embeds = self._prepare_input(input_sequence, latent_vector)
         outputs = self.model(
-            inputs_embeds=decoder_inputs_embeds,
+            inputs_embeds=decoder_input_embeds,
             past_key_values=self._cache_params,
             return_dict=True,
             use_cache=use_cache,
@@ -464,6 +468,7 @@ class MistralDecoder(Decoder):
         sliding_window: int,
         num_key_value_heads: int,
         input_dropout: float,
+        conditioning: str,
     ) -> None:
         super(MistralDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -478,8 +483,8 @@ class MistralDecoder(Decoder):
             dropout=attention_dropout,
             num_decoder_layers=num_decoder_layers,
             input_dropout=input_dropout,
+            conditioning=conditioning,
         )
-        self.hidden_size = hidden_size
         config = MistralConfig(
             hidden_size=self.hidden_size,
             num_attention_heads=self.num_heads,
@@ -498,10 +503,6 @@ class MistralDecoder(Decoder):
         )
         self.model = MistralModel(config)
 
-        self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
-        self.latent_proj = nn.Linear(latent_dim, hidden_size)
-        self.output_proj = nn.Linear(hidden_size, vocab_size)
-
     def forward(
         self,
         latent_vector: torch.Tensor,
@@ -510,16 +511,7 @@ class MistralDecoder(Decoder):
         recv_in_music_form: bool = False,
         use_cache: bool = False,  # set True during inference
     ) -> torch.Tensor:
-        batch_size, current_sequence_len = input_sequence.shape
-
-        token_emb = self.token_embeddings(input_sequence)  # [B, L, D]
-        token_emb = self.input_dropout(token_emb, input_sequence)
-
-        latent_proj = self.latent_proj(latent_vector)  # [B, D]
-        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
-            batch_size, current_sequence_len, self.hidden_size
-        )
-        decoder_inputs_embeds = token_emb + latent_proj_expanded
+        decoder_inputs_embeds = self._prepare_input(input_sequence, latent_vector)
 
         outputs = self.model(
             inputs_embeds=decoder_inputs_embeds,
@@ -555,6 +547,7 @@ class MambaDecoder(Decoder):
         expand: int,
         conv_kernel: int,
         input_dropout: float,
+        conditioning: str,
     ) -> None:
         super(MambaDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -568,8 +561,8 @@ class MambaDecoder(Decoder):
             hidden_size=hidden_size,
             num_decoder_layers=num_decoder_layers,
             input_dropout=input_dropout,
+            conditioning=conditioning,
         )
-        self.hidden_size = hidden_size
         config = MambaConfig(
             hidden_size=self.hidden_size,
             state_size=state_size,
@@ -584,11 +577,6 @@ class MambaDecoder(Decoder):
         )
         self.model = MambaModel(config)
 
-        self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
-        self.latent_proj = nn.Linear(latent_dim, hidden_size)
-        self.output_proj = nn.Linear(hidden_size, vocab_size)
-        self._cache_params = None  # Stan ukryty SSM
-
     def forward(
         self,
         latent_vector: torch.Tensor,
@@ -597,16 +585,7 @@ class MambaDecoder(Decoder):
         recv_in_music_form: bool = False,
         use_cache: bool = False,
     ) -> torch.Tensor:
-        batch_size, current_sequence_len = input_sequence.shape
-
-        token_emb = self.token_embeddings(input_sequence)  # [B, L, D]
-        token_emb = self.input_dropout(token_emb, input_sequence)
-
-        latent_proj = self.latent_proj(latent_vector)  # [B, D]
-        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
-            batch_size, current_sequence_len, self.hidden_size
-        )
-        decoder_inputs_embeds = token_emb + latent_proj_expanded
+        decoder_inputs_embeds = self._prepare_input(input_sequence, latent_vector)
 
         outputs = self.model(
             inputs_embeds=decoder_inputs_embeds,
@@ -628,104 +607,101 @@ class MambaDecoder(Decoder):
         return self.model.layers
 
 
-class LinearAttentionDecoder(Decoder):
-    def __init__(
-        self,
-        latent_dim: int,
-        vocab_size: int,
-        hidden_size: int,
-        sequence_length: int,
-        num_decoder_layers: int,
-        patch_size: int,
-        bos_token: int,
-        eos_token: int,
-        pad_token: int,
-        dropout: float,
-        input_dropout: float,
-    ) -> None:
-        super().__init__(
-            latent_dim=latent_dim,
-            name="mamba_decoder",
-            vocab_size=vocab_size,
-            sequence_length=sequence_length,
-            patch_size=patch_size,
-            bos_token=bos_token,
-            eos_token=eos_token,
-            pad_token=pad_token,
-            dropout=dropout,
-            num_decoder_layers=num_decoder_layers,
-            hidden_size=hidden_size,
-            input_dropout=input_dropout,
-        )
-
-        self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
-
-        # W Linear Transformer absolutna pozycja nie jest aż tak krytyczna jak w standardowym
-        # bo stan RNN "liczy" kroki, ale warto dodać
-        self.position_embeddings = nn.Embedding(sequence_length, hidden_size)
-
-        self.latent_proj = nn.Linear(latent_dim, hidden_size)
-
-        # Stos warstw liniowych
-        self.layers = nn.ModuleList(
-            [
-                LinearTransformerBlock(
-                    hidden_size, self.num_heads, self.intermediate_ff_size, dropout
-                )
-                for _ in range(num_decoder_layers)
-            ]
-        )
-
-        self.ln_f = nn.LayerNorm(hidden_size)
-        self.output_proj = nn.Linear(hidden_size, vocab_size)
-
-    def forward(
-        self,
-        latent_vector: torch.Tensor,
-        input_sequence: torch.Tensor,
-        *,
-        recv_in_music_form: bool = False,
-        use_cache: bool = False,
-    ) -> torch.Tensor:
-        batch_size, seq_len = input_sequence.shape
-
-        # Embeddings
-        token_emb = self.token_embeddings(input_sequence)
-        token_emb = self.input_dropout(token_emb, input_sequence)
-
-        # Add position
-        if not use_cache:  # W treningu dodajemy pozycje dla całego ciągu
-            positions = torch.arange(0, seq_len, device=token_emb.device).unsqueeze(0)
-            token_emb = token_emb + self.position_embeddings(positions)
-        else:  # W inference dla pojedynczego kroku (trzeba by śledzić index, tu uproszczenie)
-            pass
-            # Conditioning
-        latent_proj = self.latent_proj(latent_vector).unsqueeze(1)
-        token_emb = token_emb + latent_proj  # Broadcasting
-
-        new_states = []
-
-        for i, layer in enumerate(self.layers):
-            layer_state = (
-                self._cache_params[i] if self._cache_params is not None else None
-            )
-            token_emb, new_s = layer(token_emb, state=layer_state, use_cache=use_cache)
-            if use_cache:
-                new_states.append(new_s)
-
-        token_emb = self.ln_f(token_emb)
-        logits = self.output_proj(token_emb)
-
-        if recv_in_music_form:
-            logits = self.transform_to_music_form(logits)
-
-        if use_cache:
-            self._cache_params = new_states
-
-        return logits
-
-    def get_layers_to_track(self):
-        return self.layers
+# class LinearAttentionDecoder(Decoder):
+#     def __init__(
+#         self,
+#         latent_dim: int,
+#         vocab_size: int,
+#         hidden_size: int,
+#         sequence_length: int,
+#         num_decoder_layers: int,
+#         patch_size: int,
+#         bos_token: int,
+#         eos_token: int,
+#         pad_token: int,
+#         dropout: float,
+#         input_dropout: float,
+#     ) -> None:
+#         super().__init__(
+#             latent_dim=latent_dim,
+#             name="mamba_decoder",
+#             vocab_size=vocab_size,
+#             sequence_length=sequence_length,
+#             patch_size=patch_size,
+#             bos_token=bos_token,
+#             eos_token=eos_token,
+#             pad_token=pad_token,
+#             dropout=dropout,
+#             num_decoder_layers=num_decoder_layers,
+#             hidden_size=hidden_size,
+#             input_dropout=input_dropout,
+#         )
+#
+#         self.token_embeddings = nn.Embedding(vocab_size, hidden_size)
+#         self.position_embeddings = nn.Embedding(sequence_length, hidden_size)
+#
+#         self.latent_proj = nn.Linear(latent_dim, hidden_size)
+#
+#         # Stos warstw liniowych
+#         self.layers = nn.ModuleList(
+#             [
+#                 LinearTransformerBlock(
+#                     hidden_size, self.num_heads, self.intermediate_ff_size, dropout
+#                 )
+#                 for _ in range(num_decoder_layers)
+#             ]
+#         )
+#
+#         self.ln_f = nn.LayerNorm(hidden_size)
+#         self.output_proj = nn.Linear(hidden_size, vocab_size)
+#
+#     def forward(
+#         self,
+#         latent_vector: torch.Tensor,
+#         input_sequence: torch.Tensor,
+#         *,
+#         recv_in_music_form: bool = False,
+#         use_cache: bool = False,
+#     ) -> torch.Tensor:
+#         batch_size, seq_len = input_sequence.shape
+#
+#         # Embeddings
+#         token_emb = self.token_embeddings(input_sequence)
+#         token_emb = self.input_dropout(token_emb, input_sequence)
+#
+#         # Add position
+#         if not use_cache:  # W treningu dodajemy pozycje dla całego ciągu
+#             positions = torch.arange(0, seq_len, device=token_emb.device).unsqueeze(0)
+#             token_emb = token_emb + self.position_embeddings(positions)
+#         else:  # W inference dla pojedynczego kroku (trzeba by śledzić index, tu uproszczenie)
+#             pass
+#             # Conditioning
+#         latent_proj = self.latent_proj(latent_vector).unsqueeze(1)
+#         token_emb = token_emb + latent_proj  # Broadcasting
+#
+#         new_states = []
+#
+#         for i, layer in enumerate(self.layers):
+#             layer_state = (
+#                 self._cache_params[i] if self._cache_params is not None else None
+#             )
+#             token_emb, new_s = layer(token_emb, state=layer_state, use_cache=use_cache)
+#             if use_cache:
+#                 new_states.append(new_s)
+#
+#         token_emb = self.ln_f(token_emb)
+#         logits = self.output_proj(token_emb)
+#
+#         if recv_in_music_form:
+#             logits = self.transform_to_music_form(logits)
+#
+#         if use_cache:
+#             self._cache_params = new_states
+#
+#         return logits
+#
+#     def get_layers_to_track(self):
+#         return self.layers
 
 
 class MistralCompoundDecoder(Decoder):
@@ -745,6 +721,7 @@ class MistralCompoundDecoder(Decoder):
         sliding_window: int,
         num_key_value_heads: int,
         input_dropout: float,
+        conditioning: str,
     ) -> None:
         super().__init__(
             latent_dim=latent_dim,
@@ -759,14 +736,11 @@ class MistralCompoundDecoder(Decoder):
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
             input_dropout=input_dropout,
+            conditioning=conditioning,
         )
-        self.hidden_size = hidden_size
 
         # 1. Input Module (Adaptive Embeddings)
         self.cp_embedding = CompoundWordEmbedding(self.hidden_size)
-
-        # 2. Latent Projection (VAE Conditioning)
-        self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
 
         # 3. Transformer Backbone (Mistral)
         config = MistralConfig(
@@ -813,9 +787,8 @@ class MistralCompoundDecoder(Decoder):
 
         # B. Inject Latent Vector (Global Conditioning)
         # [B, Latent] -> [B, Hidden]
-        z_proj = self.latent_proj(latent_vector)
-        # Add to embeddings (Broadcasting)
-        inputs_embeds = inputs_embeds + z_proj.unsqueeze(1)
+        z_proj = self.latent_proj(latent_vector).unsqueeze(1)
+        self._condition_input(token_embedding=inputs_embeds, latent_projection=z_proj)
 
         # C. Transformer Pass
         outputs = self.model(
@@ -880,6 +853,7 @@ class MistralCompoundDecoder(Decoder):
         latent_vector: torch.Tensor,
         strict_sampling: bool = True,
         use_cache: bool = False,
+        temperature: float = 1.0,
     ) -> list[list[int]]:
         logger.info(f"Starting generation with decoder: {self.name}")
         generated_sequence = [[self.bos_token] * self.patch_size]
@@ -959,6 +933,7 @@ class MistralPatchDecoder(Decoder):
         num_key_value_heads: int,
         input_dropout: float,
         token_embedding_size: int,
+        conditioning: str,
     ) -> None:
         super().__init__(
             latent_dim=latent_dim,
@@ -973,8 +948,8 @@ class MistralPatchDecoder(Decoder):
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
             input_dropout=input_dropout,
+            conditioning=conditioning,
         )
-        self.hidden_size = hidden_size
 
         self.patch_embedding = PatchEmbeddings(
             vocab_size=vocab_size,
@@ -982,7 +957,6 @@ class MistralPatchDecoder(Decoder):
             patch_size=patch_size,
             token_embedding_size=token_embedding_size,
         )
-        self.latent_proj = nn.Linear(self.latent_dim, self.hidden_size)
 
         config = MistralConfig(
             hidden_size=self.hidden_size,
@@ -1028,7 +1002,9 @@ class MistralPatchDecoder(Decoder):
         latent_proj_expanded = latent_proj.unsqueeze(1).expand(
             batch_size, seq_len, self.hidden_size
         )
-        decoder_inputs_embeds = patch_emb + latent_proj_expanded
+        decoder_inputs_embeds = self._condition_input(
+            token_embedding=patch_emb, latent_projection=latent_proj_expanded
+        )
 
         outputs = self.model(
             inputs_embeds=decoder_inputs_embeds,
@@ -1053,6 +1029,7 @@ class MistralPatchDecoder(Decoder):
         latent_vector: torch.Tensor,
         strict_sampling: bool = True,
         use_cache: bool = False,
+        temperature: float = 1.0,
     ) -> list[list[int]]:
         logger.info(f"Starting generation with decoder: {self.name}")
         generated_sequence = [[self.bos_token] * self.patch_size]
@@ -1113,8 +1090,8 @@ def decoder_mapper(decoder_name: str) -> Type[Decoder]:
         return MistralDecoder
     elif decoder_name == "mamba":
         return MambaDecoder
-    elif decoder_name == "transformer_linear":
-        return LinearAttentionDecoder
+    # elif decoder_name == "transformer_linear":
+    #     return LinearAttentionDecoder
     elif decoder_name == "cp_decoder":
         return MistralCompoundDecoder
     elif decoder_name == "patch_mistral":
