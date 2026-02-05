@@ -18,6 +18,7 @@ from src.models.cp_word import MultiHeadOutput, CompoundWordEmbedding
 from src.constants import CP_WORD_INDEXES, Conditioning
 from src.models.patch_models import PatchEmbeddings, PatchOutputHead
 from src.utils import sample_next_cp_word, sample_next_token, sample_next_patch
+from src.models.custom_rope import CustomGPTNeoXModel
 
 logger = lg.getLogger(__name__)
 
@@ -384,6 +385,8 @@ class TransformerRope(Decoder):
         rotary_pct: float,
         rotary_emb_base: int,
         conditioning: str,
+        custom: bool,
+        use_cross_attention: bool,
         input_dropout: float = 0.0,
     ) -> None:
         super(TransformerRope, self).__init__(
@@ -419,8 +422,13 @@ class TransformerRope(Decoder):
             pad_token_id=self.pad_token,
             use_cache=False,
         )
-
-        self.model = GPTNeoXModel(config)
+        self.custom = custom
+        if custom:
+            self.model = CustomGPTNeoXModel(
+                config, use_cross_attention=use_cross_attention
+            )
+        else:
+            self.model = GPTNeoXModel(config)
 
     def forward(
         self,
@@ -430,13 +438,35 @@ class TransformerRope(Decoder):
         recv_in_music_form: bool = False,
         use_cache: bool = False,  # set True during inference
     ) -> torch.Tensor:
-        decoder_input_embeds = self._prepare_input(input_sequence, latent_vector)
-        outputs = self.model(
-            inputs_embeds=decoder_input_embeds,
-            past_key_values=self._cache_params,
-            return_dict=True,
-            use_cache=use_cache,
+        batch_size, current_sequence_len = input_sequence.shape
+        token_emb = self.token_embeddings(input_sequence)
+        token_emb = self.input_dropout(token_emb, input_sequence)
+
+        # [B, Latent] -> [B, Hidden]
+        latent_proj = self.latent_proj(latent_vector)
+
+        # [B, 1, Hidden] -> [B, Seq_Len, Hidden]
+        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
+            batch_size, current_sequence_len, self.hidden_size
         )
+        if self.custom:
+            outputs = self.model(
+                inputs_embeds=token_emb,
+                encoder_hidden_states=latent_proj_expanded,
+                past_key_values=self._cache_params,
+                return_dict=True,
+                use_cache=use_cache,
+            )
+        else:
+            decoder_input_embeds = self._condition_input(
+                token_embedding=token_emb, latent_projection=latent_proj_expanded
+            )
+            outputs = self.model(
+                inputs_embeds=decoder_input_embeds,
+                past_key_values=self._cache_params,
+                return_dict=True,
+                use_cache=use_cache,
+            )
 
         hidden_states = outputs.last_hidden_state
 

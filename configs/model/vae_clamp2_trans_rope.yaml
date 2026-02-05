@@ -54,3 +54,9 @@ decoder:
 
       # how to condition the decoder input on the latent representation: add | concatenation
       conditioning: add
+
+      # whether to use custom implementation of the transformer decoder with additional Cross attention or use standard huggingface GPTNeoXModel implementation
+      custom: true
+
+      # whether to use cross-attention layers to condition the decoder on the latent representation (only for custom implementation)
+      use_cross_attention: true

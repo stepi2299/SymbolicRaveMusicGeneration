@@ -14,7 +14,7 @@ class CpElboLoss(BaseVaeLoss):
         turn_annealing: bool,
         annealing_steps: int,
         beta_max: float,
-        free_bits: float
+        free_bits: float,
     ) -> None:
         super().__init__(
             annealing_steps=annealing_steps,
@@ -23,7 +23,7 @@ class CpElboLoss(BaseVaeLoss):
             kl_weight=kl_weight,
             pad_token_id=pad_token_id,
             vocab_size=vocab_size,
-            free_bits=free_bits
+            free_bits=free_bits,
         )
 
         self.attr_weights = attribute_weights

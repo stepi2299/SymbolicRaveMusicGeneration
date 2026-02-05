@@ -31,7 +31,7 @@ class ElboLoss(BaseVaeLoss):
             annealing_steps=annealing_steps,
             beta_max=beta_max,
             kl_weight=kl_weight,
-            free_bits=free_bits
+            free_bits=free_bits,
         )
 
     def __call__(
