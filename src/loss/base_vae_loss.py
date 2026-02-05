@@ -13,6 +13,7 @@ class BaseVaeLoss(ABC):
         annealing_steps: int,
         beta_max: float,
         kl_weight: float,
+        free_bits: float = 0.0,
     ):
         self._kl_weight = kl_weight
         self._turn_annealing = turn_annealing
@@ -20,6 +21,7 @@ class BaseVaeLoss(ABC):
         self._beta_max = beta_max
         self._vocab_size = vocab_size
         self._pad_token_id = pad_token_id
+        self._free_bits = free_bits
 
     @abstractmethod
     def __call__(

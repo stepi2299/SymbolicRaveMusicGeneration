@@ -53,4 +53,4 @@ decoder:
       input_dropout: 0.2
 
       # how to condition the decoder input on the latent representation: add | concatenation
-      conditioning: concatenation
+      conditioning: add

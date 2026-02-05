@@ -13,6 +13,7 @@ class ElboLoss(BaseVaeLoss):
         annealing_steps: int,
         beta_max: float,
         kl_weight: float,
+        free_bits: float,
     ) -> None:
         """
         ELBO Loss Function for Variational Autoencoders.
@@ -30,6 +31,7 @@ class ElboLoss(BaseVaeLoss):
             annealing_steps=annealing_steps,
             beta_max=beta_max,
             kl_weight=kl_weight,
+            free_bits=free_bits
         )
 
     def __call__(
@@ -72,7 +74,10 @@ class ElboLoss(BaseVaeLoss):
 
         annealing_beta = self._get_annealing_beta(global_step)
 
-        loss = recon_loss + annealing_beta * kl_div
+        kl_div_clamped = torch.max(
+            kl_div, torch.tensor(self._free_bits).to(kl_div.device)
+        )
+        loss = recon_loss + annealing_beta * kl_div_clamped
         name = "train" if train else "val"
 
         return loss, {

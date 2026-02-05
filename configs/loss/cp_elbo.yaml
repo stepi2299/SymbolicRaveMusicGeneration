@@ -4,6 +4,7 @@ params:
   annealing_steps: 30000  # number of steps to reach beta_max (for single data generation should be small like 100)
   beta_max: 0.01  # maximum KL weight
   kl_weight: 1.0  # weight of the KL divergence term if not using annealing
+  free_bits: 0.0  # free bits value to prevent KL collapse, set to 0 to disable free bits
   attribute_weights:
     family: 1.0      # KRYTYCZNE: Struktura (Czy to nuta? Czy koniec taktu?)
     position: 1.0    # BARDZO WAŻNE: Rytm (Gdzie w takcie?)

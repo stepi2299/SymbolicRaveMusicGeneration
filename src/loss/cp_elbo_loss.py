@@ -14,6 +14,7 @@ class CpElboLoss(BaseVaeLoss):
         turn_annealing: bool,
         annealing_steps: int,
         beta_max: float,
+        free_bits: float
     ) -> None:
         super().__init__(
             annealing_steps=annealing_steps,
@@ -22,6 +23,7 @@ class CpElboLoss(BaseVaeLoss):
             kl_weight=kl_weight,
             pad_token_id=pad_token_id,
             vocab_size=vocab_size,
+            free_bits=free_bits
         )
 
         self.attr_weights = attribute_weights
@@ -76,7 +78,10 @@ class CpElboLoss(BaseVaeLoss):
 
         annealing_beta = self._get_annealing_beta(global_step)
 
-        total_loss = total_recon_loss + (annealing_beta * kl_loss)
+        kl_loss_clamped = torch.max(
+            kl_loss, torch.tensor(self._free_bits).to(kl_loss.device)
+        )
+        total_loss = total_recon_loss + (annealing_beta * kl_loss_clamped)
         name = "train" if train else "val"
 
         return total_loss, {
