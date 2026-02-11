@@ -3,8 +3,10 @@ from typing import Tuple
 
 import torch
 
+from src.loss.base_loss import BaseLoss
 
-class BaseVaeLoss(ABC):
+
+class BaseVaeLoss(BaseLoss):
     def __init__(
         self,
         vocab_size: int,
@@ -22,31 +24,6 @@ class BaseVaeLoss(ABC):
         self._vocab_size = vocab_size
         self._pad_token_id = pad_token_id
         self._free_bits = free_bits
-
-    @abstractmethod
-    def __call__(
-        self,
-        org_data: torch.Tensor,
-        reconstruction: torch.Tensor,
-        mu: torch.Tensor,
-        logvar: torch.Tensor,
-        global_step: int,
-        train: bool,
-    ) -> Tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        """
-        Args:
-            org_data: Original input data.
-            reconstruction: Reconstructed data from the model.
-            mu: Mean of the latent variable distribution.
-            logvar: Log variance of the latent variable distribution.
-            global_step: Current training step.
-            train: Boolean indicating if the model is in training mode.
-
-        Returns:
-            loss: The computed loss.
-            metrics: A dictionary of additional metrics to log.
-        """
-        pass
 
     def _get_annealing_beta(self, global_step: int) -> float:
         if self._turn_annealing:

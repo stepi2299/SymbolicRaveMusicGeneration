@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any
 import copy
+from omegaconf import DictConfig
 
 import torch
 import math
@@ -10,27 +11,22 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import Subset
 from pathlib import Path
 
-from src.models.vae import VAE
+from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 from src.utils import split_dataset
 from src.dataset.dataloader import get_dataloader
-from src.loss import BaseVaeLoss
 from src.constants import ExportFormat
 
 
 class FirstStage(pl.LightningModule):
     def __init__(
         self,
-        vae: VAE,
+        main_model: BaseHighLevelModel,
         symbolic_music_dataset: SymbolicMusicDataset,
-        loss_function: BaseVaeLoss,
         batch_size: int,
+        optimizer_params: DictConfig,
         num_workers: int = 0,
         train_split: float = 0.8,
-        max_encoder_learning_rate: float = 1e-3,
-        max_decoder_learning_rate: float = 1e-3,
-        encoder_weight_decay: float = 0.01,
-        decoder_weight_decay: float = 0.01,
         train_augment: bool = False,
         val_augment: bool = False,
         single_data_training: bool = False,
@@ -38,7 +34,7 @@ class FirstStage(pl.LightningModule):
         warmup_steps=100,
     ) -> None:
         super(FirstStage, self).__init__()
-        self.vae = vae
+        self.main_model = main_model
         if len(symbolic_music_dataset) >= 5:
             train_subset, val_subset = split_dataset(
                 symbolic_music_dataset, train_split
@@ -57,66 +53,39 @@ class FirstStage(pl.LightningModule):
             self.train_dataset.turn_augmentation(augment=train_augment)
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.max_encoder_learning_rate = max_encoder_learning_rate
-        self.max_decoder_learning_rate = max_decoder_learning_rate
         self.adapter = symbolic_music_dataset.music_adapter
-        self.loss_function = loss_function
         self._single_data_training = single_data_training
         self._monitor_metric = monitor_metric
         self._warmup_steps = warmup_steps
-        self._encoder_weight_decay = encoder_weight_decay
-        self._decoder_weight_decay = decoder_weight_decay
+        self._optimizer_params = optimizer_params
         self._train_augment = train_augment
         self._val_augment = val_augment
         self.save_hyperparameters()
 
-    def forward(self, *args: Any, **kwargs: Any) -> Any:
-        return self.vae(*args, **kwargs)
-
     def training_step(self, batch: Any, batch_idx: int) -> Any:
-        data = batch
-        x_input = data[:, :-1]  # Input sequence excluding the last token
-        x_target = data[:, 1:]  # Target sequence excluding the first token
-        reconstruction, mu, log_variance = self.vae(x_input)
-
-        loss, loss_metadata = self.loss_function(
-            org_data=x_target,
-            reconstruction=reconstruction,
-            mu=mu,
-            logvar=log_variance,
-            global_step=self.global_step,
-            train=True,
+        reconstruction, loss, loss_metadata = self.main_model.training_step(
+            batch, self.global_step
         )
         if self._single_data_training:
-            reconstruct_success, metadata = self.vae.decoder.reconstruct(
-                reconstruction, x_target
+            reconstruction_success, metadata = self.main_model.reconstruct(
+                reconstruction, batch
             )
             if metadata:
                 self.log_dict(metadata, on_step=False, on_epoch=True, prog_bar=True)
             self.log(
                 "reconstruct_success",
-                reconstruct_success,
+                reconstruction_success,
                 on_step=False,
                 on_epoch=True,
                 prog_bar=True,
             )
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> Any:
-        data = batch
-        x_input = data[:, :-1]  # Input sequence excluding the last token
-        x_target = data[:, 1:]  # Target sequence excluding the first token
-        reconstruction, mu, log_variance = self.vae(x_input)
-        loss, loss_metadata = self.loss_function(
-            org_data=x_target,
-            reconstruction=reconstruction,
-            mu=mu,
-            logvar=log_variance,
-            global_step=self.global_step,
-            train=False,
+        reconstruction, loss, loss_metadata = self.main_model.validation_step(
+            batch, self.global_step
         )
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
@@ -141,20 +110,7 @@ class FirstStage(pl.LightningModule):
     def configure_optimizers(self):
         # 1. Define the optimizer with separate parameter groups for Encoder and Decoder
         # This allows setting different maximum learning rates for each part of the VAE.
-        optimizer = torch.optim.AdamW(
-            [
-                {
-                    "params": self.vae.encoder.parameters(),
-                    "lr": self.max_encoder_learning_rate,  # Base LR for the encoder
-                    "weight_decay": self._encoder_weight_decay,
-                },
-                {
-                    "params": self.vae.decoder.parameters(),
-                    "lr": self.max_decoder_learning_rate,  # Base LR for the decoder
-                    "weight_decay": self._decoder_weight_decay,
-                },
-            ]
-        )
+        optimizer = self.main_model.get_optimizer(self._optimizer_params)
 
         # 2. Calculate total training steps
         # Lightning automatically calculates this based on max_epochs, batch_size, and accumulation.
@@ -205,15 +161,20 @@ class FirstStage(pl.LightningModule):
         generation_params: dict | None = None,
     ) -> list[Path]:
         generation_params = generation_params or {}
-        self.vae.set_generation_params(**generation_params)
-        return self.vae.generate(z, folder_path, file_name, export_format)
+        self.main_model.set_generation_params(**generation_params)
+        return self.main_model.generate(
+            latent_vector=z,
+            folder_path=folder_path,
+            file_name=file_name,
+            export_format=export_format,
+        )
 
     def on_before_optimizer_step(self, optimizer):
         global_norms = grad_norm(self, norm_type=2)
         if "grad_2.0_norm_total" in global_norms:
             self.log("grad_global/total_norm", global_norms["grad_2.0_norm_total"])
 
-        layers_to_track = self.vae.decoder.get_layers_to_track()
+        layers_to_track = self.main_model.layers_to_track()
 
         for i, layer in enumerate(layers_to_track):
             grads = []

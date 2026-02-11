@@ -13,12 +13,13 @@ from transformers import (
     MistralConfig,
     MistralModel,
 )
-from src.models.linear_attention import LinearTransformerBlock
-from src.models.cp_word import MultiHeadOutput, CompoundWordEmbedding
+from src.models.utils.linear_attention import LinearTransformerBlock
+from src.models.utils.cp_word import MultiHeadOutput, CompoundWordEmbedding
+from src.models.utils.patch_models import PatchEmbeddings, PatchOutputHead
+from src.models.utils.custom_rope import CustomGPTNeoXModel
 from src.constants import CP_WORD_INDEXES, Conditioning
-from src.models.patch_models import PatchEmbeddings, PatchOutputHead
 from src.utils import sample_next_cp_word, sample_next_token, sample_next_patch
-from src.models.custom_rope import CustomGPTNeoXModel
+
 
 logger = lg.getLogger(__name__)
 

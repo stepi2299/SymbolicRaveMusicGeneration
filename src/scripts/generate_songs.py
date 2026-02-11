@@ -9,6 +9,7 @@ import torch
 from src.competitors.first_stage import FirstStage
 from src.utils import output_songs_path
 from src.constants import ExportFormat
+from src.models.high_level_structures.vae import VAE
 
 
 @hydra.main(
@@ -30,16 +31,23 @@ def main(cfg: DictConfig) -> None:
         f"Starting Generation Script! Expected number generated songs: {cfg.songs_to_generate}, "
         f"Checkpoint path: {current_output_songs_path.as_posix()}"
     )
-    latent_values = torch.randn(
-        cfg.songs_to_generate, competitor.vae.latent_dim, device=competitor.device
-    )
-    songs = competitor.generate(
-        latent_values,
-        current_output_songs_path,
-        file_name="generated_song",
-        export_format=ExportFormat.WAV,
-        generation_params=cfg.generation_params,
-    )
+    if isinstance(competitor.main_model, VAE):
+        latent_values = torch.randn(
+            cfg.songs_to_generate,
+            competitor.main_model.latent_dim,
+            device=competitor.device,
+        )
+        songs = competitor.generate(
+            latent_values,
+            current_output_songs_path,
+            file_name="generated_song",
+            export_format=ExportFormat.WAV,
+            generation_params=cfg.generation_params,
+        )
+    else:
+        raise NotImplementedError(
+            "Generation is only implemented for VAE models for now"
+        )
     logger.info(f"Generated songs: {len(songs)}")
 
 

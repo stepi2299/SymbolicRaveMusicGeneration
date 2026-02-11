@@ -38,10 +38,11 @@ class ElboLoss(BaseVaeLoss):
         self,
         org_data: torch.Tensor,
         reconstruction: torch.Tensor,
-        mu: torch.Tensor,
-        logvar: torch.Tensor,
         global_step: int,
         train: bool,
+        *,
+        mu: torch.Tensor,
+        logvar: torch.Tensor,
     ) -> Tuple[torch.Tensor, dict]:
         """
         Args:

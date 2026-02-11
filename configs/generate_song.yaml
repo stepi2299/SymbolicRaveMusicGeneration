@@ -7,7 +7,7 @@ hydra:
 
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
-checkpoint_path: "outputs/checkpoints/train_repr/clamp2_mistral_pop909_2026-02-02_21-46-29/model-epoch=03-val_loss=10.04.ckpt"
+checkpoint_path: "outputs/checkpoints/train_repr/vae_clamp2_patch_mistral_maestro_2026-02-11_21-20-37/model-epoch=26-val_loss=1.75.ckpt"
 songs_to_generate: 3
 generation_params:
   use_cache: true  # whether to use cache during generation (inference) - requires more VRAM but speeds up generation

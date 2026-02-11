@@ -9,14 +9,16 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
 
 from src.dataset import get_dataset
-from src.models import get_vae_model
+from src.models import get_model
 from src.competitors.first_stage import FirstStage
 from src.callbacks import get_callbacks
 from src.loss import get_loss_function
 
 
 @hydra.main(
-    config_path="../../configs", config_name="train_representation", version_base="1.3"
+    config_path="../../configs",
+    config_name="train_cp_representation",
+    version_base="1.3",
 )
 def main(cfg: DictConfig) -> None:
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -44,28 +46,30 @@ def main(cfg: DictConfig) -> None:
     symbolic_music_dataset = get_dataset(
         cfg.dataset, cfg.adapter, single_data_training, chosen_index
     )
-    vae_model = get_vae_model(
-        cfg.model, symbolic_music_dataset.music_adapter, cfg.vae_params
-    )
-    if cfg.pretrained:
-        vae_model.load_pretrained()
     loss_function = get_loss_function(
         loss_name=cfg.loss.name,
-        vocab_size=vae_model.vocab_size,
+        vocab_size=symbolic_music_dataset.music_adapter.vocab_size,
         pad_token_id=symbolic_music_dataset.music_adapter.pad_token_id,
         **cfg.loss.params,
     )
+    high_level_model = get_model(
+        model_cfg=cfg.model,
+        adapter=symbolic_music_dataset.music_adapter,
+        vae_params=cfg.vae_params,
+        loss_function=loss_function,
+    )
+    if cfg.pretrained:
+        high_level_model.load_pretrained()
 
     competitor = FirstStage(
-        vae=vae_model,
+        main_model=high_level_model,
         symbolic_music_dataset=symbolic_music_dataset,
-        loss_function=loss_function,
         single_data_training=single_data_training,
         **cfg.competitor,
     )
     used_callbacks = get_callbacks(
         cfg=cfg.callbacks,
-        latent_dim=vae_model.decoder.latent_dim,
+        latent_dim=cfg.model.latent_dim,
         model_name=cfg.model.name,
         dataset_name=cfg.dataset.name,
     )

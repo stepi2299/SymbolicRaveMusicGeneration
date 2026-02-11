@@ -35,10 +35,11 @@ class CpElboLoss(BaseVaeLoss):
         reconstruction: dict[
             str, torch.Tensor
         ],  # Wyjście z modelu: {'pitch': [B, L, 128], ...}
+        global_step: int,
+        train: bool,
+        *,
         mu: torch.Tensor,
         logvar: torch.Tensor,
-        global_step: int,
-        train: bool = True,
     ) -> tuple[torch.Tensor, dict]:
         """
         Args:

@@ -8,7 +8,7 @@ import requests
 from tqdm import tqdm
 
 from transformers import BertConfig
-from src.models.clamp import PatchEncoder, CLaMPModel
+from src.models.utils.clamp import PatchEncoder, CLaMPModel
 from src.utils import (
     download_file,
     get_possible_device,
