@@ -17,7 +17,7 @@ from src.loss import get_loss_function
 
 @hydra.main(
     config_path="../../configs",
-    config_name="train_cp_representation",
+    config_name="train_patch_representation",
     version_base="1.3",
 )
 def main(cfg: DictConfig) -> None:

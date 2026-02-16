@@ -1,6 +1,6 @@
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
-from src.models.high_level_structures.vae import VAE
+from src.models.high_level_structures import registered_models, BaseHighLevelModel
 from src.models.encoder import encoder_mapper
 from src.models.decoder import decoder_mapper
 from src.models.discriminator import discriminator_mapper, Discriminator
@@ -13,11 +13,16 @@ def get_model(
     adapter: MusicAdapter,
     vae_params: DictConfig,
     loss_function: BaseLoss,
-) -> VAE:
-    model = VAE(
-        loss_function=loss_function, model_cfg=model_cfg, adapter=adapter, **vae_params
+) -> BaseHighLevelModel:
+    OmegaConf.set_struct(model_cfg, False)
+    high_model_type = model_cfg.pop("high_level_model_type")
+    OmegaConf.set_struct(model_cfg, True)
+    return registered_models[high_model_type](
+        model_cfg=model_cfg,
+        adapter=adapter,
+        loss_function=loss_function,
+        **vae_params,
     )
-    return model
 
 
 def get_discriminator(discriminator_cfg: DictConfig, vocab_size: int) -> Discriminator:

@@ -1,4 +1,5 @@
-name: clamp2_gpt
+name: vae_clamp2_gpt
+high_level_model_type: VAE
 latent_dim: 768
 encoder:
   name: clamp2

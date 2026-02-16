@@ -1,4 +1,5 @@
-name: clamp_pgt
+name: vae_clamp_pgt
+high_level_model_type: VAE
 latent_dim: 768
 encoder:
   name: clamp

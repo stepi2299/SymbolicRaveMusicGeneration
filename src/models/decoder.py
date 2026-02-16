@@ -87,11 +87,13 @@ class Decoder(nn.Module, ABC):
                 )
 
     def _prepare_input(
-        self, input_sequence: torch.Tensor, latent_vector: torch.Tensor
+        self, input_sequence: torch.Tensor, latent_vector: torch.Tensor | None
     ) -> torch.Tensor:
         batch_size, current_sequence_len = input_sequence.shape
         token_emb = self.token_embeddings(input_sequence)
         token_emb = self.input_dropout(token_emb, input_sequence)
+        if latent_vector is None:
+            return token_emb
 
         # [B, Latent] -> [B, Hidden]
         latent_proj = self.latent_proj(latent_vector)
@@ -107,9 +109,9 @@ class Decoder(nn.Module, ABC):
     @abstractmethod
     def forward(
         self,
-        latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
         *,
+        latent_vector: torch.Tensor | None = None,
         recv_in_music_form: bool = False,
         use_cache: bool = False,
     ) -> torch.Tensor:
@@ -169,7 +171,8 @@ class Decoder(nn.Module, ABC):
 
     def generate(
         self,
-        latent_vector: torch.Tensor,
+        *,
+        latent_vector: torch.Tensor | None = None,
         strict_sampling: bool = True,
         use_cache: bool = False,
         temperature: float = 1.0,
@@ -177,13 +180,18 @@ class Decoder(nn.Module, ABC):
         logger.debug(f"Starting generation with decoder: {self.name}")
         generated_sequence = [self.bos_token]
         self.clean_cache()
+        generation_device = (
+            latent_vector.get_device()
+            if latent_vector is not None
+            else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        )
         for _ in range(self.sequence_length):
             input_seq = (
-                torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
+                torch.tensor(generated_sequence).unsqueeze(0).to(generation_device)
             )
             logits = self(
-                latent_vector,
                 input_seq,
+                latent_vector=latent_vector,
                 recv_in_music_form=False,
                 use_cache=use_cache,
             )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
@@ -252,9 +260,9 @@ class GptDecoder(Decoder):
 
     def forward(
         self,
-        latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
         *,
+        latent_vector: torch.Tensor | None = None,
         recv_in_music_form: bool = False,
         use_cache: bool = False,
     ) -> torch.Tensor:
@@ -272,7 +280,7 @@ class GptDecoder(Decoder):
         decoder_input = decoder_input.permute(1, 0, 2)
 
         mask = nn.Transformer.generate_square_subsequent_mask(current_sequence_len).to(
-            latent_vector.device
+            input_sequence.device
         )
 
         h = self.model(
@@ -345,9 +353,9 @@ class TransformerXL(Decoder):
 
     def forward(
         self,
-        latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
         *,
+        latent_vector: torch.Tensor | None = None,
         recv_in_music_form: bool = False,
         use_cache: bool = False,
     ) -> torch.Tensor:
@@ -433,24 +441,28 @@ class TransformerRope(Decoder):
 
     def forward(
         self,
-        latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
         *,
+        latent_vector: torch.Tensor | None = None,
         recv_in_music_form: bool = False,
-        use_cache: bool = False,  # set True during inference
+        use_cache: bool = False,
     ) -> torch.Tensor:
         batch_size, current_sequence_len = input_sequence.shape
         token_emb = self.token_embeddings(input_sequence)
         token_emb = self.input_dropout(token_emb, input_sequence)
+        latent_proj_expanded = None
+        if latent_vector is not None:
+            latent_proj = self.latent_proj(latent_vector)
 
-        # [B, Latent] -> [B, Hidden]
-        latent_proj = self.latent_proj(latent_vector)
-
-        # [B, 1, Hidden] -> [B, Seq_Len, Hidden]
-        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
-            batch_size, current_sequence_len, self.hidden_size
-        )
+            # [B, 1, Hidden] -> [B, Seq_Len, Hidden]
+            latent_proj_expanded = latent_proj.unsqueeze(1).expand(
+                batch_size, current_sequence_len, self.hidden_size
+            )
         if self.custom:
+            if latent_proj_expanded is None:
+                raise ValueError(
+                    "Latent vector is required for custom GPTNeoXModel for cross attention."
+                )
             outputs = self.model(
                 inputs_embeds=token_emb,
                 encoder_hidden_states=latent_proj_expanded,
@@ -459,9 +471,12 @@ class TransformerRope(Decoder):
                 use_cache=use_cache,
             )
         else:
-            decoder_input_embeds = self._condition_input(
-                token_embedding=token_emb, latent_projection=latent_proj_expanded
-            )
+            if latent_proj_expanded:
+                decoder_input_embeds = self._condition_input(
+                    token_embedding=token_emb, latent_projection=latent_proj_expanded
+                )
+            else:
+                decoder_input_embeds = token_emb
             outputs = self.model(
                 inputs_embeds=decoder_input_embeds,
                 past_key_values=self._cache_params,
@@ -536,9 +551,9 @@ class MistralDecoder(Decoder):
 
     def forward(
         self,
-        latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
         *,
+        latent_vector: torch.Tensor | None = None,
         recv_in_music_form: bool = False,
         use_cache: bool = False,  # set True during inference
     ) -> torch.Tensor:
@@ -610,9 +625,9 @@ class MambaDecoder(Decoder):
 
     def forward(
         self,
-        latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
         *,
+        latent_vector: torch.Tensor | None = None,
         recv_in_music_form: bool = False,
         use_cache: bool = False,
     ) -> torch.Tensor:
@@ -797,9 +812,9 @@ class MistralCompoundDecoder(Decoder):
 
     def forward(
         self,
-        latent_vector: torch.Tensor,  # [Batch, Latent_Dim]
         input_sequence: torch.Tensor,  # [Batch, Seq_Len, Num_Attributes] <-- ZMIANA: 3D Input
         *,
+        latent_vector: torch.Tensor | None = None,  # [Batch, Latent_Dim]
         recv_in_music_form: bool = False,
         use_cache: bool = False,
     ):
@@ -881,7 +896,8 @@ class MistralCompoundDecoder(Decoder):
 
     def generate(
         self,
-        latent_vector: torch.Tensor,
+        *,
+        latent_vector: torch.Tensor | None = None,
         strict_sampling: bool = True,
         use_cache: bool = False,
         temperature: float = 1.0,
@@ -889,13 +905,18 @@ class MistralCompoundDecoder(Decoder):
         logger.info(f"Starting generation with decoder: {self.name}")
         generated_sequence = [[self.bos_token] * self.patch_size]
         self.clean_cache()
+        generation_device = (
+            latent_vector.get_device()
+            if latent_vector is not None
+            else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        )
         for i in range(self.sequence_length - 1):
             input_seq = (
-                torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
+                torch.tensor(generated_sequence).unsqueeze(0).to(generation_device)
             )
             dict_logits = self(
-                latent_vector,
                 input_seq,
+                latent_vector=latent_vector,
                 recv_in_music_form=False,
                 use_cache=use_cache,
             )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
@@ -1015,12 +1036,12 @@ class MistralPatchDecoder(Decoder):
 
     def forward(
         self,
-        latent_vector: torch.Tensor,
         input_sequence: torch.Tensor,
         *,
+        latent_vector: torch.Tensor | None = None,
         recv_in_music_form: bool = False,
         use_cache: bool = False,
-    ) -> torch.Tensor:
+    ):
         batch_size, seq_len, patch_size = input_sequence.shape
         assert (
             patch_size == self.patch_size
@@ -1029,13 +1050,16 @@ class MistralPatchDecoder(Decoder):
         patch_emb = self.patch_embedding(input_sequence)
         patch_emb = self.input_dropout(patch_emb, input_sequence)
 
-        latent_proj = self.latent_proj(latent_vector)
-        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
-            batch_size, seq_len, self.hidden_size
-        )
-        decoder_inputs_embeds = self._condition_input(
-            token_embedding=patch_emb, latent_projection=latent_proj_expanded
-        )
+        if latent_vector is not None:
+            latent_proj = self.latent_proj(latent_vector)
+            latent_proj_expanded = latent_proj.unsqueeze(1).expand(
+                batch_size, seq_len, self.hidden_size
+            )
+            decoder_inputs_embeds = self._condition_input(
+                token_embedding=patch_emb, latent_projection=latent_proj_expanded
+            )
+        else:
+            decoder_inputs_embeds = patch_emb
 
         outputs = self.model(
             inputs_embeds=decoder_inputs_embeds,
@@ -1057,7 +1081,8 @@ class MistralPatchDecoder(Decoder):
 
     def generate(
         self,
-        latent_vector: torch.Tensor,
+        *,
+        latent_vector: torch.Tensor | None = None,
         strict_sampling: bool = True,
         use_cache: bool = False,
         temperature: float = 1.0,
@@ -1065,13 +1090,18 @@ class MistralPatchDecoder(Decoder):
         logger.info(f"Starting generation with decoder: {self.name}")
         generated_sequence = [[self.bos_token] * self.patch_size]
         self.clean_cache()
+        generation_device = (
+            latent_vector.get_device()
+            if latent_vector is not None
+            else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        )
         for _ in range(self.sequence_length):
             input_seq = (
-                torch.tensor(generated_sequence).unsqueeze(0).to(latent_vector.device)
+                torch.tensor(generated_sequence).unsqueeze(0).to(generation_device)
             )
             logits = self(
-                latent_vector,
                 input_seq,
+                latent_vector=latent_vector,
                 recv_in_music_form=False,
                 use_cache=use_cache,
             )

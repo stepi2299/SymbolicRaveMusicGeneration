@@ -7,12 +7,12 @@ from pathlib import Path
 from omegaconf import DictConfig
 from torch import nn
 
-from src.models.encoder import Encoder, encoder_mapper
-from src.models.decoder import Decoder, decoder_mapper
 from src.adapter import MusicAdapter
 from src.constants import ExportFormat
 from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
 from src.loss.base_loss import BaseLoss
+from src.loss.elbo_loss import ElboLoss
+from src.loss.cp_elbo_loss import CpElboLoss
 
 logger = lg.getLogger(__name__)
 
@@ -35,6 +35,10 @@ class VAE(BaseHighLevelModel):
         self.encoder = self._get_encoder(model_cfg, adapter)
         self.decoder = self._get_decoder(model_cfg, adapter)
         self.latent_dim = self.encoder.latent_dim
+        if not isinstance(self._loss_function, CpElboLoss | ElboLoss):
+            raise ValueError(
+                f"Loss function for VAE must be an instance of CpElboLoss or ElboLoss, got {type(self._loss_function)}"
+            )
         self._validate_if_latent_dimensions_match()
 
     def _validate_if_latent_dimensions_match(self) -> None:
@@ -44,29 +48,6 @@ class VAE(BaseHighLevelModel):
                 f"got {self.encoder.latent_dim} for encoder and {self.decoder.latent_dim} for decoder"
             )
 
-    @staticmethod
-    def _get_encoder(model_cfg: DictConfig, adapter: MusicAdapter) -> Encoder:
-        return encoder_mapper(model_cfg.encoder.name)(
-            latent_dim=model_cfg.latent_dim,
-            vocab_size=adapter.vocab_size,
-            sequence_length=adapter.sequence_length,
-            patch_size=adapter.patch_size,
-            **model_cfg.encoder.params,
-        )
-
-    @staticmethod
-    def _get_decoder(model_cfg: DictConfig, adapter: MusicAdapter) -> Decoder:
-        return decoder_mapper(model_cfg.decoder.name)(
-            latent_dim=model_cfg.latent_dim,
-            vocab_size=adapter.vocab_size,
-            sequence_length=adapter.sequence_length,
-            patch_size=adapter.patch_size,
-            pad_token=adapter.pad_token_id,
-            bos_token=adapter.bos_token_id,
-            eos_token=adapter.eos_token_id,
-            **model_cfg.decoder.params,
-        )
-
     def forward(
         self, input_music: torch.Tensor, recv_in_music_form: bool = False
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -74,8 +55,8 @@ class VAE(BaseHighLevelModel):
         mu, log_variance = self.encoder(input_music)
         latent_vector = self._reparameterize(mu, log_variance)
         tensor_reconstruction = self.decoder(
-            latent_vector,
             input_music,
+            latent_vector=latent_vector,
             recv_in_music_form=recv_in_music_form,
             use_cache=False,
         )
@@ -96,16 +77,6 @@ class VAE(BaseHighLevelModel):
             logvar=log_variance,
         )
         return reconstruction, loss, loss_metadata
-
-    def training_step(
-        self, data: torch.Tensor, global_step: int
-    ) -> tuple[torch.Tensor, float, dict[str, torch.Tensor]]:
-        return self._lightning_step(data, global_step, train=True)
-
-    def validation_step(
-        self, data: torch.Tensor, global_step: int
-    ) -> tuple[torch.Tensor, float, dict[str, torch.Tensor]]:
-        return self._lightning_step(data, global_step, train=False)
 
     def reconstruct(
         self, reconstruction: torch.Tensor, original_data: torch.Tensor, *args, **kwargs
@@ -166,7 +137,7 @@ class VAE(BaseHighLevelModel):
             try:
                 output_path = folder_path / f"{file_name}_{i}"
                 coded_song = self.decoder.generate(
-                    single_condition_latent.unsqueeze(0),
+                    latent_vector=single_condition_latent.unsqueeze(0),
                     use_cache=self._use_cache,
                     strict_sampling=self._strict_sampling,
                     temperature=self._temperature,

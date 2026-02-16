@@ -2,8 +2,8 @@
 defaults:
   - dataset: pop909     # default dataset
   - adapter: tokenizer  # default adapter
-  - model: vae_clamp2_trans_rope  # default model
-  - loss: elbo         # default loss
+  - model: decoder_trans_rope  # default model
+  - loss: reconstruction         # default loss
   - _self_
 
 # You can add any additional high-level settings or Hydra settings below
@@ -29,8 +29,8 @@ seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 log_format: "[%(asctime)s] - [%(name)s] - [%(levelname)s] - %(message)s"
 processing_precision: high  # possible values: medium | high
-pretrained: true # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-single_data_training: true # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
+pretrained: false # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
+single_data_training: false # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
 grad_clip_val: 0.5  # gradient clipping value, set to null to disable gradient clipping
 monitor_metric: "val_loss"  # metric to monitor for early stopping and model checkpointing
 warmup_steps: 500  # number of warmup steps for learning rate scheduler (for single data training, set small value like 10/50)
@@ -58,6 +58,6 @@ callbacks:
     export_format: wav
   early_stopping: true
   early_stopping_params:
-    patience: 30
+    patience: 20
     monitor: "val_loss"
   log_learning_rate: true

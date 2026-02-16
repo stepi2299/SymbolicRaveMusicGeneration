@@ -1,17 +1,17 @@
-from enum import StrEnum
+from enum import Enum
 
 
-class SymbolicMusicFormat(StrEnum):
+class SymbolicMusicFormat(Enum):
     MIDI = "midi"
     ABC = "abc"
 
 
-class MusicAdapterType(StrEnum):
+class MusicAdapterType(Enum):
     PATCHILIZER = "patchilizer"
     TOKENIZER = "tokenizer"
 
 
-class ExportFormat(StrEnum):
+class ExportFormat(Enum):
     SYMBOLIC = "midi"
     WAV = "wav"
 
@@ -33,6 +33,6 @@ CP_TOKEN_SIZE = {
 }
 
 
-class Conditioning(StrEnum):
+class Conditioning(Enum):
     CONCATENATION = "concatenation"
     ADD = "add"

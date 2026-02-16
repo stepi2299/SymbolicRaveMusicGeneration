@@ -10,6 +10,9 @@ from pathlib import Path
 from src.adapter import MusicAdapter
 from src.constants import ExportFormat
 from src.loss.base_loss import BaseLoss
+from src.models.decoder import Decoder, decoder_mapper
+from src.models.encoder import Encoder, encoder_mapper
+
 
 logger = lg.getLogger(__name__)
 
@@ -50,16 +53,20 @@ class BaseHighLevelModel(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def training_step(
-        self, data: torch.Tensor, global_step: int
+    def _lightning_step(
+        self, data: torch.Tensor, global_step: int, train: bool
     ) -> tuple[torch.Tensor, float, dict[str, torch.Tensor]]:
         pass
 
-    @abstractmethod
+    def training_step(
+        self, data: torch.Tensor, global_step: int
+    ) -> tuple[torch.Tensor, float, dict[str, torch.Tensor]]:
+        return self._lightning_step(data, global_step, train=True)
+
     def validation_step(
         self, data: torch.Tensor, global_step: int
     ) -> tuple[torch.Tensor, float, dict[str, torch.Tensor]]:
-        pass
+        return self._lightning_step(data, global_step, train=False)
 
     @abstractmethod
     @torch.no_grad()
@@ -89,3 +96,26 @@ class BaseHighLevelModel(nn.Module, ABC):
 
     def load_pretrained(self) -> None:
         pass
+
+    @staticmethod
+    def _get_encoder(model_cfg: DictConfig, adapter: MusicAdapter) -> Encoder:
+        return encoder_mapper(model_cfg.encoder.name)(
+            latent_dim=model_cfg.latent_dim,
+            vocab_size=adapter.vocab_size,
+            sequence_length=adapter.sequence_length,
+            patch_size=adapter.patch_size,
+            **model_cfg.encoder.params,
+        )
+
+    @staticmethod
+    def _get_decoder(model_cfg: DictConfig, adapter: MusicAdapter) -> Decoder:
+        return decoder_mapper(model_cfg.decoder.name)(
+            latent_dim=model_cfg.latent_dim,
+            vocab_size=adapter.vocab_size,
+            sequence_length=adapter.sequence_length,
+            patch_size=adapter.patch_size,
+            pad_token=adapter.pad_token_id,
+            bos_token=adapter.bos_token_id,
+            eos_token=adapter.eos_token_id,
+            **model_cfg.decoder.params,
+        )
