@@ -14,6 +14,5 @@ def get_dataloader(
         symbolic_music_dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        collate_fn=symbolic_collate_fn,
         num_workers=num_workers,
     )

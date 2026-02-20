@@ -54,19 +54,19 @@ class BaseHighLevelModel(nn.Module, ABC):
 
     @abstractmethod
     def _lightning_step(
-        self, data: torch.Tensor, global_step: int, train: bool
+        self, batch: tuple[torch.Tensor, torch.Tensor], global_step: int, train: bool
     ) -> tuple[torch.Tensor, float, dict[str, torch.Tensor]]:
         pass
 
     def training_step(
-        self, data: torch.Tensor, global_step: int
+        self, batch: tuple[torch.Tensor, torch.Tensor], global_step: int
     ) -> tuple[torch.Tensor, float, dict[str, torch.Tensor]]:
-        return self._lightning_step(data, global_step, train=True)
+        return self._lightning_step(batch, global_step, train=True)
 
     def validation_step(
-        self, data: torch.Tensor, global_step: int
+        self, batch: tuple[torch.Tensor, torch.Tensor], global_step: int
     ) -> tuple[torch.Tensor, float, dict[str, torch.Tensor]]:
-        return self._lightning_step(data, global_step, train=False)
+        return self._lightning_step(batch, global_step, train=False)
 
     @abstractmethod
     @torch.no_grad()

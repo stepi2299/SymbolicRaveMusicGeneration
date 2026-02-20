@@ -9,7 +9,7 @@ class TestMidiDataset:
     def test_basic_creation(midi_data_path, patchilizer_adapter_midi):
         dataset = MidiDataset(midi_data_path, patchilizer_adapter_midi)
         assert (
-            len(dataset.music_files_paths) == 3
+                len(dataset._samples) == 3
         ), "MidiDataset should have 3 music files"
         assert len(dataset) == 3, "MidiDataset should have 3 item"
 
@@ -37,7 +37,7 @@ class TestAbcDataset:
     def test_basic_creation(abc_data_path, patchilizer_adapter_abc):
         dataset = AbcDataset(abc_data_path, patchilizer_adapter_abc)
         assert (
-            len(dataset.music_files_paths) == 3
+                len(dataset._samples) == 3
         ), "MidiDataset should have 3 music files"
         assert len(dataset) == 3, "MidiDataset should have 3 item"
 
@@ -63,7 +63,7 @@ class TestAbcDataset:
     def test_set_single_data_training(midi_data_path, patchilizer_adapter_midi):
         dataset = MidiDataset(midi_data_path, patchilizer_adapter_midi, single_data_training=True)
         assert len(dataset) == 1, "MidiDataset should have 3 item"
-        assert len(dataset.music_files_paths) == 1
+        assert len(dataset._samples) == 1
         assert dataset._single_data_training is True
         assert isinstance(dataset._index_of_overtrained, int)
 
@@ -71,7 +71,7 @@ class TestAbcDataset:
     def test_set_single_data_training_with_spec_index(midi_data_path, patchilizer_adapter_midi):
         dataset = MidiDataset(midi_data_path, patchilizer_adapter_midi, single_data_training=True, index_of_overtrained=1)
         assert len(dataset) == 1, "MidiDataset should have 3 item"
-        assert len(dataset.music_files_paths) == 1
+        assert len(dataset._samples) == 1
         assert dataset._single_data_training is True
         assert dataset._index_of_overtrained == 1
 

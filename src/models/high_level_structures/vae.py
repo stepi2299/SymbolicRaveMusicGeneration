@@ -63,8 +63,9 @@ class VAE(BaseHighLevelModel):
         return tensor_reconstruction, mu, log_variance
 
     def _lightning_step(
-        self, data: torch.Tensor, global_step: int, train: bool
+        self, batch: tuple[torch.Tensor, torch.Tensor], global_step: int, train: bool
     ) -> tuple[torch.Tensor, float, dict[str, Any]]:
+        data, _ = batch
         x_input = data[:, :-1]  # Input sequence excluding the last token
         x_target = data[:, 1:]  # Target sequence excluding the first token
         reconstruction, mu, log_variance = self(x_input)
