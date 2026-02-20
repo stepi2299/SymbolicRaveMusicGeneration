@@ -86,6 +86,8 @@ def download_and_process_pop909(save_path: Path) -> None:
     for item in extra_level_folder.iterdir():
         item.rename(pop909_path / item.name)
     shutil.rmtree(extra_level_folder.parent)
+    default_folder = pop909_path / "pop_data"
+    default_folder.mkdir(exist_ok=True)
     for item in pop909_path.iterdir():
         if not item.is_dir():
             item.unlink()
@@ -95,6 +97,11 @@ def download_and_process_pop909(save_path: Path) -> None:
                 shutil.rmtree(subitem)
             elif subitem.suffix not in [".mid", ".midi"]:
                 subitem.unlink()
+            else:
+                subitem.rename(default_folder / subitem.name)
+        if item.is_dir() and not any(item.iterdir()):
+            item.rmdir()
+
     logger.info(f"Moved {extra_level_folder} to {pop909_path}")
 
 
