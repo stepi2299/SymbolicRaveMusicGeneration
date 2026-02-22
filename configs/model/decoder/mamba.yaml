@@ -30,3 +30,6 @@ params:
   # IMPACT: Helps the model smooth out local noise and capture immediate neighbors (e.g., this note vs. previous note) before the "long-term" memory kicks in.
   # STANDARD: 4.
   conv_kernel: 4
+
+  # Whether to use class conditioning (e.g., genre, instrument type) in the decoder.
+  class_conditioning: false

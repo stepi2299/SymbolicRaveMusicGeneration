@@ -21,6 +21,8 @@ class GptDecoder(BaseDecoder):
         eos_token: int,
         dropout: float,
         conditioning: str,
+        class_conditioning: bool,
+        num_classes: int,
     ) -> None:
         super(GptDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -35,6 +37,8 @@ class GptDecoder(BaseDecoder):
             hidden_size=hidden_size,
             num_decoder_layers=num_decoder_layers,
             conditioning=conditioning,
+            class_conditioning=class_conditioning,
+            num_classes=num_classes,
         )
 
         self.positional_embeddings = nn.Embedding(
@@ -66,7 +70,7 @@ class GptDecoder(BaseDecoder):
         position_idx = position_idx.unsqueeze(0).repeat(batch_size, 1)
         pos_emb = self.positional_embeddings(position_idx)  # [1, seq_len, hidden]
 
-        decoder_input = self._prepare_input(input_embedding, latent_vector)
+        decoder_input = self._prepare_input(input_embedding, latent_vector, class_idx)
         decoder_input = decoder_input + pos_emb
         decoder_input = decoder_input.permute(1, 0, 2)
 

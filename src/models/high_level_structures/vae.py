@@ -24,6 +24,7 @@ class VAE(BaseHighLevelModel):
         model_cfg: DictConfig,
         adapter: MusicAdapter,
         loss_function: BaseLoss,
+        num_classes: int,
         use_cache_generation: bool = False,
         strict_sampling: bool = True,
     ) -> None:
@@ -37,7 +38,10 @@ class VAE(BaseHighLevelModel):
             model_cfg.encoder, adapter, latent_dim=model_cfg.latent_dim
         )
         self._seq_decoder = get_decoder(
-            model_cfg.decoder, adapter, latent_dim=model_cfg.latent_dim
+            model_cfg.decoder,
+            adapter,
+            latent_dim=model_cfg.latent_dim,
+            num_classes=num_classes,
         )
         self._decoder_wrapper = get_decoder_wrapper(
             model_cfg.decoder_wrapper.type,

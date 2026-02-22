@@ -25,6 +25,8 @@ class MistralDecoder(BaseDecoder):
         sliding_window: int,
         num_key_value_heads: int,
         conditioning: str,
+        class_conditioning: bool,
+        num_classes: int,
     ) -> None:
         super(MistralDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -39,6 +41,8 @@ class MistralDecoder(BaseDecoder):
             dropout=attention_dropout,
             num_decoder_layers=num_decoder_layers,
             conditioning=conditioning,
+            class_conditioning=class_conditioning,
+            num_classes=num_classes,
         )
         config = MistralConfig(
             hidden_size=self.hidden_size,

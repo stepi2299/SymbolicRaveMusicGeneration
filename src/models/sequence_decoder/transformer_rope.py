@@ -30,6 +30,8 @@ class TransformerRope(BaseDecoder):
         conditioning: str,
         custom: bool,
         use_cross_attention: bool,
+        class_conditioning: bool,
+        num_classes: int,
     ) -> None:
         super(TransformerRope, self).__init__(
             latent_dim=latent_dim,
@@ -44,6 +46,8 @@ class TransformerRope(BaseDecoder):
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
             conditioning=conditioning,
+            class_conditioning=class_conditioning,
+            num_classes=num_classes,
         )
 
         config = GPTNeoXConfig(
@@ -80,32 +84,34 @@ class TransformerRope(BaseDecoder):
         use_cache: bool = False,
     ) -> torch.Tensor:
         batch_size, current_sequence_len, _ = input_embedding.shape
-        latent_proj_expanded = None
-        if latent_vector is not None:
-            latent_proj = self.latent_proj(latent_vector)
-
-            # [B, 1, Hidden] -> [B, Seq_Len, Hidden]
-            latent_proj_expanded = latent_proj.unsqueeze(1).expand(
-                batch_size, current_sequence_len, self.hidden_size
-            )
         if self.custom:
-            if latent_proj_expanded is None:
+            if self._class_conditioning and self.latent_dim is not None:
                 raise ValueError(
-                    "Latent vector is required for custom GPTNeoXModel for cross attention."
+                    "Its not possible to use class bot - conditioning with latent vector projection in TransformerRope decoder. Please set latent_dim to None or _class_conditioning to False."
+                )
+            if self._class_conditioning:
+                conditioning_embedding = self._prepare_class_embedding(
+                    class_idx, batch_size, current_sequence_len
+                )
+            elif self.latent_dim is not None:
+                conditioning_embedding = self._prepare_latent_embedding(
+                    latent_vector, batch_size, current_sequence_len
+                )
+            else:
+                raise ValueError(
+                    "Either class conditioning or latent vector projection must be enabled for the custom TransformerRope decoder."
                 )
             outputs = self.model(
                 inputs_embeds=input_embedding,
-                encoder_hidden_states=latent_proj_expanded,
+                encoder_hidden_states=conditioning_embedding,
                 past_key_values=self._cache_params,
                 return_dict=True,
                 use_cache=use_cache,
             )
         else:
-            if latent_proj_expanded is not None:
-                input_embedding = self._condition_input(
-                    token_embedding=input_embedding,
-                    latent_projection=latent_proj_expanded,
-                )
+            input_embedding = self._prepare_input(
+                input_embedding, latent_vector, class_idx
+            )
             outputs = self.model(
                 inputs_embeds=input_embedding,
                 past_key_values=self._cache_params,

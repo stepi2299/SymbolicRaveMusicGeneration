@@ -28,7 +28,10 @@ def _decoder_mapper(decoder_name: str) -> Type[BaseDecoder]:
 
 
 def get_decoder(
-    decoder_cfg: DictConfig, adapter: MusicAdapter, latent_dim: int | None
+    decoder_cfg: DictConfig,
+    adapter: MusicAdapter,
+    latent_dim: int | None,
+    num_classes: int,
 ) -> BaseDecoder:
     return _decoder_mapper(decoder_cfg.name)(
         latent_dim=latent_dim,
@@ -38,6 +41,7 @@ def get_decoder(
         pad_token=adapter.pad_token_id,
         bos_token=adapter.bos_token_id,
         eos_token=adapter.eos_token_id,
+        num_classes=num_classes,
         **decoder_cfg.params,
     )
 

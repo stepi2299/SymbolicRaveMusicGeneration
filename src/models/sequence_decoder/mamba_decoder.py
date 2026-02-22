@@ -23,6 +23,8 @@ class MambaDecoder(BaseDecoder):
         expand: int,
         conv_kernel: int,
         conditioning: str,
+        class_conditioning: bool,
+        num_classes: int,
     ) -> None:
         super(MambaDecoder, self).__init__(
             latent_dim=latent_dim,
@@ -36,6 +38,8 @@ class MambaDecoder(BaseDecoder):
             hidden_size=hidden_size,
             num_decoder_layers=num_decoder_layers,
             conditioning=conditioning,
+            class_conditioning=class_conditioning,
+            num_classes=num_classes,
         )
         config = MambaConfig(
             hidden_size=self.hidden_size,

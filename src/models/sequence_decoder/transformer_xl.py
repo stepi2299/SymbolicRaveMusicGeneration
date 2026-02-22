@@ -23,6 +23,8 @@ class TransformerXL(BaseDecoder):
         eos_token: int,
         attention_dropout: float,
         conditioning: str,
+        class_conditioning: bool,
+        num_classes: int,
     ) -> None:
         super(TransformerXL, self).__init__(
             latent_dim=latent_dim,
@@ -37,6 +39,8 @@ class TransformerXL(BaseDecoder):
             num_decoder_layers=num_decoder_layers,
             hidden_size=hidden_size,
             conditioning=conditioning,
+            class_conditioning=class_conditioning,
+            num_classes=num_classes,
         )
 
         config = TransfoXLConfig(
@@ -67,7 +71,9 @@ class TransformerXL(BaseDecoder):
         class_idx: torch.Tensor | None = None,
         use_cache: bool = False,
     ) -> torch.Tensor:
-        decoder_inputs_embeds = self._prepare_input(input_embedding, latent_vector)
+        decoder_inputs_embeds = self._prepare_input(
+            input_embedding, latent_vector, class_idx
+        )
 
         outputs = self.model(
             inputs_embeds=decoder_inputs_embeds, mems=self._cache_params

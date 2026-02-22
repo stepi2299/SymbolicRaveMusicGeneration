@@ -55,6 +55,7 @@ def main(cfg: DictConfig) -> None:
     high_level_model = get_model(
         model_cfg=cfg.model,
         adapter=symbolic_music_dataset.music_adapter,
+        num_classes=symbolic_music_dataset.num_classes,
         generation_params=cfg.generation_params,
         loss_function=loss_function,
     )

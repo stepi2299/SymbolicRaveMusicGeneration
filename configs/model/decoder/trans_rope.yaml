@@ -47,3 +47,6 @@ params:
 
   # whether to use cross-attention layers to condition the decoder on the latent representation (only for custom implementation)
   use_cross_attention: false
+
+  # Whether to use class conditioning (e.g., genre, instrument type) in the decoder.
+  class_conditioning: false

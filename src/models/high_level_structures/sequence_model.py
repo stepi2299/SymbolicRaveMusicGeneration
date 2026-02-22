@@ -20,6 +20,7 @@ class SequenceModel(BaseHighLevelModel):
         model_cfg: DictConfig,
         adapter: MusicAdapter,
         loss_function: BaseLoss,
+        num_classes: int,
         use_cache_generation: bool = False,
         strict_sampling: bool = True,
     ) -> None:
@@ -29,7 +30,9 @@ class SequenceModel(BaseHighLevelModel):
             use_cache_generation=use_cache_generation,
             strict_sampling=strict_sampling,
         )
-        self._seq_decoder = get_decoder(model_cfg.decoder, adapter, latent_dim=None)
+        self._seq_decoder = get_decoder(
+            model_cfg.decoder, adapter, latent_dim=None, num_classes=num_classes
+        )
         self._decoder_wrapper = get_decoder_wrapper(
             model_cfg.decoder_wrapper.type,
             self._seq_decoder,

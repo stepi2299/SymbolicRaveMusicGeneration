@@ -54,6 +54,11 @@ class SymbolicMusicDataset(Dataset, ABC):
             else:
                 self._index_of_overtrained = random.randint(0, len(self._samples) - 1)
                 self._samples = [self._samples[self._index_of_overtrained]]
+        logger.info(
+            "Loaded dataset with %d samples across %d classes.",
+            len(self._samples),
+            len(self._classes),
+        )
 
     @abstractmethod
     def imread_music_files(self) -> list[Path]:
@@ -102,6 +107,10 @@ class SymbolicMusicDataset(Dataset, ABC):
             idx = self._index_of_overtrained
         music_file_path = self._samples[idx]
         return self.load_music_function(music_file_path)
+
+    @property
+    def num_classes(self) -> int:
+        return len(self._classes)
 
 
 class MidiDataset(SymbolicMusicDataset):

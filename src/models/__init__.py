@@ -11,11 +11,13 @@ def get_model(
     adapter: MusicAdapter,
     generation_params: DictConfig,
     loss_function: BaseLoss,
+    num_classes: int,
 ) -> BaseHighLevelModel:
     return registered_models[model_cfg.name](
         model_cfg=model_cfg,
         adapter=adapter,
         loss_function=loss_function,
+        num_classes=num_classes,
         **generation_params,
     )
 
