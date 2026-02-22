@@ -1,0 +1,6 @@
+name: clamp2
+params:
+  clamp2_vocab_size: 1
+  hidden_size: 768  # multiplication of 64
+  weights_url: "https://huggingface.co/sander-wood/clamp2/resolve/main/weights_clamp2_h_size_768_lr_5e-05_batch_128_scale_1_t_length_128_t_model_FacebookAI_xlm-roberta-base_t_dropout_True_m3_True.pth"
+  num_hidden_layers: 12

@@ -1,0 +1,44 @@
+name: mistral
+params:
+  # --- MODEL CAPACITY ---
+  # The dimension of the embedding vector (d_model).
+  # CONSTRAINT: Must be divisible by 64 (to ensure proper RoPE rotation).
+  # STANDARD: 4096 (Original Mistral 7B).
+  # FOR MUSIC: 512 or 768 is usually sufficient for smaller experimental models.
+  hidden_size: 768
+
+  # The depth of the network (number of Transformer blocks).
+  # STANDARD: 32.
+  # FOR MUSIC: 8-12. Music has complex hierarchical structures (phrasing, repetition)
+  # that require depth to be modeled correctly.
+  num_decoder_layers: 2
+
+  # --- GROUPED QUERY ATTENTION (GQA) ---
+  # The core efficiency parameter. Instead of each Query head having its own Key/Value head,
+  # multiple Query heads share a single Key/Value head.
+  # LOGIC: num_groups = num_heads / num_key_value_heads.
+  # EXAMPLE: If hidden_size=768, you have 12 heads. Setting this to 4 means
+  # 3 Query heads share 1 KV head (3:1 ratio).
+  # IMPACT: drastically reduces memory usage (KV Cache) during generation (inference) with minimal quality loss.
+  num_key_value_heads: 4
+
+  # --- SLIDING WINDOW ATTENTION (SWA) ---
+  # The size of the local attention window. The model only attends to the last N tokens directly.
+  # Global context is still captured as information propagates through deep layers.
+  # IMPACT: Reduces attention complexity from O(N^2) to O(N).
+  # CRITICAL: Allows training on very long musical sequences without running out of GPU memory.
+  sliding_window: 512
+
+  # --- ROPE (Rotary Embeddings) ---
+  # The base frequency for positional encoding.
+  # STANDARD: 10000.0.
+  # ADVICE: Increase (e.g., to 100000.0) if you plan to generate tracks significantly
+  # longer than the sequence length seen during training.
+  rope_theta: 10000.0
+
+  # --- REGULARIZATION ---
+  # Probability of dropping attention weights during training.
+  attention_dropout: 0.1
+
+  # how to condition the decoder input on the latent representation: add | concatenation
+  conditioning: add

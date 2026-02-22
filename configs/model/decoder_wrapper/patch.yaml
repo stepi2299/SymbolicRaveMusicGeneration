@@ -1,0 +1,7 @@
+type: patch
+params:
+  # Probability of dropping input tokens during training.
+  input_dropout_rate: 0.0
+
+  # Dimension of the token embeddings. (Smaller values reduce memory usage because every token in patch has its own embedding)
+  token_embedding_size: 32

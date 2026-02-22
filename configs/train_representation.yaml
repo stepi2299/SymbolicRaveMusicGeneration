@@ -1,9 +1,9 @@
 
 defaults:
-  - dataset: pop909     # default dataset
-  - adapter: tokenizer  # default adapter
-  - model: decoder_trans_rope  # default model
-  - loss: reconstruction         # default loss
+  - dataset: pop909     # default dataset, possible values: pop909, midicaps, maestro
+  - adapter: tokenizer  # default adapter, possible values: tokenizer, patchilizer, compound_word
+  - model: sequence_model  # default model, possible values: vae, sequence_model
+  - loss: elbo         # default loss, possible values: elbo, cp_elbo
   - _self_
 
 # You can add any additional high-level settings or Hydra settings below
@@ -30,12 +30,12 @@ log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 log_format: "[%(asctime)s] - [%(name)s] - [%(levelname)s] - %(message)s"
 processing_precision: high  # possible values: medium | high
 pretrained: false # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-single_data_training: false # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
+single_data_training: true # set if you want to train model only on single data (overtrain to check i model is able to regenerate this data)
 grad_clip_val: 0.5  # gradient clipping value, set to null to disable gradient clipping
 monitor_metric: "val_loss"  # metric to monitor for early stopping and model checkpointing
 warmup_steps: 500  # number of warmup steps for learning rate scheduler (for single data training, set small value like 10/50)
 
-vae_params:
+generation_params:
   use_cache_generation: false  # whether to use cache during generation (inference) - requires more VRAM but speeds up generation
   strict_sampling: true  # whether to use strict sampling (top-k, top-p) during generation
 

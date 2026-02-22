@@ -1,5 +1,4 @@
 import torch
-from torch import nn
 import logging as lg
 from omegaconf import DictConfig
 from src.adapter import MusicAdapter
@@ -7,9 +6,10 @@ from src.loss.base_loss import BaseLoss
 from typing import Any
 from pathlib import Path
 from src.constants import ExportFormat
-from src.loss.reconstruction_loss import ReconstructionLoss
 
 from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
+from src.models.sequence_decoder import get_decoder
+from src.models.decoder_wrappers import get_decoder_wrapper
 
 logger = lg.getLogger(__name__)
 
@@ -29,19 +29,19 @@ class SequenceModel(BaseHighLevelModel):
             use_cache_generation=use_cache_generation,
             strict_sampling=strict_sampling,
         )
-        self.decoder = self._get_decoder(model_cfg, adapter)
-        if not isinstance(self._loss_function, ReconstructionLoss):
-            raise ValueError(
-                f"Loss function for SequenceModel must be an instance of ReconstructionLoss, got {type(self._loss_function)}"
-            )
+        self._seq_decoder = get_decoder(model_cfg.decoder, adapter, latent_dim=None)
+        self._decoder_wrapper = get_decoder_wrapper(
+            model_cfg.decoder_wrapper.type,
+            self._seq_decoder,
+            model_cfg.decoder_wrapper.params,
+        )
 
     def forward(
-        self, input_music: torch.Tensor, recv_in_music_form: bool = False
+        self, batch_data: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        self._original_sample = input_music
-        tensor_reconstruction = self.decoder(
-            input_sequence=input_music,
-            recv_in_music_form=recv_in_music_form,
+        self._original_sample = batch_data
+        tensor_reconstruction = self._decoder_wrapper(
+            batch_data=batch_data,
             use_cache=False,
         )
         return tensor_reconstruction
@@ -49,10 +49,10 @@ class SequenceModel(BaseHighLevelModel):
     def _lightning_step(
         self, batch: tuple[torch.Tensor, torch.Tensor], global_step: int, train: bool
     ) -> tuple[torch.Tensor, float, dict[str, torch.Tensor]]:
-        data, _ = batch
+        data, class_idx = batch
         x_input = data[:, :-1]  # Input sequence excluding the last token
         x_target = data[:, 1:]  # Target sequence excluding the first token
-        reconstruction = self(x_input)
+        reconstruction = self([x_input, class_idx])
         loss, loss_metadata = self._loss_function(
             org_data=x_target,
             reconstruction=reconstruction,
@@ -60,13 +60,6 @@ class SequenceModel(BaseHighLevelModel):
             train=train,
         )
         return reconstruction, loss, loss_metadata
-
-    @torch.no_grad()
-    def reconstruct(
-        self, reconstruction: torch.Tensor, original_data: torch.Tensor
-    ) -> tuple[float, dict[str, Any]]:
-        target_data = original_data[:, 1:]  # Target sequence excluding the first token
-        return self.decoder.reconstruct(reconstruction, target_data)
 
     @torch.no_grad()
     def generate(
@@ -87,7 +80,7 @@ class SequenceModel(BaseHighLevelModel):
         for i in range(number_of_songs):
             try:
                 output_path = folder_path / f"{file_name}_{i}"
-                coded_song = self.decoder.generate(
+                coded_song = self._decoder_wrapper.generate(
                     use_cache=self._use_cache,
                     strict_sampling=self._strict_sampling,
                     temperature=self._temperature,
@@ -101,7 +94,7 @@ class SequenceModel(BaseHighLevelModel):
 
     def get_optimizer(self, params: DictConfig) -> torch.optim.Optimizer:
         return torch.optim.AdamW(
-            self.decoder.parameters(),
+            self._decoder_wrapper.parameters(),
             lr=params.max_decoder_learning_rate,
             weight_decay=params.decoder_weight_decay,
         )

@@ -17,7 +17,7 @@ from src.loss import get_loss_function
 
 @hydra.main(
     config_path="../../configs",
-    config_name="train_patch_representation",
+    config_name="train_representation",
     version_base="1.3",
 )
 def main(cfg: DictConfig) -> None:
@@ -55,7 +55,7 @@ def main(cfg: DictConfig) -> None:
     high_level_model = get_model(
         model_cfg=cfg.model,
         adapter=symbolic_music_dataset.music_adapter,
-        vae_params=cfg.vae_params,
+        generation_params=cfg.generation_params,
         loss_function=loss_function,
     )
     if cfg.pretrained:
@@ -69,7 +69,6 @@ def main(cfg: DictConfig) -> None:
     )
     used_callbacks = get_callbacks(
         cfg=cfg.callbacks,
-        latent_dim=cfg.model.latent_dim,
         model_name=cfg.model.name,
         dataset_name=cfg.dataset.name,
     )

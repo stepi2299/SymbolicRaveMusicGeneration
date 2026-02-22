@@ -37,10 +37,12 @@ causal-conv1d = "^1.6.0"
 ruff = "ruff format src/"
 mypy = "mypy src/"
 test = "pytest tests/"
-train-repr = "python src/scripts/train_repr.py"
 train-decoder = "python src/scripts/train_decoder.py"
 generate-songs = "python src/scripts/generate_songs.py"
 collect-dataset = "python src/scripts/collect_datasets.py"
+train-repr = "python src/scripts/train_repr.py"
+train-repr-patch = "python src/scripts/train_repr.py adapter=patchilizer model/decoder_wrapper=patch"
+train-repr-cp = "python src/scripts/train_repr.py adapter=compound_word loss=cp_elbo model/decoder_wrapper=compound_word"
 
 
 [build-system]

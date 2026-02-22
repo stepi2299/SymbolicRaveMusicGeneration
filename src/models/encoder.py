@@ -6,6 +6,8 @@ from typing import Tuple, Type, Dict
 import logging as lg
 import requests
 from tqdm import tqdm
+from omegaconf import DictConfig
+from src.adapter import MusicAdapter
 
 from transformers import BertConfig
 from src.models.utils.clamp import PatchEncoder, CLaMPModel
@@ -263,12 +265,22 @@ class ClampEncoder(Encoder):
         return mu, logvar
 
 
-def encoder_mapper(encoder_name: str) -> Type[Encoder]:
+def _encoder_mapper(encoder_name: str) -> Type[Encoder]:
     if encoder_name == "clamp2":
         return Clamp2Encoder
     elif encoder_name == "clamp":
         return ClampEncoder
-    elif encoder_name == "dummy":
-        return DummyEncoder
     else:
         raise ValueError(f"Unknown encoder: {encoder_name}, possible: ['simple_conv']")
+
+
+def get_encoder(
+    encoder_cfg: DictConfig, adapter: MusicAdapter, latent_dim: int
+) -> Encoder:
+    return _encoder_mapper(encoder_cfg.name)(
+        latent_dim=latent_dim,
+        vocab_size=adapter.vocab_size,
+        sequence_length=adapter.sequence_length,
+        patch_size=adapter.patch_size,
+        **encoder_cfg.params,
+    )

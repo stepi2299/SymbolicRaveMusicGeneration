@@ -1,0 +1,4 @@
+type: compound_word
+params:
+  # Probability of dropping input tokens during training.
+  input_dropout_rate: 0.0

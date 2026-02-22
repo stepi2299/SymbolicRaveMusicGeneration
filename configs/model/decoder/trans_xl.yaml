@@ -1,0 +1,27 @@
+name: transformer_xl
+params:
+  # Determines the vector size for each token.
+  # IMPACT: Defines how complex the musical relationships (harmony, key changes) the model can represent.
+  # STANDARD: 768 or 1024. Must be divisible by the number of heads (64).
+  hidden_size: 768
+
+  # Number of Transformer blocks.
+  # IMPACT: TransformerXL relies on depth for its recurrence mechanism to work well.
+  # STANDARD: 4 is minimal. 6-12 is recommended for capturing long-term song structures.
+  num_decoder_layers: 1
+
+  # Specific to TransformerXL. Defines how many tokens from the *previous* batch/segment are cached and accessible via attention.
+  # IMPACT: Crucial for music. It allows the model to "remember" the beat or theme from the previous measure even if it's outside the current input window.
+  # STANDARD: Usually equal to or half of the training sequence length (e.g., 256 or 512).
+  mem_len: 128
+
+  # Probability of dropping neurons.
+  # STANDARD: 0.1.
+  dropout: 0.1
+
+  # Probability of dropping attention weights during training.
+  # STANDARD: 0
+  attention_dropout: 0
+
+  # how to condition the decoder input on the latent representation: add | concatenation
+  conditioning: add

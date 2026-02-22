@@ -13,7 +13,7 @@ from src.callbacks.sampling_callback import SamplingCallback
 
 
 def get_callbacks(
-    cfg: DictConfig, latent_dim: int, model_name: str, dataset_name: str
+    cfg: DictConfig, model_name: str, dataset_name: str
 ) -> List[Callback]:
     used_callbacks = []
     timestamp_with_name = (
@@ -37,7 +37,7 @@ def get_callbacks(
     if cfg.sampling:
         used_callbacks.append(
             SamplingCallback(
-                latent_dim=latent_dim, output_dir=output_dir, **cfg.sampling_params
+                output_dir=output_dir, **cfg.sampling_params
             )
         )
     if cfg.early_stopping:

@@ -1,8 +1,6 @@
 from omegaconf import DictConfig, OmegaConf
 
 from src.models.high_level_structures import registered_models, BaseHighLevelModel
-from src.models.encoder import encoder_mapper
-from src.models.decoder import decoder_mapper
 from src.models.discriminator import discriminator_mapper, Discriminator
 from src.adapter import MusicAdapter
 from src.loss.base_loss import BaseLoss
@@ -11,17 +9,14 @@ from src.loss.base_loss import BaseLoss
 def get_model(
     model_cfg: DictConfig,
     adapter: MusicAdapter,
-    vae_params: DictConfig,
+    generation_params: DictConfig,
     loss_function: BaseLoss,
 ) -> BaseHighLevelModel:
-    OmegaConf.set_struct(model_cfg, False)
-    high_model_type = model_cfg.pop("high_level_model_type")
-    OmegaConf.set_struct(model_cfg, True)
-    return registered_models[high_model_type](
+    return registered_models[model_cfg.name](
         model_cfg=model_cfg,
         adapter=adapter,
         loss_function=loss_function,
-        **vae_params,
+        **generation_params,
     )
 
 

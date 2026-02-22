@@ -41,8 +41,8 @@ class ElboLoss(BaseVaeLoss):
         global_step: int,
         train: bool,
         *,
-        mu: torch.Tensor,
-        logvar: torch.Tensor,
+        mu: torch.Tensor | None = None,
+        logvar: torch.Tensor | None = None,
     ) -> Tuple[torch.Tensor, dict]:
         """
         Args:
@@ -70,19 +70,23 @@ class ElboLoss(BaseVaeLoss):
             ignore_index=self._pad_token_id,
             reduction="mean",
         )
-        kl_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
-        kl_div = torch.mean(kl_div)
+        loss = recon_loss
+        metadata = {}
+        if mu and logvar:
+            kl_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
+            kl_div = torch.mean(kl_div)
 
-        annealing_beta = self._get_annealing_beta(global_step)
+            annealing_beta = self._get_annealing_beta(global_step)
 
-        kl_div_clamped = torch.max(
-            kl_div, torch.tensor(self._free_bits).to(kl_div.device)
-        )
-        loss = recon_loss + annealing_beta * kl_div_clamped
-        name = "train" if train else "val"
+            kl_div_clamped = torch.max(
+                kl_div, torch.tensor(self._free_bits).to(kl_div.device)
+            )
+            loss = recon_loss + annealing_beta * kl_div_clamped
+            name = "train" if train else "val"
+            metadata = {
+                f"{name}_recon_loss": recon_loss.item(),
+                f"{name}_kl_div": kl_div.item(),
+                f"{name}_annealing_beta": annealing_beta,
+            }
 
-        return loss, {
-            f"{name}_recon_loss": recon_loss,
-            f"{name}_kl_div": kl_div,
-            f"{name}_annealing_beta": annealing_beta,
-        }
+        return loss, metadata

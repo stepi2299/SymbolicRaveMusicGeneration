@@ -1,0 +1,21 @@
+name: gpt_decoder
+params:
+  # Determines how much information a single token vector holds.
+  # IMPACT: Higher values allow capturing complex harmonics and dependencies but increase memory usage and computation linearly.
+  # STANDARD: Typically 512, 768, or 1024. Ideally divisible by 64 for attention head efficiency.
+  hidden_size: 768
+
+  # The number of Transformer blocks stacked on top of each other.
+  # IMPACT: Increasing this allows the model to understand high-level structures (e.g., musical phrasing, repetition). Decreasing makes it faster but limits it to local patterns.
+  # STANDARD: Small models use 4-8; large models use 12-24+.
+  num_decoder_layers: 8
+
+  # The probability of randomly zeroing out neurons during training.
+  # IMPACT: Prevents "memorizing" the training data (overfitting).
+  # - Increase if you have a small dataset to force generalization.
+  # - Decrease if you have massive data or the model is underfitting.
+  # STANDARD: 0.1 (10%).
+  dropout: 0.1
+
+  # how to condition the decoder input on the latent representation: add | concatenation
+  conditioning: add

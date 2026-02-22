@@ -10,8 +10,6 @@ from pathlib import Path
 from src.adapter import MusicAdapter
 from src.constants import ExportFormat
 from src.loss.base_loss import BaseLoss
-from src.models.decoder import Decoder, decoder_mapper
-from src.models.encoder import Encoder, encoder_mapper
 
 
 logger = lg.getLogger(__name__)
@@ -31,9 +29,8 @@ class BaseHighLevelModel(nn.Module, ABC):
         self._strict_sampling = strict_sampling
         self._temperature = 1.0
         self._loss_function = loss_function
-        self._original_sample = (
-            None  # Useful for single data training to compute reconstruction loss
-        )
+        self._original_sample =  None  # Useful for single data training to compute reconstruction loss
+        logger.info(f"Initialized {self.__class__.__name__} with adapter: {adapter.__class__.__name__}")
 
     def set_generation_params(
         self,
@@ -80,12 +77,13 @@ class BaseHighLevelModel(nn.Module, ABC):
     ):
         pass
 
-    @abstractmethod
     @torch.no_grad()
     def reconstruct(
-        self, reconstruction: torch.Tensor, original_data: torch.Tensor, *args, **kwargs
+            self, reconstruction: torch.Tensor, original_data: tuple[torch.Tensor, torch.Tensor]
     ) -> tuple[float, dict[str, Any]]:
-        pass
+        music_data, class_idx = original_data
+        target_data = music_data[:, 1:]  # Target sequence excluding the first token
+        return self._decoder_wrapper.reconstruct(reconstruction, target_data)
 
     @abstractmethod
     def get_optimizer(self, params: DictConfig) -> torch.optim.Optimizer:
@@ -96,26 +94,3 @@ class BaseHighLevelModel(nn.Module, ABC):
 
     def load_pretrained(self) -> None:
         pass
-
-    @staticmethod
-    def _get_encoder(model_cfg: DictConfig, adapter: MusicAdapter) -> Encoder:
-        return encoder_mapper(model_cfg.encoder.name)(
-            latent_dim=model_cfg.latent_dim,
-            vocab_size=adapter.vocab_size,
-            sequence_length=adapter.sequence_length,
-            patch_size=adapter.patch_size,
-            **model_cfg.encoder.params,
-        )
-
-    @staticmethod
-    def _get_decoder(model_cfg: DictConfig, adapter: MusicAdapter) -> Decoder:
-        return decoder_mapper(model_cfg.decoder.name)(
-            latent_dim=model_cfg.latent_dim,
-            vocab_size=adapter.vocab_size,
-            sequence_length=adapter.sequence_length,
-            patch_size=adapter.patch_size,
-            pad_token=adapter.pad_token_id,
-            bos_token=adapter.bos_token_id,
-            eos_token=adapter.eos_token_id,
-            **model_cfg.decoder.params,
-        )

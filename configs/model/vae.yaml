@@ -1,0 +1,7 @@
+defaults:
+  - encoder: clamp2  # default model, possible values: clamp2, clamp
+  - decoder: trans_rope  # gpt, trans_rope, trans_xl, mamba, mistral
+  - decoder_wrapper: simple  # possible values: simple, patch, compound_word
+  - _self_
+
+name: SequenceModel

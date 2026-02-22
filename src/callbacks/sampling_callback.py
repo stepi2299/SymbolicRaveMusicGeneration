@@ -15,7 +15,6 @@ class SamplingCallback(Callback):
 
     def __init__(
         self,
-        latent_dim: int,
         output_dir: str,
         sample_interval: int = 1,
         num_samples: int = 2,
@@ -23,12 +22,10 @@ class SamplingCallback(Callback):
     ):
         """
         sample_interval: epochs between sample generations
-        latent_dim: dimension of the VAE latent space
         num_samples: number of samples to generate each time
         """
         super().__init__()
         self.sample_interval = sample_interval
-        self.latent_dim = latent_dim
         self.num_samples = num_samples
         output_dir = Path(output_dir)
         self.output_dir = output_dir / "samples"
@@ -43,15 +40,12 @@ class SamplingCallback(Callback):
             pl_module.eval()
             with torch.no_grad():
                 # Sample random latent vectors
-                z = torch.randn(
-                    self.num_samples, self.latent_dim, device=pl_module.device
-                )
                 logger.info(
                     f"=== [SamplingCallback] Samples at epoch {current_epoch} ==="
                 )
                 try:
                     pl_module.generate(
-                        z,
+                        num_samples = self.num_samples,
                         folder_path=self.output_dir,
                         file_name=f"sample_{current_epoch}",
                         export_format=self.export_format,

@@ -1,7 +1,6 @@
 from src.loss.base_loss import BaseLoss
 from src.loss.elbo_loss import ElboLoss
 from src.loss.cp_elbo_loss import CpElboLoss
-from src.loss.reconstruction_loss import ReconstructionLoss
 
 
 def get_loss_function(
@@ -10,7 +9,6 @@ def get_loss_function(
     loss_mapper: dict = {
         "elbo": ElboLoss,
         "cp_elbo": CpElboLoss,
-        "reconstruction": ReconstructionLoss,
     }
     if loss_name not in loss_mapper:
         raise ValueError(

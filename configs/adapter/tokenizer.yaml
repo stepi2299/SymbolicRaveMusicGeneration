@@ -1,6 +1,6 @@
 name: tokenizer
 params:
-  tokenizer: remi  # remi | midilike | tsd, structured | cpword | octuple | mumidi | mmm
+  tokenizer: remi  # remi | midilike | tsd, structured | octuple | mumidi | mmm
   training_model: BPE  # BPE | Unigram | WordPiece
   vocab_size: 20000
   sequence_length: 1024

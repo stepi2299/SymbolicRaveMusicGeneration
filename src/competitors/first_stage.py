@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Any
 import copy
 from omegaconf import DictConfig
+import logging as lg
 
 import torch
 import math
@@ -11,12 +12,13 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import Subset
 from pathlib import Path
 
-from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
+from src.models.high_level_structures import BaseHighLevelModel, VAE
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 from src.utils import split_dataset
 from src.dataset.dataloader import get_dataloader
 from src.constants import ExportFormat
 
+logger = lg.getLogger(__name__)
 
 class FirstStage(pl.LightningModule):
     def __init__(
@@ -154,7 +156,7 @@ class FirstStage(pl.LightningModule):
 
     def generate(
         self,
-        z: torch.Tensor,
+        num_samples: int,
         folder_path: Path,
         file_name: str,
         export_format: ExportFormat,
@@ -162,6 +164,10 @@ class FirstStage(pl.LightningModule):
     ) -> list[Path]:
         generation_params = generation_params or {}
         self.main_model.set_generation_params(**generation_params)
+        if isinstance(self.main_model, VAE):
+            z = torch.randn(num_samples, self.main_model.latent_dim).to(self.device)
+        else:
+            z=None
         return self.main_model.generate(
             latent_vector=z,
             folder_path=folder_path,
@@ -170,51 +176,52 @@ class FirstStage(pl.LightningModule):
         )
 
     def on_before_optimizer_step(self, optimizer):
-        global_norms = grad_norm(self, norm_type=2)
-        if "grad_2.0_norm_total" in global_norms:
-            self.log("grad_global/total_norm", global_norms["grad_2.0_norm_total"])
+        if logger.getEffectiveLevel() <= lg.DEBUG:
+            global_norms = grad_norm(self, norm_type=2)
+            if "grad_2.0_norm_total" in global_norms:
+                self.log("grad_global/total_norm", global_norms["grad_2.0_norm_total"])
 
-        layers_to_track = self.main_model.layers_to_track()
+            layers_to_track = self.main_model.layers_to_track()
 
-        for i, layer in enumerate(layers_to_track):
-            grads = []
-            for param in layer.parameters():
-                if param.grad is not None:
-                    grads.append(param.grad.view(-1))
+            for i, layer in enumerate(layers_to_track):
+                grads = []
+                for param in layer.parameters():
+                    if param.grad is not None:
+                        grads.append(param.grad.view(-1))
 
-            if grads:
-                layer_grads = torch.cat(grads)
+                if grads:
+                    layer_grads = torch.cat(grads)
 
-                l_norm = torch.norm(layer_grads, p=2)
-                l_max = layer_grads.max()
-                l_min = layer_grads.min()
-                l_std = layer_grads.std()
+                    l_norm = torch.norm(layer_grads, p=2)
+                    l_max = layer_grads.max()
+                    l_min = layer_grads.min()
+                    l_std = layer_grads.std()
 
-                self.log(
-                    f"grad_layer_{i}/norm",
-                    l_norm,
-                    prog_bar=True,
-                    on_epoch=True,
-                    on_step=False,
-                )
-                self.log(
-                    f"grad_layer_{i}/max",
-                    l_max,
-                    prog_bar=True,
-                    on_epoch=True,
-                    on_step=False,
-                )
-                self.log(
-                    f"grad_layer_{i}/min",
-                    l_min,
-                    prog_bar=True,
-                    on_epoch=True,
-                    on_step=False,
-                )
-                self.log(
-                    f"grad_layer_{i}/std",
-                    l_std,
-                    prog_bar=True,
-                    on_epoch=True,
-                    on_step=False,
-                )
+                    self.log(
+                        f"grad_layer_{i}/norm",
+                        l_norm,
+                        prog_bar=True,
+                        on_epoch=True,
+                        on_step=False,
+                    )
+                    self.log(
+                        f"grad_layer_{i}/max",
+                        l_max,
+                        prog_bar=True,
+                        on_epoch=True,
+                        on_step=False,
+                    )
+                    self.log(
+                        f"grad_layer_{i}/min",
+                        l_min,
+                        prog_bar=True,
+                        on_epoch=True,
+                        on_step=False,
+                    )
+                    self.log(
+                        f"grad_layer_{i}/std",
+                        l_std,
+                        prog_bar=True,
+                        on_epoch=True,
+                        on_step=False,
+                    )

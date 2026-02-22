@@ -38,8 +38,8 @@ class CpElboLoss(BaseVaeLoss):
         global_step: int,
         train: bool,
         *,
-        mu: torch.Tensor,
-        logvar: torch.Tensor,
+        mu: torch.Tensor | None = None,
+        logvar: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, dict]:
         """
         Args:
@@ -71,22 +71,25 @@ class CpElboLoss(BaseVaeLoss):
                     f"Please provide a weight for this attribute."
                 )
             total_recon_loss += loss * self.attr_weights[attr_name]
+        total_loss = total_recon_loss
+        metadata = {}
+        if mu and logvar:
+            kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-        kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            batch_size = org_data.shape[0]
+            kl_loss = kl_loss / batch_size
 
-        batch_size = org_data.shape[0]
-        kl_loss = kl_loss / batch_size
+            annealing_beta = self._get_annealing_beta(global_step)
 
-        annealing_beta = self._get_annealing_beta(global_step)
+            kl_loss_clamped = torch.max(
+                kl_loss, torch.tensor(self._free_bits).to(kl_loss.device)
+            )
+            total_loss = total_recon_loss + (annealing_beta * kl_loss_clamped)
+            name = "train" if train else "val"
+            metadata = {
+                f"{name}_recon_loss": total_recon_loss,
+                f"{name}_kl_div": kl_loss,
+                f"{name}_annealing_beta": annealing_beta,
+            }
 
-        kl_loss_clamped = torch.max(
-            kl_loss, torch.tensor(self._free_bits).to(kl_loss.device)
-        )
-        total_loss = total_recon_loss + (annealing_beta * kl_loss_clamped)
-        name = "train" if train else "val"
-
-        return total_loss, {
-            f"{name}_recon_loss": total_recon_loss,
-            f"{name}_kl_div": kl_loss,
-            f"{name}_annealing_beta": annealing_beta,
-        }
+        return total_loss, metadata

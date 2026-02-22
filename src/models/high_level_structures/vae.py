@@ -11,8 +11,9 @@ from src.adapter import MusicAdapter
 from src.constants import ExportFormat
 from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
 from src.loss.base_loss import BaseLoss
-from src.loss.elbo_loss import ElboLoss
-from src.loss.cp_elbo_loss import CpElboLoss
+from src.models.encoder import get_encoder
+from src.models.sequence_decoder import get_decoder
+from src.models.decoder_wrappers import get_decoder_wrapper
 
 logger = lg.getLogger(__name__)
 
@@ -32,32 +33,36 @@ class VAE(BaseHighLevelModel):
             use_cache_generation=use_cache_generation,
             strict_sampling=strict_sampling,
         )
-        self.encoder = self._get_encoder(model_cfg, adapter)
-        self.decoder = self._get_decoder(model_cfg, adapter)
-        self.latent_dim = self.encoder.latent_dim
-        if not isinstance(self._loss_function, CpElboLoss | ElboLoss):
-            raise ValueError(
-                f"Loss function for VAE must be an instance of CpElboLoss or ElboLoss, got {type(self._loss_function)}"
-            )
+        self._seq_encoder = get_encoder(
+            model_cfg.encoder, adapter, latent_dim=model_cfg.latent_dim
+        )
+        self._seq_decoder = get_decoder(
+            model_cfg.decoder, adapter, latent_dim=model_cfg.latent_dim
+        )
+        self._decoder_wrapper = get_decoder_wrapper(
+            model_cfg.decoder_wrapper.type,
+            self._seq_decoder,
+            model_cfg.decoder_wrapper.params,
+        )
+        self.latent_dim = self._seq_encoder.latent_dim
         self._validate_if_latent_dimensions_match()
 
     def _validate_if_latent_dimensions_match(self) -> None:
-        if self.encoder.latent_dim != self.decoder.latent_dim:
+        if self._seq_encoder.latent_dim != self._seq_decoder.latent_dim:
             raise ValueError(
                 "Encoder and Decoder latent dimensions must match, "
-                f"got {self.encoder.latent_dim} for encoder and {self.decoder.latent_dim} for decoder"
+                f"got {self._seq_encoder.latent_dim} for encoder and {self._seq_decoder.latent_dim} for decoder"
             )
 
     def forward(
-        self, input_music: torch.Tensor, recv_in_music_form: bool = False
+        self, batch_data: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        self._original_sample = input_music
-        mu, log_variance = self.encoder(input_music)
+        self._original_sample = batch_data
+        mu, log_variance = self._seq_encoder(batch_data)
         latent_vector = self._reparameterize(mu, log_variance)
-        tensor_reconstruction = self.decoder(
-            input_music,
+        tensor_reconstruction = self._decoder_wrapper(
+            batch_data=batch_data,
             latent_vector=latent_vector,
-            recv_in_music_form=recv_in_music_form,
             use_cache=False,
         )
         return tensor_reconstruction, mu, log_variance
@@ -79,22 +84,16 @@ class VAE(BaseHighLevelModel):
         )
         return reconstruction, loss, loss_metadata
 
-    def reconstruct(
-        self, reconstruction: torch.Tensor, original_data: torch.Tensor, *args, **kwargs
-    ) -> tuple[float, dict[str, Any]]:
-        target_data = original_data[:, 1:]  # Target sequence excluding the first token
-        return self.decoder.reconstruct(reconstruction, target_data)
-
     def get_optimizer(self, params: DictConfig) -> torch.optim.Optimizer:
         return torch.optim.AdamW(
             [
                 {
-                    "params": self.encoder.parameters(),
+                    "params": self._seq_encoder.parameters(),
                     "lr": params.max_encoder_learning_rate,  # Base LR for the encoder
                     "weight_decay": params.encoder_weight_decay,
                 },
                 {
-                    "params": self.decoder.parameters(),
+                    "params": self._decoder_wrapper.parameters(),
                     "lr": params.max_decoder_learning_rate,  # Base LR for the decoder
                     "weight_decay": params.decoder_weight_decay,
                 },
@@ -108,11 +107,11 @@ class VAE(BaseHighLevelModel):
         return mu + eps * std
 
     def _freeze_encoder(self) -> None:
-        for param in self.encoder.parameters():
+        for param in self._seq_encoder.parameters():
             param.requires_grad = False
 
     def _unfreeze_encoder(self) -> None:
-        for param in self.encoder.parameters():
+        for param in self._seq_encoder.parameters():
             param.requires_grad = True
 
     @torch.no_grad()
@@ -123,7 +122,7 @@ class VAE(BaseHighLevelModel):
         file_name: str = "generated_song",
         export_format: ExportFormat = ExportFormat.WAV,
     ) -> list[Path]:
-        self.decoder.eval()
+        self._decoder_wrapper.eval()
         if latent_vector.shape[1] != self.latent_dim:
             raise ValueError(
                 f"Latent vector must have shape (batch_size, {self.latent_dim}), got {latent_vector.shape}"
@@ -137,7 +136,7 @@ class VAE(BaseHighLevelModel):
         for i, single_condition_latent in enumerate(latent_vector):
             try:
                 output_path = folder_path / f"{file_name}_{i}"
-                coded_song = self.decoder.generate(
+                coded_song = self._decoder_wrapper.generate(
                     latent_vector=single_condition_latent.unsqueeze(0),
                     use_cache=self._use_cache,
                     strict_sampling=self._strict_sampling,
@@ -155,7 +154,7 @@ class VAE(BaseHighLevelModel):
         return generated_songs
 
     def load_pretrained(self) -> None:
-        self.encoder.load_pretrained()
+        self._seq_encoder.load_pretrained()
 
     def layers_to_track(self) -> list[nn.Module]:
-        return self.decoder.get_layers_to_track()
+        return self._seq_decoder.get_layers_to_track()
