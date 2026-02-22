@@ -4,4 +4,5 @@ defaults:
   - decoder_wrapper: simple  # possible values: simple, patch, compound_word
   - _self_
 
-name: SequenceModel
+name: VAE
+latent_dim: 768

@@ -13,7 +13,9 @@ class BaseWrapper(nn.Module, ABC):
         super().__init__()
         self._decoder = decoder
         self._input_dropout_rate = input_dropout_rate
-        logger.info(f"Initialized {self.__class__.__name__} with decoder: {decoder.__class__.__name__} and input dropout rate: {input_dropout_rate}")
+        logger.info(
+            f"Initialized {self.__class__.__name__} with decoder: {decoder.__class__.__name__} and input dropout rate: {input_dropout_rate}"
+        )
 
     @abstractmethod
     def forward(

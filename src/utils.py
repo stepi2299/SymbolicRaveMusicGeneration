@@ -6,6 +6,7 @@ from tqdm import tqdm
 import logging as lg
 import math
 from torch.nn import functional as F
+import re
 
 
 import mido
@@ -258,7 +259,13 @@ def str_to_msg(str_msg: str) -> mido.Message:
 
 
 def create_midi_file_from_string(mtf_text: str) -> mido.MidiFile:
+    mtf_text = clean_generative_midi_text(mtf_text)
     mtf_lines = mtf_text.strip().split("\n")
+    mtf_lines = list(filter(None, mtf_lines))
+
+    if not mtf_lines:
+        logger.warning("Generated text is empty after cleaning.")
+        return mido.MidiFile()
 
     ticks_per_beat_line = mtf_lines[0]
     if not ticks_per_beat_line.startswith("ticks_per_beat "):
@@ -273,10 +280,45 @@ def create_midi_file_from_string(mtf_text: str) -> mido.MidiFile:
     mid.tracks.append(track)
 
     for msg in mtf_lines[1:]:
+        msg = msg.strip()
         if "unknown_meta" in msg:
             continue
-        new_msg = str_to_msg(msg)
-        track.append(new_msg)
+        if "\t" in msg:
+            parts = msg.split("\t")
+            msg_type = parts[0].split(" ")[0]
+
+            try:
+                track.append(str_to_msg(parts[0]))
+            except Exception as e:
+                logger.error(
+                    "Error during parsing the first part of compressed message: "
+                    + parts[0]
+                    + " -> "
+                    + str(e)
+                )
+                continue
+
+            for part in parts[1:]:
+                part = part.strip()
+                reconstructed_msg = f"{msg_type} {part}"
+                try:
+                    track.append(str_to_msg(reconstructed_msg))
+                except Exception as e:
+                    logger.error(
+                        "Error during parsing compressed message: "
+                        + reconstructed_msg
+                        + " -> "
+                        + str(e)
+                    )
+                    continue
+        else:
+            try:
+                track.append(str_to_msg(msg))
+            except Exception as e:
+                logger.error(
+                    "Error during parsing compressed message: " + msg + " -> " + str(e)
+                )
+                continue
 
     return mid
 
@@ -363,66 +405,15 @@ def get_song_dim(tokens: list[int] | list[list[int]]) -> int:
     return 1
 
 
-def sample_next_cp_word(
-    logits: dict[str, torch.Tensor], strict: bool = True
-) -> list[int]:
-    """
-    Sample next patch tokens from the logits for each attribute.
-    Args:
-        logits: Dict of [batch_size, vocab_size] with key as attribute name (Logits for last sequence position)
-        strict: If True, use argmax sampling
-    Returns:
-        next_patch: List of length patch_size with sampled tokens
-    """
-    next_patch = []
-    for attr, attr_logits in logits.items():
-        if strict:
-            all_current_tokens = attr_logits.argmax(
-                dim=-1
-            )  # [batch_size, sequence_length]
-            next_token = all_current_tokens[0, -1]
-        else:
-            probs = torch.softmax(attr_logits, dim=-1)  # [batch_size, vocab_size]
-            next_token = torch.multinomial(probs, num_samples=1).squeeze(-1)[-1]
-        logger.debug(f"Next token for attribute {attr}: {next_token.item()}")
-        next_patch.append(next_token.item())
-    return next_patch
+def clean_generative_midi_text(text: str) -> str:
+    keywords = r"(note_on|note_off|control_change|program_change|pitchwheel|set_tempo|time_signature)"
+    text = re.sub(r"(?<!^)(?<!\n)(" + keywords + r")", r"\n\1", text)
 
+    text = re.sub(r"\b[a-df-zA-Z]+\b", " ", text)
+    text = re.sub(r"(?<=\s)[a-zA-Z]+(?=\s)", " ", text)
 
-def sample_next_token(logits, temperature=1.0, strict: bool = False) -> int:
-    if strict:
-        return logits.argmax().item()
-    probs = F.softmax(logits / temperature, dim=-1)
-    next_token_idx = torch.multinomial(probs, num_samples=1).item()
-    return next_token_idx
+    text = re.sub(r"[ \t]+", " ", text)
 
+    text = re.sub(r"\n+", "\n", text)
 
-def sample_next_patch(
-    patch_logits: torch.Tensor, temperature: float = 1.0, strict: bool = False
-) -> list[int]:
-    """
-    Sampluje cały patch (np. 64 tokeny) z logitów.
-
-    Args:
-        patch_logits: Tensor o kształcie [Patch_Size, Vocab_Size] lub [1, Patch_Size, Vocab_Size]
-        temperature: Parametr temperatury (im wyższa, tym bardziej losowe)
-        strict: Jeśli True, używa argmax (greedy decoding) - zawsze najbardziej prawdopodobny patch.
-
-    Returns:
-        Lista intów reprezentująca wygenerowany patch (np. [45, 12, 0, ...])
-    """
-    # 1. Obsługa wymiarów - chcemy mieć [Patch_Size, Vocab_Size]
-    # Jeśli dostaliśmy [1, Patch_Size, Vocab_Size], usuwamy jedynkę.
-    if patch_logits.dim() != 2:
-        raise ValueError(
-            f"Expected patch_logits to have shape [Patch_Size, Vocab_Size], but got shape: {patch_logits.shape}"
-        )
-
-    if strict:
-        tokens = patch_logits.argmax(dim=-1)
-        return tokens.tolist()
-    else:
-        scaled_logits = patch_logits / temperature
-        probs = F.softmax(scaled_logits, dim=-1)
-        next_patch_indices = torch.multinomial(probs, num_samples=1)
-        return next_patch_indices.squeeze(-1).tolist()
+    return text.strip()

@@ -35,7 +35,7 @@ class SamplingCallback(Callback):
     def on_train_epoch_end(self, trainer, pl_module):
         """Called when the epoch ends."""
         current_epoch = trainer.current_epoch
-        if current_epoch % self.sample_interval == 0:
+        if current_epoch % self.sample_interval == 0 and current_epoch != 0:
             # Switch to eval mode
             pl_module.eval()
             with torch.no_grad():
@@ -45,7 +45,7 @@ class SamplingCallback(Callback):
                 )
                 try:
                     pl_module.generate(
-                        num_samples = self.num_samples,
+                        num_samples=self.num_samples,
                         folder_path=self.output_dir,
                         file_name=f"sample_{current_epoch}",
                         export_format=self.export_format,

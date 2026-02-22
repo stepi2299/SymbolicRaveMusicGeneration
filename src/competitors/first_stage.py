@@ -20,6 +20,7 @@ from src.constants import ExportFormat
 
 logger = lg.getLogger(__name__)
 
+
 class FirstStage(pl.LightningModule):
     def __init__(
         self,
@@ -64,13 +65,15 @@ class FirstStage(pl.LightningModule):
         self._val_augment = val_augment
         self.save_hyperparameters()
 
-    def training_step(self, batch: Any, batch_idx: int) -> Any:
+    def training_step(
+        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int
+    ) -> Any:
         reconstruction, loss, loss_metadata = self.main_model.training_step(
             batch, self.global_step
         )
         if self._single_data_training:
             reconstruction_success, metadata = self.main_model.reconstruct(
-                reconstruction, batch
+                reconstruction=reconstruction, original_data=batch
             )
             if metadata:
                 self.log_dict(metadata, on_step=False, on_epoch=True, prog_bar=True)
@@ -85,7 +88,9 @@ class FirstStage(pl.LightningModule):
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
-    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> Any:
+    def validation_step(
+        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int
+    ) -> Any:
         reconstruction, loss, loss_metadata = self.main_model.validation_step(
             batch, self.global_step
         )
@@ -167,7 +172,7 @@ class FirstStage(pl.LightningModule):
         if isinstance(self.main_model, VAE):
             z = torch.randn(num_samples, self.main_model.latent_dim).to(self.device)
         else:
-            z=None
+            z = None
         return self.main_model.generate(
             latent_vector=z,
             folder_path=folder_path,

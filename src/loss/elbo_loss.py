@@ -67,12 +67,11 @@ class ElboLoss(BaseVaeLoss):
                 -1, self._vocab_size
             ),  # Reshape to (batch*sequence_length, vocab_size)
             org_data.view(-1),  # Reshape to (batch*sequence_length)
-            ignore_index=self._pad_token_id,
             reduction="mean",
         )
         loss = recon_loss
         metadata = {}
-        if mu and logvar:
+        if mu is not None and logvar is not None:
             kl_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
             kl_div = torch.mean(kl_div)
 

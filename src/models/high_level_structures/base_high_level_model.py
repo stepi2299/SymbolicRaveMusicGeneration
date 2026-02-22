@@ -29,8 +29,12 @@ class BaseHighLevelModel(nn.Module, ABC):
         self._strict_sampling = strict_sampling
         self._temperature = 1.0
         self._loss_function = loss_function
-        self._original_sample =  None  # Useful for single data training to compute reconstruction loss
-        logger.info(f"Initialized {self.__class__.__name__} with adapter: {adapter.__class__.__name__}")
+        self._original_sample = (
+            None  # Useful for single data training to compute reconstruction loss
+        )
+        logger.info(
+            f"Initialized {self.__class__.__name__} with adapter: {adapter.__class__.__name__}"
+        )
 
     def set_generation_params(
         self,
@@ -79,7 +83,9 @@ class BaseHighLevelModel(nn.Module, ABC):
 
     @torch.no_grad()
     def reconstruct(
-            self, reconstruction: torch.Tensor, original_data: tuple[torch.Tensor, torch.Tensor]
+        self,
+        reconstruction: torch.Tensor,
+        original_data: tuple[torch.Tensor, torch.Tensor],
     ) -> tuple[float, dict[str, Any]]:
         music_data, class_idx = original_data
         target_data = music_data[:, 1:]  # Target sequence excluding the first token

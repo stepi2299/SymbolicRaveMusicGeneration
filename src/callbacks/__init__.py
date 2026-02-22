@@ -36,9 +36,7 @@ def get_callbacks(
         )
     if cfg.sampling:
         used_callbacks.append(
-            SamplingCallback(
-                output_dir=output_dir, **cfg.sampling_params
-            )
+            SamplingCallback(output_dir=output_dir, **cfg.sampling_params)
         )
     if cfg.early_stopping:
         used_callbacks.append(EarlyStopping(mode="min", **cfg.early_stopping_params))

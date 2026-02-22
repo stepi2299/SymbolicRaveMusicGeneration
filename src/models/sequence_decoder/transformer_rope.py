@@ -101,7 +101,7 @@ class TransformerRope(BaseDecoder):
                 use_cache=use_cache,
             )
         else:
-            if latent_proj_expanded:
+            if latent_proj_expanded is not None:
                 input_embedding = self._condition_input(
                     token_embedding=input_embedding,
                     latent_projection=latent_proj_expanded,

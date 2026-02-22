@@ -160,6 +160,7 @@ class Clamp2Encoder(Encoder):
         download_file(self.weights_url, self.weights_path, verbose=True)
 
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        data, _ = data
         if data.dim() == 3:
             masks = (data != 0).any(dim=-1).long()
         else:

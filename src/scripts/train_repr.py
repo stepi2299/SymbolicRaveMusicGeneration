@@ -67,9 +67,16 @@ def main(cfg: DictConfig) -> None:
         single_data_training=single_data_training,
         **cfg.competitor,
     )
+    callback_name = (
+        cfg.model.name
+        + "_"
+        + cfg.model.decoder_wrapper.type
+        + "_"
+        + cfg.model.decoder.name
+    )
     used_callbacks = get_callbacks(
         cfg=cfg.callbacks,
-        model_name=cfg.model.name,
+        model_name=callback_name,
         dataset_name=cfg.dataset.name,
     )
     grad_clip_val = cfg.grad_clip_val

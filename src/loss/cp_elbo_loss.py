@@ -27,7 +27,7 @@ class CpElboLoss(BaseVaeLoss):
         )
 
         self.attr_weights = attribute_weights
-        self.ce_loss = nn.CrossEntropyLoss(ignore_index=pad_token_id, reduction="mean")
+        self.ce_loss = nn.CrossEntropyLoss(reduction="mean")
 
     def __call__(
         self,
@@ -73,7 +73,7 @@ class CpElboLoss(BaseVaeLoss):
             total_recon_loss += loss * self.attr_weights[attr_name]
         total_loss = total_recon_loss
         metadata = {}
-        if mu and logvar:
+        if mu is not None and logvar is not None:
             kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
             batch_size = org_data.shape[0]
