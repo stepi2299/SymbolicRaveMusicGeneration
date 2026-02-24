@@ -28,8 +28,9 @@ class TransformerRope(BaseDecoder):
         rotary_pct: float,
         rotary_emb_base: int,
         conditioning: str,
-        custom: bool,
         use_cross_attention: bool,
+        adaln_norm: bool,
+        condition_layer_size: int,
         class_conditioning: bool,
         num_classes: int,
     ) -> None:
@@ -67,10 +68,15 @@ class TransformerRope(BaseDecoder):
             pad_token_id=self.pad_token,
             use_cache=False,
         )
-        self.custom = custom
-        if custom:
+        self.condition_layer_size = condition_layer_size
+        self.adaln_norm = adaln_norm
+        self.use_cross_attention = use_cross_attention
+        if use_cross_attention or adaln_norm:
             self.model = CustomGPTNeoXModel(
-                config, use_cross_attention=use_cross_attention
+                config,
+                use_cross_attention=use_cross_attention,
+                adaln_norm=adaln_norm,
+                condition_layer_size=condition_layer_size,
             )
         else:
             self.model = GPTNeoXModel(config)
@@ -84,7 +90,7 @@ class TransformerRope(BaseDecoder):
         use_cache: bool = False,
     ) -> torch.Tensor:
         batch_size, current_sequence_len, _ = input_embedding.shape
-        if self.custom:
+        if self.use_cross_attention or self.adaln_norm:
             if self._class_conditioning and self.latent_dim is not None:
                 raise ValueError(
                     "Its not possible to use class bot - conditioning with latent vector projection in TransformerRope decoder. Please set latent_dim to None or _class_conditioning to False."

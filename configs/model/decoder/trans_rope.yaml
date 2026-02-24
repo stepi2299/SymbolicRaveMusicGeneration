@@ -39,14 +39,18 @@ params:
   # STANDARD: 10,000 (Start here). Increase if your music sequences are extremely long (>8192 tokens).
   rotary_emb_base: 10_000
 
-  # how to condition the decoder input on the latent representation: add | concatenation
-  conditioning: add
+  # Whether to use class conditioning (e.g., genre, instrument type) in the decoder.
+  class_conditioning: true
 
-  # whether to use custom implementation of the transformer decoder with additional Cross attention or use standard huggingface GPTNeoXModel implementation
-  custom: false
+  # how to condition the decoder input on the latent representation: add | concatenation (only when cross-attention is false | adaln - false but class conditioning is true or latent representation is used for conditioning)
+  conditioning: add
 
   # whether to use cross-attention layers to condition the decoder on the latent representation (only for custom implementation)
   use_cross_attention: false
 
-  # Whether to use class conditioning (e.g., genre, instrument type) in the decoder.
-  class_conditioning: false
+  # Wheter to apply Adaptive Layer Normalization to the decoder layers (only for custom implementation) for conditioning on the latent representation. If false, the latent representation will be added to the input of the decoder layers.
+  adaln_norm: false
+
+  # The size of conditioning vector (e.g., latent representation / class representation) that is fed into the decoder.
+  # Good practise set same value as hidden_size, but it can be smaller to save compute / Must be equal to hidden_size if adaln_norm is false.avoid overfitting.
+  condition_layer_size: 768

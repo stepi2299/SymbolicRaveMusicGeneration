@@ -13,12 +13,13 @@ from transformers.modeling_outputs import BaseModelOutputWithPast
 from transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from transformers.modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from transformers.processing_utils import Unpack
-from transformers.utils import TransformersKwargs, auto_docstring, logging
+from transformers.utils import TransformersKwargs, logging
 from transformers.utils.deprecation import deprecate_kwarg
 from transformers.utils.generic import check_model_inputs
 from transformers import GPTNeoXConfig
 
 from src.models.utils.cross_attention import CrossAttention
+from src.models.utils.adaln import AdaLN
 
 
 logger = logging.get_logger(__name__)
@@ -200,15 +201,30 @@ class GPTNeoXAttention(nn.Module):
 
 
 class GPTNeoXLayer(GradientCheckpointingLayer):
-    def __init__(self, config, layer_idx):
+    def __init__(self, config, layer_idx, *, adaln_norm: bool, cond_size: int = 32):
         super().__init__()
         self.use_parallel_residual = config.use_parallel_residual
-        self.input_layernorm = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
-        self.post_attention_layernorm = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
+        self._adaln_norm = adaln_norm
+        if adaln_norm:
+            logger.info(
+                "Initializing GPTNeoXLayer with custom RMSNorm instead of LayerNorm!!!"
+            )
+            self.input_layernorm = AdaLN(
+                config.hidden_size, eps=config.layer_norm_eps, cond_size=cond_size
+            )
+            self.post_attention_layernorm = AdaLN(
+                config.hidden_size, eps=config.layer_norm_eps, cond_size=cond_size
+            )
+        else:
+            logger.info(
+                "Initializing GPTNeoXLayer with standard LayerNorm (not RMSNorm)!!!"
+            )
+            self.input_layernorm = nn.LayerNorm(
+                config.hidden_size, eps=config.layer_norm_eps
+            )
+            self.post_attention_layernorm = nn.LayerNorm(
+                config.hidden_size, eps=config.layer_norm_eps
+            )
         self.post_attention_dropout = nn.Dropout(config.hidden_dropout)
         self.post_mlp_dropout = nn.Dropout(config.hidden_dropout)
         self.attention = GPTNeoXAttention(config, layer_idx)
@@ -217,6 +233,7 @@ class GPTNeoXLayer(GradientCheckpointingLayer):
     def forward(
         self,
         hidden_states: Optional[torch.FloatTensor],
+        conditioning_vector: Optional[torch.FloatTensor] = None,
         attention_mask: Optional[torch.FloatTensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
         head_mask: Optional[torch.FloatTensor] = None,
@@ -229,8 +246,12 @@ class GPTNeoXLayer(GradientCheckpointingLayer):
         ] = None,  # necessary, but kept here for BC
         **kwargs: Unpack[FlashAttentionKwargs],
     ):
+        if self._adaln_norm:
+            norm_vector = self.input_layernorm(hidden_states, conditioning_vector)
+        else:
+            norm_vector = self.input_layernorm(hidden_states)
         attn_output, attn_weights = self.attention(
-            self.input_layernorm(hidden_states),
+            norm_vector,
             attention_mask=attention_mask,
             position_ids=position_ids,
             layer_past=layer_past,
@@ -246,7 +267,12 @@ class GPTNeoXLayer(GradientCheckpointingLayer):
         if self.use_parallel_residual:
             # pseudocode:
             # x = x + attn(ln1(x)) + mlp(ln2(x))
-            mlp_output = self.mlp(self.post_attention_layernorm(hidden_states))
+            if self._adaln_norm:
+                mlp_output = self.mlp(
+                    self.post_attention_layernorm(hidden_states, conditioning_vector)
+                )
+            else:
+                mlp_output = self.mlp(self.post_attention_layernorm(hidden_states))
             mlp_output = self.post_mlp_dropout(mlp_output)
             hidden_states = mlp_output + attn_output + hidden_states
         else:
@@ -254,7 +280,12 @@ class GPTNeoXLayer(GradientCheckpointingLayer):
             # x = x + attn(ln1(x))
             # x = x + mlp(ln2(x))
             attn_output = attn_output + hidden_states
-            mlp_output = self.mlp(self.post_attention_layernorm(attn_output))
+            if self._adaln_norm:
+                mlp_output = self.mlp(
+                    self.post_attention_layernorm(attn_output, conditioning_vector)
+                )
+            else:
+                mlp_output = self.mlp(self.post_attention_layernorm(attn_output))
             mlp_output = self.post_mlp_dropout(mlp_output)
             hidden_states = mlp_output + attn_output
 
@@ -387,7 +418,6 @@ class GPTNeoXDecoderLayer(GradientCheckpointingLayer):
         return hidden_states
 
 
-@auto_docstring
 class GPTNeoXPreTrainedModel(PreTrainedModel):
     config: GPTNeoXConfig
     base_model_prefix = "gpt_neox"
@@ -408,13 +438,24 @@ class GPTNeoXPreTrainedModel(PreTrainedModel):
 
 
 class CustomGPTNeoXModel(GPTNeoXPreTrainedModel):
-    def __init__(self, config: GPTNeoXConfig, use_cross_attention: bool):
+    def __init__(
+        self,
+        config: GPTNeoXConfig,
+        use_cross_attention: bool,
+        adaln_norm: bool = False,
+        condition_layer_size: int = 32,
+    ):
         super().__init__(config)
         self.config = config
 
         self.emb_dropout = nn.Dropout(config.hidden_dropout)
         self.layers = nn.ModuleList(
-            [GPTNeoXLayer(config, i) for i in range(config.num_hidden_layers)]
+            [
+                GPTNeoXLayer(
+                    config, i, adaln_norm=adaln_norm, cond_size=condition_layer_size
+                )
+                for i in range(config.num_hidden_layers)
+            ]
         )
         self.final_layer_norm = nn.LayerNorm(
             config.hidden_size, eps=config.layer_norm_eps
@@ -422,7 +463,12 @@ class CustomGPTNeoXModel(GPTNeoXPreTrainedModel):
         self.rotary_emb = GPTNeoXRotaryEmbedding(config=config)
         self.gradient_checkpointing = False
         self.use_cross_attention = use_cross_attention
-        if self.use_cross_attention:
+        self.adaln_norm = adaln_norm
+        if self.use_cross_attention or self.adaln_norm:
+            if self.adaln_norm and self.use_cross_attention:
+                raise ValueError(
+                    "It's not possible to use both custom layer norm and cross attention at the same time in CustomGPTNeoXModel. Please set either custom_layer_norm or use_cross_attention to False."
+                )
             logger.info("Initializing GPTNeoX model with Cross-Attention layers!!!")
             self.cross_layer_norm = nn.LayerNorm(
                 config.hidden_size, eps=config.layer_norm_eps
@@ -434,6 +480,12 @@ class CustomGPTNeoXModel(GPTNeoXPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
+        logger.info(
+            "CustomGPTNeoXModel successfully initialized with the following parameters: use cross att: %s, adaln norm: %s, configuration: %s",
+            use_cross_attention,
+            adaln_norm,
+            self.config,
+        )
 
     @check_model_inputs
     def forward(
@@ -511,6 +563,7 @@ class CustomGPTNeoXModel(GPTNeoXPreTrainedModel):
 
             outputs = layer(
                 hidden_states,
+                conditioning_vector=encoder_hidden_states,
                 attention_mask=causal_mask,
                 position_ids=position_ids,
                 head_mask=head_mask[i],
