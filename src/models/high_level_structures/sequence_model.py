@@ -1,3 +1,5 @@
+import random
+
 import torch
 import logging as lg
 from omegaconf import DictConfig
@@ -68,9 +70,10 @@ class SequenceModel(BaseHighLevelModel):
     def generate(
         self,
         folder_path: Path,
+        number_of_songs: int,
+        device: torch.device,
         file_name: str = "generated_song",
         export_format: ExportFormat = ExportFormat.WAV,
-        number_of_songs: int = 1,
         *args,
         **kwargs,
     ):
@@ -82,11 +85,16 @@ class SequenceModel(BaseHighLevelModel):
         generated_songs = []
         for i in range(number_of_songs):
             try:
+                class_idx = random.randint(0, self._seq_decoder.num_classes - 1)
+                class_idx_tensor = torch.tensor([class_idx], dtype=torch.long).to(
+                    device
+                )
                 output_path = folder_path / f"{file_name}_{i}"
                 coded_song = self._decoder_wrapper.generate(
                     use_cache=self._use_cache,
                     strict_sampling=self._strict_sampling,
                     temperature=self._temperature,
+                    class_idx=class_idx_tensor,
                 )
                 song_path = self._adapter.decode(coded_song, output_path, export_format)
                 logger.info(f"Generated song for index: {i} at path: {song_path}")

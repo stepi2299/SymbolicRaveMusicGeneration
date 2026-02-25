@@ -121,16 +121,16 @@ class VAE(BaseHighLevelModel):
     @torch.no_grad()
     def generate(
         self,
-        latent_vector: torch.Tensor,
         folder_path: Path,
+        number_of_songs: int,
+        device: torch.device,
         file_name: str = "generated_song",
         export_format: ExportFormat = ExportFormat.WAV,
+        use_cache: bool = True,
+        **kwargs,
     ) -> list[Path]:
         self._decoder_wrapper.eval()
-        if latent_vector.shape[1] != self.latent_dim:
-            raise ValueError(
-                f"Latent vector must have shape (batch_size, {self.latent_dim}), got {latent_vector.shape}"
-            )
+        latent_vector = torch.randn(number_of_songs, self.latent_dim).to(device)
         folder_path.resolve(True)
         if not folder_path.is_dir():
             raise ValueError(

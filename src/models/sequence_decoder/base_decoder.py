@@ -160,3 +160,7 @@ class BaseDecoder(nn.Module, ABC):
 
     def clean_cache(self):
         self._cache_params = None
+
+    @property
+    def num_classes(self):
+        return self._num_classes

@@ -74,10 +74,10 @@ class BaseHighLevelModel(nn.Module, ABC):
     def generate(
         self,
         folder_path: Path,
+        number_of_songs: int,
+        device: torch.device,
         file_name: str = "generated_song",
         export_format: ExportFormat = ExportFormat.WAV,
-        *args,
-        **kwargs,
     ):
         pass
 

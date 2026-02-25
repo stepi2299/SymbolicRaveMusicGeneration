@@ -169,15 +169,12 @@ class FirstStage(pl.LightningModule):
     ) -> list[Path]:
         generation_params = generation_params or {}
         self.main_model.set_generation_params(**generation_params)
-        if isinstance(self.main_model, VAE):
-            z = torch.randn(num_samples, self.main_model.latent_dim).to(self.device)
-        else:
-            z = None
         return self.main_model.generate(
-            latent_vector=z,
             folder_path=folder_path,
             file_name=file_name,
             export_format=export_format,
+            number_of_songs=num_samples,
+            device=self.device,
         )
 
     def on_before_optimizer_step(self, optimizer):

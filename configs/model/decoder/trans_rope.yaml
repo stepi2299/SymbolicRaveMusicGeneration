@@ -40,7 +40,7 @@ params:
   rotary_emb_base: 10_000
 
   # Whether to use class conditioning (e.g., genre, instrument type) in the decoder.
-  class_conditioning: true
+  class_conditioning: false
 
   # how to condition the decoder input on the latent representation: add | concatenation (only when cross-attention is false | adaln - false but class conditioning is true or latent representation is used for conditioning)
   conditioning: add

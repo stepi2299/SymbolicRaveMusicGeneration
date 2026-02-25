@@ -21,7 +21,7 @@ competitor:
     max_decoder_learning_rate: 0.0003
     encoder_weight_decay: 0.01
     decoder_weight_decay: 0.1
-  train_augment: false  # whether to apply data augmentation during training
+  train_augment: true  # whether to apply data augmentation during training
   val_augment: false  # whether to apply data augmentation during validation
 
 epochs: 1500  # number of epochs to train the model
@@ -58,6 +58,6 @@ callbacks:
     export_format: wav
   early_stopping: true
   early_stopping_params:
-    patience: 20
+    patience: 30
     monitor: "val_loss"
   log_learning_rate: true
