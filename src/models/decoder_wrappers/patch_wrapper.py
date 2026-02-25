@@ -59,7 +59,7 @@ class PatchWrapper(BaseWrapper):
                 )
             )
             first_tokens = input_sequence[:, :, 0]
-            is_protected = torch.isin(first_tokens, self.special_ids)
+            is_protected = torch.isin(first_tokens, self._decoder.special_ids)
             protected_mask = is_protected.unsqueeze(-1).float()
 
             final_mask = torch.max(random_mask, protected_mask)

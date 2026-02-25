@@ -56,7 +56,7 @@ class SimpleWrapper(BaseWrapper):
                     input_sequence.shape, keep_prob, device=input_sequence.device
                 )
             )
-            is_protected = torch.isin(input_sequence, self.special_ids)
+            is_protected = torch.isin(input_sequence, self._decoder.special_ids)
             final_mask = torch.max(random_mask, is_protected.float())
             embeddings = embeddings * final_mask.unsqueeze(-1)
         return embeddings
