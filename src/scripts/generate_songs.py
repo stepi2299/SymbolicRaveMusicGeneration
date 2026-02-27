@@ -31,23 +31,13 @@ def main(cfg: DictConfig) -> None:
         f"Starting Generation Script! Expected number generated songs: {cfg.songs_to_generate}, "
         f"Checkpoint path: {current_output_songs_path.as_posix()}"
     )
-    if isinstance(competitor.main_model, VAE):
-        latent_values = torch.randn(
-            cfg.songs_to_generate,
-            competitor.main_model.latent_dim,
-            device=competitor.device,
-        )
-        songs = competitor.generate(
-            latent_values,
-            current_output_songs_path,
-            file_name="generated_song",
-            export_format=ExportFormat.WAV,
-            generation_params=cfg.generation_params,
-        )
-    else:
-        raise NotImplementedError(
-            "Generation is only implemented for VAE models for now"
-        )
+    songs = competitor.generate(
+        folder_path=current_output_songs_path,
+        file_name="generated_song",
+        export_format=ExportFormat.WAV,
+        generation_params=cfg.generation_params,
+        num_samples=cfg.songs_to_generate,
+    )
     logger.info(f"Generated songs: {len(songs)}")
 
 

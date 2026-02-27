@@ -73,7 +73,8 @@ class CompoundWordWrapper(BaseWrapper):
 
             family_tokens = input_sequence[:, :, family_attr_index]
             is_protected = torch.isin(
-                family_tokens, torch.tensor(self._decoder.special_ids, device=embeddings.device)
+                family_tokens,
+                torch.tensor(self._decoder.special_ids, device=embeddings.device),
             )
             final_mask = torch.max(random_mask, is_protected.float())
             embeddings = embeddings * final_mask.unsqueeze(-1)
