@@ -62,7 +62,7 @@ class GptDecoder(BaseDecoder):
         use_cache: bool = False,
     ) -> torch.Tensor:
         # Getting current sequence length (for generation when len is growing)
-        batch_size, current_sequence_len = input_embedding.shape
+        batch_size, current_sequence_len, _ = input_embedding.shape
 
         position_idx = torch.arange(
             current_sequence_len, dtype=torch.long, device=input_embedding.device
