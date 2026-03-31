@@ -2,7 +2,7 @@
 defaults:
   - dataset: pop909     # default dataset, possible values: pop909, midicaps, maestro
   - adapter: tokenizer  # default adapter, possible values: tokenizer, patchilizer, compound_word
-  - model: sequence_model  # default model, possible values: vae, sequence_model
+  - model: sequence_model # default model, possible values: vae, sequence_model
   - loss: elbo         # default loss, possible values: elbo, cp_elbo
   - _self_
 
@@ -21,7 +21,7 @@ competitor:
     max_decoder_learning_rate: 0.0003
     encoder_weight_decay: 0.01
     decoder_weight_decay: 0.1
-  train_augment: true  # whether to apply data augmentation during training
+  train_augment: true # whether to apply data augmentation during training
   val_augment: false  # whether to apply data augmentation during validation
 
 epochs: 1500  # number of epochs to train the model
@@ -51,13 +51,13 @@ callbacks:
   model_checkpoint_params:
     monitor: "val_loss"
     filename: "model-{epoch:02d}-{val_loss:.2f}"
-  sampling: true
+  sampling: false
   sampling_params:
     sample_interval: 5
     num_samples: 1
     export_format: wav
   early_stopping: true
   early_stopping_params:
-    patience: 30
+    patience: 20 
     monitor: "val_loss"
   log_learning_rate: true

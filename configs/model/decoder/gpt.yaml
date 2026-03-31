@@ -8,7 +8,7 @@ params:
   # The number of Transformer blocks stacked on top of each other.
   # IMPACT: Increasing this allows the model to understand high-level structures (e.g., musical phrasing, repetition). Decreasing makes it faster but limits it to local patterns.
   # STANDARD: Small models use 4-8; large models use 12-24+.
-  num_decoder_layers: 8
+  num_decoder_layers: 12
 
   # The probability of randomly zeroing out neurons during training.
   # IMPACT: Prevents "memorizing" the training data (overfitting).

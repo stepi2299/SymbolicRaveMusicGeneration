@@ -5,7 +5,7 @@ params:
   vocab_size: 20000
   sequence_length: 1024
   augmenter_params:
-    augment_velocity: true
-    augment_pitch: true
-    velocity_interval: 3
+    augment_velocity: false
+    augment_pitch: false
+    velocity_interval: 6
     pitch_interval: 6

@@ -1,7 +1,7 @@
 name: elbo
 params:
-  turn_annealing: true  # whether to use annealing beta (increasing KL weight during training) or not
+  turn_annealing: false # whether to use annealing beta (increasing KL weight during training) or not
   annealing_steps: 30000  # number of steps to reach beta_max (for single data generation should be small like 100)
   beta_max: 0.01  # maximum KL weight
   kl_weight: 1.0  # weight of the KL divergence term if not using annealing
-  free_bits: 2.0  # free bits value to prevent KL collapse, set to 0 to disable free bits
+  free_bits: 0.0  # free bits value to prevent KL collapse, set to 0 to disable free bits

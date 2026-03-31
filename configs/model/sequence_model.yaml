@@ -1,5 +1,5 @@
 defaults:
-  - decoder: trans_rope  # gpt, trans_rope, trans_xl, mamba, mistral
+  - decoder: trans_rope # gpt, trans_rope, trans_xl, mamba, mistral
   - decoder_wrapper: simple  # possible values: simple, patch, compound_word
   - _self_
 

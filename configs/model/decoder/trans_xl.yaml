@@ -8,7 +8,7 @@ params:
   # Number of Transformer blocks.
   # IMPACT: TransformerXL relies on depth for its recurrence mechanism to work well.
   # STANDARD: 4 is minimal. 6-12 is recommended for capturing long-term song structures.
-  num_decoder_layers: 1
+  num_decoder_layers: 12
 
   # Specific to TransformerXL. Defines how many tokens from the *previous* batch/segment are cached and accessible via attention.
   # IMPACT: Crucial for music. It allows the model to "remember" the beat or theme from the previous measure even if it's outside the current input window.
@@ -24,7 +24,6 @@ params:
   attention_dropout: 0
 
   # how to condition the decoder input on the latent representation: add | concatenation
-  conditioning: add
-
+  conditioning: concatenation
   # Whether to use class conditioning (e.g., genre, instrument type) in the decoder.
   class_conditioning: false
