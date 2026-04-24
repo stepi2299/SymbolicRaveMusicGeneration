@@ -5,6 +5,6 @@ augmentation_params:
   allow_track_drop: true
   allow_humanize: true
   allow_voicing_change: false
-  humanize_sigma: 20  # Standard deviation for humanization in milliseconds (Noise added to note start times)
-  track_drop_probability: 0.4  # Probability of dropping a track
+  humanize_sigma: 30  # Standard deviation for humanization in milliseconds (Noise added to note start times)
+  track_drop_probability: 0.6  # Probability of dropping a track
   octave_shift_prob: 0.3

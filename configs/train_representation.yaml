@@ -1,8 +1,8 @@
 
 defaults:
-  - dataset: pop909     # default dataset, possible values: pop909, midicaps, maestro
+  - dataset: pop909 # default dataset, possible values: pop909, midicaps, maestro
   - adapter: tokenizer  # default adapter, possible values: tokenizer, patchilizer, compound_word
-  - model: sequence_model # default model, possible values: vae, sequence_model
+  - model: vae # default model, possible values: vae, sequence_model
   - loss: elbo         # default loss, possible values: elbo, cp_elbo
   - _self_
 

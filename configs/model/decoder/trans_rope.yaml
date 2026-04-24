@@ -8,7 +8,7 @@ params:
   # Number of Transformer blocks.
   # IMPACT: Critical for modeling long-term structure (phrasing, repetition).
   # STANDARD: 1 is extremely shallow. Use 6-12+ for meaningful music generation.
-  num_decoder_layers: 12
+  num_decoder_layers: 1
 
   # Probability of dropping neurons to prevent overfitting.
   # Argument used when doing token classification, for the hidden layer
@@ -46,7 +46,7 @@ params:
   conditioning: add
 
   # whether to use cross-attention layers to condition the decoder on the latent representation (only for custom implementation)
-  use_cross_attention: false
+  use_cross_attention: true
 
   # Wheter to apply Adaptive Layer Normalization to the decoder layers (only for custom implementation) for conditioning on the latent representation. If false, the latent representation will be added to the input of the decoder layers.
   adaln_norm: false
