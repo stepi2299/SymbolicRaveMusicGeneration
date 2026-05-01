@@ -5,12 +5,25 @@ import tarfile
 import logging as lg
 import zipfile
 import muspy
+import json
 
 lg.basicConfig(level=lg.INFO)
 logger = lg.getLogger(__name__)
 
 
-def download_from_url(
+GENRE_1 = ["pop", "rock"]
+GENRE_2 = ["electronic", "ambient"]
+GENRE_3 = ["classical", "soundtrack"]
+GENRE_4 = ["jazz", "pop"]
+GENRE_5 = ["rock", "electronic"]
+
+
+MIDI_PATH_KEY = "location"
+GENRE_KEY = "genre"
+GENRE_TO_SAVE = [GENRE_1, GENRE_2, GENRE_3, GENRE_4, GENRE_5]
+
+
+def download_archive_from_url(
     url: str, save_path: Path, archive_path: Path, verbose=False, **kwargs
 ) -> Path:
     logger.info(f"Downloading to {archive_path} ...")
@@ -21,6 +34,31 @@ def download_from_url(
     logger.info(f"Extracting {archive_path} to {save_path} ...")
     save_path.mkdir(exist_ok=True)
     return archive_path
+
+
+def download_file_from_url(url: str, verbose=False, **kwargs) -> list:
+    try:
+        logger.info(f"Downloading {url}")
+        response = requests.get(url)
+        response.raise_for_status()
+
+        dane_json = []
+        for line in response.iter_lines():
+            if line:
+                dane_json.append(json.loads(line.decode("utf-8")))
+
+        logger.info(f"Success! Downloaded {len(dane_json)} records from {url}")
+        return dane_json
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error during downloading file from {url}: {e}")
+        raise e
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parsing error: {e}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error occurred {e}")
+        raise e
 
 
 def clean_root_dir(root_dir: Path):
@@ -49,11 +87,11 @@ def download_and_process_maestro(save_path: Path) -> None:
     cleanup(new_maestro_path)
 
 
-def download_and_process_midicaps(save_path: Path) -> None:
+def download_midicaps(save_path: Path) -> Path:
     midicaps_url = "https://huggingface.co/datasets/amaai-lab/MidiCaps/resolve/main/midicaps.tar.gz?download=true"
     midicaps_path = save_path / "midicaps"
     midicaps_path.mkdir(exist_ok=True)
-    midicaps_tar_path = download_from_url(
+    midicaps_tar_path = download_archive_from_url(
         midicaps_url,
         save_path,
         save_path / "midicaps.tar.gz",
@@ -61,6 +99,10 @@ def download_and_process_midicaps(save_path: Path) -> None:
     with tarfile.open(midicaps_tar_path, mode="r:gz") as tar:
         tar.extractall(path=midicaps_path)
     logger.info(f"Extracted {midicaps_tar_path} to {midicaps_path}")
+    return midicaps_path
+
+
+def process_raw_midicaps(midicaps_path: Path) -> None:
     extra_level_folder = midicaps_path / "lmd_full"
     for item in extra_level_folder.iterdir():
         item.rename(midicaps_path / item.name)
@@ -74,7 +116,7 @@ def download_and_process_pop909(save_path: Path) -> None:
     )
     pop909_path = save_path / "pop909"
     pop909_path.mkdir(exist_ok=True)
-    pop909_zip_path = download_from_url(
+    pop909_zip_path = download_archive_from_url(
         pop909_url,
         save_path,
         save_path / "pop909.zip",
@@ -105,12 +147,46 @@ def download_and_process_pop909(save_path: Path) -> None:
     logger.info(f"Moved {extra_level_folder} to {pop909_path}")
 
 
+def prepare_midicaps_classes_dirs(base_dir: Path) -> Path:
+    base_dir.resolve(True)
+    midicaps_classes_dir = base_dir / "midicaps_classes"
+    midicaps_classes_dir.mkdir(exist_ok=True)
+    for genre in GENRE_TO_SAVE:
+        genre_folder_name = "_".join(genre)
+        genre_folder_path = midicaps_classes_dir / genre_folder_name
+        genre_folder_path.mkdir(exist_ok=True)
+    return midicaps_classes_dir
+
+
+def divide_midicaps_into_classes(
+    base_path: Path, main_midicaps_file_path: Path
+) -> None:
+    midicaps_json_url = "https://huggingface.co/datasets/amaai-lab/MidiCaps/resolve/main/train.json?download=true"
+    divided_midicaps_path = prepare_midicaps_classes_dirs(base_path)
+    json_file = download_file_from_url(midicaps_json_url)
+    for data_dict in json_file:
+        data_path = main_midicaps_file_path / data_dict[MIDI_PATH_KEY]
+        try:
+            data_path.resolve(True)
+            genre = data_dict[GENRE_KEY]
+            if genre in GENRE_TO_SAVE:
+                genre_folder_name = "_".join(genre)
+                genre_folder_path = divided_midicaps_path / genre_folder_name
+                shutil.copy(data_path, genre_folder_path / data_path.name)
+        except FileNotFoundError:
+            logger.warning(f"File {data_path} not found. Skipping.")
+    logger.info(f"Divided MidiCaps into classes and saved in {divided_midicaps_path}")
+
+
 def download_data():
     base_data_path = Path.cwd() / "data"
     clean_root_dir(base_data_path)
     download_and_process_maestro(base_data_path)
-    download_and_process_midicaps(base_data_path)
     download_and_process_pop909(base_data_path)
+
+    midicaps_file_path = download_midicaps(base_data_path)
+    divide_midicaps_into_classes(base_data_path, midicaps_file_path)
+    process_raw_midicaps(midicaps_file_path)
     cleanup(base_data_path)
 
 
