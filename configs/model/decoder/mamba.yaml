@@ -31,5 +31,8 @@ params:
   # STANDARD: 4.
   conv_kernel: 4
 
+  # how to condition the decoder input on the latent representation: add | concatenation
+  conditioning: add
+
   # Whether to use class conditioning (e.g., genre, instrument type) in the decoder.
   class_conditioning: false
