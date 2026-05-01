@@ -25,25 +25,30 @@ class PatchEncoder(PreTrainedModel):
 
     def forward(
         self,
-        input_patches: torch.Tensor,  # [batch_size, sequence_length, patch_size] | [batch_size, sequence_length]
+        input_patches: torch.Tensor,  # [batch, seq_len, patch_size] | [batch, seq_len] | [batch, seq_len, vocab_size] (float)
         input_masks: torch.Tensor,  # [batch_size, sequence_length]
     ) -> torch.Tensor:  # [batch_size, sequence_length, projection_layer]
-        # Transform input_patches into embeddings
-        input_patches = torch.nn.functional.one_hot(
-            input_patches, num_classes=self.vocab_size
-        )  # [batch_size, sequence_length, patch_size, vocab_size]
-        if len(input_patches.shape) != 3:
+        if input_patches.is_floating_point():
+            # Soft input (e.g. Gumbel-Softmax one-hot): [batch, T, V]
+            # Reshape to [batch, T/patch_size, patch_size * vocab_size] for patch_embedding
             input_patches = input_patches.reshape(
                 len(input_patches), -1, self.patch_size * self.vocab_size
-            ).type(
-                torch.FloatTensor
-            )  # [batch_size, sequence_length, patch_size * vocab_size]
+            )
         else:
-            input_patches = input_patches.reshape(
-                len(input_patches), -1, self.vocab_size
-            ).type(
-                torch.FloatTensor
-            )  # [batch_size, sequence_length, patch_size * vocab_size]
+            # Integer token input: one-hot encode first
+            input_patches = torch.nn.functional.one_hot(
+                input_patches, num_classes=self.vocab_size
+            )  # → [batch, seq_len, patch_size, vocab_size] or [batch, seq_len, vocab_size]
+            if len(input_patches.shape) != 3:
+                input_patches = input_patches.reshape(
+                    len(input_patches), -1, self.patch_size * self.vocab_size
+                )  # [batch, seq_len, patch_size * vocab_size]
+            else:
+                input_patches = input_patches.reshape(
+                    len(input_patches), -1, self.vocab_size
+                )  # [batch, seq_len, vocab_size]  (patch_size == 1)
+            input_patches = input_patches.float()  # keep on current device
+
         input_patches = self.patch_embedding(input_patches.to(self.device))
 
         # Apply BERT model to input_patches and input_masks

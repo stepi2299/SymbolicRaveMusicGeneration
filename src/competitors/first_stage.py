@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import Subset
 from pathlib import Path
 
-from src.models.high_level_structures import BaseHighLevelModel, VAE
+from src.models.high_level_structures import BaseHighLevelModel
 from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 from src.utils import split_dataset
 from src.dataset.dataloader import get_dataloader
