@@ -111,7 +111,6 @@ class SecondStage(pl.LightningModule):
         self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> Any:
         data, class_idx = batch
-        x_input = data[:, :-1]  # all tokens except the last  (decoder input)
         x_target = data[:, 1:]  # all tokens except the first (target)
 
         opt_discriminator, opt_decoder = self.optimizers()
