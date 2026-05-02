@@ -1,8 +1,7 @@
 
 defaults:
-  - dataset: maestro     # default dataset
+  - dataset: pop909     # default dataset
   - adapter: patchilizer  # default adapter
-  - model: clamp2_vae     # default model
   - discriminator: dense  # default discriminator
   - _self_
 
@@ -17,14 +16,25 @@ competitor:
   batch_size: 1
   num_workers: 16
   discriminator_learning_rate: 0.001
-  decoder_learning_rate: 0.001
+  generator_optimizer_params:
+    max_decoder_learning_rate: 0.0003
+    decoder_weight_decay: 0.1
+  train_split: 0.8  # proportion of the dataset to use for training (the rest will be used for validation)
+  train_augment: true # whether to apply data augmentation during training
+  label_smoothing: 0.1  # label smoothing factor for discriminator training, set to 0 to disable label smoothing
+  gan_loss_weight: 1.0  # weight for the GAN loss component in the overall loss function
+  gumbel_tau: 1.0  # temperature parameter for Gumbel-Softmax, set to a higher value for softer samples and a lower value for harder samples
+  warmup_steps: 100  # number of warmup steps for learning rate scheduler (for single data training, set small value like 10/50)
+  monitor_metric: "val_loss"  # metric to monitor for early stopping and model checkpointing
 
-epochs: 100  # number of epochs to train the model
+
+epochs: 500  # number of epochs to train the model
 seed: 42  # random seed for reproducibility
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
+log_format: "[%(asctime)s] - [%(name)s] - [%(levelname)s] - %(message)s"
 processing_precision: medium  # possible values: medium | high
-pretrained: false  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-vae_weights_path: "outputs/checkpoints/train_repr/clamp2_vae_maestro_2025-05-08_18-14-22/model-epoch=00-val_loss=1.52.ckpt"
+pretrained: true  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
+main_model_weights_path: "outputs/checkpoints/train_repr/SequenceModel_simple_gpt_decoder_pop909_2026-05-01_21-09-10/model-epoch=28-val_loss=0.00.ckpt"
 
 wandb:
   project: "SymbolicRave"
@@ -46,4 +56,5 @@ callbacks:
   early_stopping_params:
     patience: 5
     monitor: "train_discriminator_loss"
+  log_learning_rate: true
 

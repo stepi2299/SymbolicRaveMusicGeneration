@@ -110,6 +110,9 @@ class VAE(BaseHighLevelModel):
         eps = torch.randn_like(std)
         return mu + eps * std
 
+    def freeze_encoder(self) -> None:
+        self._freeze_encoder()
+
     def _freeze_encoder(self) -> None:
         for param in self._seq_encoder.parameters():
             param.requires_grad = False

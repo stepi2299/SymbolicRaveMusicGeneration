@@ -11,13 +11,23 @@ from src.adapter.adapter import MusicAdapter
 
 def get_dataset(
     dataset_config: DictConfig,
-    adapter_config: DictConfig,
+    adapter_config: DictConfig | None = None,
+    adapter: MusicAdapter = None,
     single_data_training: bool = False,
     chosen_index: int = None,
 ) -> SymbolicMusicDataset:
-    music_adapter = MusicAdapter(
-        adapter_config, dataset_config.extension, dataset_config.name
-    )
+    if adapter is None:
+        if adapter_config is None:
+            raise ValueError("adapter_config must be provided if adapter is None")
+        music_adapter = MusicAdapter(
+            adapter_config, dataset_config.extension, dataset_config.name
+        )
+    else:
+        if adapter_config is not None:
+            raise ValueError(
+                f"adapter_config must be provided ONLY if adapter is None, otherwise None"
+            )
+        music_adapter = adapter
 
     dataset_path = Path.cwd() / "data" / dataset_config.data_dir
     dataset_path = dataset_path.resolve(True)

@@ -98,5 +98,9 @@ class BaseHighLevelModel(nn.Module, ABC):
     def layers_to_track(self) -> list[nn.Module]:
         return []
 
+    def freeze_encoder(self) -> None:
+        """Freeze encoder parameters.  No-op by default (models with no encoder)."""
+        pass
+
     def load_pretrained(self) -> None:
         pass

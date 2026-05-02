@@ -22,11 +22,13 @@ def get_model(
     )
 
 
-def get_discriminator(discriminator_cfg: DictConfig, vocab_size: int) -> Discriminator:
+def get_discriminator(
+    discriminator_cfg: DictConfig, adapter: MusicAdapter
+) -> Discriminator:
     discriminator_obj = discriminator_mapper(discriminator_cfg.name)(
-        sequence_length=discriminator_cfg.sequence_length,
-        patch_size=discriminator_cfg.patch_size,
-        vocab_size=vocab_size,
+        sequence_length=adapter.sequence_length,
+        patch_size=adapter.patch_size,
+        vocab_size=adapter.vocab_size,
         **discriminator_cfg.params,
     )
     return discriminator_obj
