@@ -56,13 +56,9 @@ def main(cfg: DictConfig) -> None:
     )
 
     callback_name = (
-        "gab"
-        + "_"
-        + first_stage_checkpoint.main_model.__class__.__name__
+        first_stage_checkpoint.main_model.__class__.__name__
         + "_"
         + cfg.discriminator.name
-        + "_"
-        + cfg.dataset.name
     )
     used_callbacks = get_callbacks(
         cfg=cfg.callbacks,
