@@ -46,7 +46,7 @@ params:
   conditioning: add 
 
   # whether to use cross-attention layers to condition the decoder on the latent representation (only for custom implementation)
-  use_cross_attention: false
+  use_cross_attention: false 
 
   # Wheter to apply Adaptive Layer Normalization to the decoder layers (only for custom implementation) for conditioning on the latent representation. If false, the latent representation will be added to the input of the decoder layers.
   adaln_norm: false

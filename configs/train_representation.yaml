@@ -1,4 +1,3 @@
-
 defaults:
   - dataset: pop909 # default dataset, possible values: pop909, midicaps, maestro, midicaps_classes
   - adapter: tokenizer  # default adapter, possible values: tokenizer, patchilizer, compound_word
