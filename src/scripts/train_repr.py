@@ -44,7 +44,7 @@ def main(cfg: DictConfig) -> None:
     else:
         chosen_index = None
     symbolic_music_dataset = get_dataset(
-        cfg.dataset, cfg.adapter, single_data_training, chosen_index
+        cfg.dataset, adapter_config=cfg.adapter, single_data_training=single_data_training, chosen_index=chosen_index
     )
     loss_function = get_loss_function(
         loss_name=cfg.loss.name,
