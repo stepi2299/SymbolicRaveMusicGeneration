@@ -7,9 +7,10 @@ hydra:
 
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
-checkpoint_path: "outputs/checkpoints/train_repr/SequenceModel_simple_gpt_decoder_pop909_2026-03-30_18-26-33/model-epoch=95-val_loss=0.00.ckpt"
-songs_to_generate: 10
+checkpoint_path: "outputs/checkpoints/train_repr/SequenceModel_simple_transformer_rope_pop909_2026-05-25_22-53-20/model-epoch=77-val_loss=1.47.ckpt"
+songs_to_generate: 100
+output_format: wav  # midi, wav
 generation_params:
-  use_cache: true  # whether to use cache during generation (inference) - requires more VRAM but speeds up generation
+  use_cache: false  # whether to use cache during generation (inference) - requires more VRAM but speeds up generation
   strict_sampling: false  # whether to use strict sampling (top-k, top-p) during generation
-  temperature: 0.5  # sampling temperature
+  temperature: 0.7  # sampling temperature

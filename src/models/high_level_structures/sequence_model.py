@@ -85,11 +85,15 @@ class SequenceModel(BaseHighLevelModel):
         generated_songs = []
         for i in range(number_of_songs):
             try:
+                logger.info(f"Generating song for index: {i}")
                 class_idx = random.randint(0, self._seq_decoder.num_classes - 1)
                 class_idx_tensor = torch.tensor([class_idx], dtype=torch.long).to(
                     device
                 )
                 output_path = folder_path / f"{file_name}_{i}"
+                logger.debug(
+                    "Output path: %s and class embedding is ready", output_path
+                )
                 coded_song = self._decoder_wrapper.generate(
                     use_cache=self._use_cache,
                     strict_sampling=self._strict_sampling,
@@ -97,10 +101,17 @@ class SequenceModel(BaseHighLevelModel):
                     class_idx=class_idx_tensor,
                 )
                 song_path = self._adapter.decode(coded_song, output_path, export_format)
-                logger.info(f"Generated song for index: {i} at path: {song_path}")
+                logger.info(
+                    f"Successfully generated song for index: {i} at path: {song_path}"
+                )
                 generated_songs.append(song_path)
             except Exception as e:
                 logger.error(f"Error generating song for index: {i}: {e}")
+        logger.info(
+            "Successfully generated songs: %d out of planned %s",
+            len(generated_songs),
+            number_of_songs,
+        )
         return generated_songs
 
     def get_optimizer(self, params: DictConfig) -> torch.optim.Optimizer:

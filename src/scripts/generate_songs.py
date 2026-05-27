@@ -18,13 +18,15 @@ from src.models.high_level_structures.vae import VAE
 def main(cfg: DictConfig) -> None:
     torch.cuda.empty_cache()
     torch.set_float32_matmul_precision(cfg.processing_precision)
-    lg.basicConfig(level=cfg.log_level)
+    lg.basicConfig(level=cfg.log_level, force=True)
     logger = lg.getLogger(__name__)
 
     checkpoint_path = Path(cfg.checkpoint_path).resolve(True)
-    current_output_songs_path = output_songs_path / datetime.now().strftime(
-        "%Y-%m-%d_%H-%M-%S"
+    model_name = checkpoint_path.parent.name
+    current_output_songs_path = output_songs_path / (
+        model_name + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     )
+    output_format = ExportFormat(cfg.output_format)
     current_output_songs_path.mkdir(parents=True, exist_ok=False)
     competitor = FirstStage.load_from_checkpoint(checkpoint_path, weights_only=False)
     logger.info(
@@ -34,7 +36,7 @@ def main(cfg: DictConfig) -> None:
     songs = competitor.generate(
         folder_path=current_output_songs_path,
         file_name="generated_song",
-        export_format=ExportFormat.WAV,
+        export_format=output_format,
         generation_params=cfg.generation_params,
         num_samples=cfg.songs_to_generate,
     )
