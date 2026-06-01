@@ -304,7 +304,7 @@ def create_midi_file_from_string(mtf_text: str) -> mido.MidiFile:
                 try:
                     track.append(str_to_msg(reconstructed_msg))
                 except Exception as e:
-                    logger.error(
+                    logger.debug(
                         "Error during parsing compressed message: "
                         + reconstructed_msg
                         + " -> "
@@ -315,7 +315,7 @@ def create_midi_file_from_string(mtf_text: str) -> mido.MidiFile:
             try:
                 track.append(str_to_msg(msg))
             except Exception as e:
-                logger.error(
+                logger.debug(
                     "Error during parsing compressed message: " + msg + " -> " + str(e)
                 )
                 continue

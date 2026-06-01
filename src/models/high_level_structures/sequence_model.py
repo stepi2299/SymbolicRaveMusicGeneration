@@ -85,7 +85,7 @@ class SequenceModel(BaseHighLevelModel):
         generated_songs = []
         for i in range(number_of_songs):
             try:
-                logger.info(f"Generating song for index: {i}")
+                logger.debug(f"Generating song for index: {i}")
                 class_idx = random.randint(0, self._seq_decoder.num_classes - 1)
                 class_idx_tensor = torch.tensor([class_idx], dtype=torch.long).to(
                     device
@@ -101,7 +101,7 @@ class SequenceModel(BaseHighLevelModel):
                     class_idx=class_idx_tensor,
                 )
                 song_path = self._adapter.decode(coded_song, output_path, export_format)
-                logger.info(
+                logger.debug(
                     f"Successfully generated song for index: {i} at path: {song_path}"
                 )
                 generated_songs.append(song_path)

@@ -142,8 +142,9 @@ class CompoundWordWrapper(BaseWrapper):
                 )  # [batch_size, sequence_length]
                 next_token = all_current_tokens[0, -1]
             else:
-                probs = torch.softmax(attr_logits, dim=-1)  # [batch_size, vocab_size]
-                next_token = torch.multinomial(probs, num_samples=1).squeeze(-1)[-1]
+                last_logits = attr_logits[:, -1, :]  # [batch_size, vocab_size]
+                probs = torch.softmax(last_logits / temperature, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1).squeeze(-1)[0]
             logger.debug(f"Next token for attribute {attr}: {next_token.item()}")
             next_patch.append(next_token.item())
         return next_patch
