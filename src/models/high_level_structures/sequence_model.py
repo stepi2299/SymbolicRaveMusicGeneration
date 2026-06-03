@@ -5,11 +5,13 @@ import logging as lg
 from omegaconf import DictConfig
 from src.adapter import MusicAdapter
 from src.loss.base_loss import BaseLoss
-from typing import Any
 from pathlib import Path
+
 from src.constants import ExportFormat
 
 from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
+from src.models.utils.pe_visualizer import PositionalEncodingVisualizer
+from src.models.utils.attention_visualizer import AttentionVisualizer
 from src.models.sequence_decoder import get_decoder
 from src.models.decoder_wrappers import get_decoder_wrapper
 
@@ -74,6 +76,9 @@ class SequenceModel(BaseHighLevelModel):
         device: torch.device,
         file_name: str = "generated_song",
         export_format: ExportFormat = ExportFormat.WAV,
+        visualize_pe: bool = False,
+        visualize_attn: bool = False,
+        class_idx: int = 0,
         *args,
         **kwargs,
     ):
@@ -83,10 +88,14 @@ class SequenceModel(BaseHighLevelModel):
                 f"{folder_path} is not a valid directory when trying to generate songs."
             )
         generated_songs = []
+        if class_idx >= self._seq_decoder.num_classes:
+            raise ValueError(
+                f"Class index out of range, maximum clas value is: {self._seq_decoder.num_classes - 1}"
+            )
+        logger.info(f"Generating {number_of_songs} songs with class idx: {class_idx}")
         for i in range(number_of_songs):
             try:
                 logger.debug(f"Generating song for index: {i}")
-                class_idx = random.randint(0, self._seq_decoder.num_classes - 1)
                 class_idx_tensor = torch.tensor([class_idx], dtype=torch.long).to(
                     device
                 )
@@ -112,6 +121,24 @@ class SequenceModel(BaseHighLevelModel):
             len(generated_songs),
             number_of_songs,
         )
+        if visualize_pe:
+            pe_visualizer = PositionalEncodingVisualizer()
+            pe_save_path = folder_path / f"pe_tsne_{self._seq_decoder.name}.png"
+            pe_visualizer.visualize_and_save(
+                decoder=self._seq_decoder,
+                sequence_length=self._seq_decoder.sequence_length,
+                device=device,
+                save_path=pe_save_path,
+            )
+        if visualize_attn:
+            attn_visualizer = AttentionVisualizer()
+            attn_save_path = folder_path / f"attn_maps_{self._seq_decoder.name}.png"
+            attn_visualizer.visualize_and_save(
+                decoder=self._seq_decoder,
+                wrapper=self._decoder_wrapper,
+                device=device,
+                save_path=attn_save_path,
+            )
         return generated_songs
 
     def get_optimizer(self, params: DictConfig) -> torch.optim.Optimizer:

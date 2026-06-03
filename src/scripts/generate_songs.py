@@ -26,6 +26,7 @@ def main(cfg: DictConfig) -> None:
     current_output_songs_path = output_songs_path / (
         model_name + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     )
+    class_idx = int(cfg.class_idx)
     output_format = ExportFormat(cfg.output_format)
     current_output_songs_path.mkdir(parents=True, exist_ok=False)
     competitor = FirstStage.load_from_checkpoint(checkpoint_path, weights_only=False)
@@ -39,6 +40,9 @@ def main(cfg: DictConfig) -> None:
         export_format=output_format,
         generation_params=cfg.generation_params,
         num_samples=cfg.songs_to_generate,
+        visualize_pe=cfg.visualize_pe,
+        visualize_attn=cfg.visualize_attn,
+        class_idx=class_idx,
     )
     logger.info(f"Generated songs: {len(songs)}")
 

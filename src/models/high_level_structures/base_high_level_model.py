@@ -78,6 +78,9 @@ class BaseHighLevelModel(nn.Module, ABC):
         device: torch.device,
         file_name: str = "generated_song",
         export_format: ExportFormat = ExportFormat.WAV,
+        visualize_pe: bool = False,
+        visualize_attn: bool = False,
+        class_idx: int = 0,
     ):
         pass
 

@@ -7,9 +7,12 @@ hydra:
 
 log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 processing_precision: medium  # possible values: medium | high
-checkpoint_path: "outputs/checkpoints/train_repr/augmn_no_cp_rope_maestro/model-epoch=11-val_loss=5.83.ckpt"
-songs_to_generate: 100
+checkpoint_path: "outputs/checkpoints/train_repr/patch_gpt_midicaps/model-epoch=21-val_loss=0.00.ckpt"
+songs_to_generate: 1
+class_idx: 2  # index of the class to generate (important only for class conditioned models)
 output_format: wav  # midi, wav
+visualize_pe: false  # whether to save a t-SNE plot of positional encodings after generation
+visualize_attn: true  # whether to save attention map plots after generation
 generation_params:
   use_cache: false  # whether to use cache during generation (inference) - requires more VRAM but speeds up generation
   strict_sampling: false  # whether to use strict sampling (top-k, top-p) during generation

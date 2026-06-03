@@ -166,6 +166,9 @@ class FirstStage(pl.LightningModule):
         file_name: str,
         export_format: ExportFormat,
         generation_params: dict | None = None,
+        visualize_pe: bool = False,
+        visualize_attn: bool = False,
+        class_idx: int = 0,
     ) -> list[Path]:
         generation_params = generation_params or {}
         self.main_model.set_generation_params(**generation_params)
@@ -175,6 +178,9 @@ class FirstStage(pl.LightningModule):
             export_format=export_format,
             number_of_songs=num_samples,
             device=self.device,
+            visualize_pe=visualize_pe,
+            visualize_attn=visualize_attn,
+            class_idx=class_idx,
         )
 
     def on_before_optimizer_step(self, optimizer):
