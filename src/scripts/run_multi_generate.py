@@ -81,7 +81,7 @@ def main() -> None:
         "--temperature",
         type=float,
         default=0.8,
-        help="Sampling temperature (default: 0.7)",
+        help="Sampling temperature (default: 0.8)",
     )
     args = parser.parse_args()
 
