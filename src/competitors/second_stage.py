@@ -194,7 +194,7 @@ class SecondStage(pl.LightningModule):
             "train_gen_base_loss": model_loss,
             "train_gen_gan_loss": gan_loss,
         }
-        self.log_dict(log_dict, on_step=True, on_epoch=True, prog_bar=True)
+        self.log_dict(log_dict, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=False)
 
         return total_decoder_loss + loss_discriminator
