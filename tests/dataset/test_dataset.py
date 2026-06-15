@@ -78,4 +78,4 @@ class TestAbcDataset:
     @staticmethod
     def test_set_single_data_index_out_of_range(midi_data_path, patchilizer_adapter_midi):
         with pytest.raises(ValueError):
-            MidiDataset(midi_data_path, patchilizer_adapter_midi, single_data_training=True, index_of_overtrained=5)
+            MidiDataset(midi_data_path, patchilizer_adapter_midi, single_data_training=True, index_of_overtrained=5, augmentation_params={})

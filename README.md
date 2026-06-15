@@ -7,9 +7,15 @@
 ---
 
 **Table of Contents**
-
-[TOC]
-
+- [Introduction](#introduction)
+- [Quick Setup](#-quick-setup)
+- [Dataset Collection](#-dataset-collection)
+- [Running Tasks with `poe`](#-running-tasks-with-poe)
+- [Utility Scripts](#-utility-scripts)
+- [Linting & Static Analysis](#-linting--static-analysis)
+- [Architecture Overview](#-architecture-overview)
+- [Technology Stack](#-technology-stack)
+- [Configuration System](#-configuration-system)
 ---
 
 # Introduction
