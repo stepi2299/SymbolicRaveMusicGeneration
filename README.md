@@ -15,9 +15,11 @@ Symbolic RAVE is a master thesis research codebase for symbolic MIDI music gener
 
 ## 🚀 Quick Setup
 
-### 2.1 — Install Python 3.12 via `pyenv`
+### 2.1 — Install Python 3.12
 
-Using your system Python is a recipe for version conflicts. `pyenv` gives you isolated, reproducible Python versions per project — use it.
+Using your system Python is a recipe for version conflicts. 
+Recommended option for installing specific python version is `pyenv`!
+It gives you isolated, reproducible Python versions per project.
 
 ```bash
 # Install pyenv
@@ -38,9 +40,11 @@ pyenv install 3.12
 pyenv local 3.12
 ```
 
-### 2.2 — Install Poetry via `curl`
+### 2.2 — Install Poetry
 
-Poetry manages all dependencies and virtual environments. Use the official installer — never `pip install poetry`.
+Poetry manages all dependencies and virtual environments. 
+Try to use the official installer, avoid `pip install poetry` 
+(unless you don't have root's permission in repo and don't have installed curl).
 
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
@@ -70,6 +74,10 @@ poetry install
 
 ```bash
 poetry shell
+```
+or simply:
+```bash
+source .venv/bin/activate
 ```
 
 ### 2.4 — Optional: Mamba (State-Space Model) Support
