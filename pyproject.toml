@@ -1,14 +1,21 @@
 [tool.poetry]
-name = "Symbolic Music Generation"
+name = "symbolic_rave"
 version = "1.0.0"
 description = "Repository for my master thesis with topic: Generating Adaptive Background Music with Explainability Models for Musical Improvisation"
 authors = ["stepi2299 <boenisch22@gmail.com>"]
 readme = "README.md"
-package-mode = false
+packages = [
+    { include = "src" }
+]
+
+[[tool.poetry.source]]
+name = "pytorch_cu124"
+url = "https://download.pytorch.org/whl/cu124"
+priority = "explicit"
 
 [tool.poetry.dependencies]
-python = "^3.13"
-torch = { version = "*", source = "pytorch_cu124" }
+python = "^3.12"
+torch = { version = "^2.4.0", source = "pytorch_cu124" }
 numpy = "^2.2.1"
 wandb = "^0.19.1"
 hydra-core = "^1.3.2"
