@@ -1,10 +1,18 @@
-# Symbolic RAVE
 
 ![Python](https://img.shields.io/badge/Python-%3E%3D3.12-blue?logo=python&logoColor=white)
-![Poetry](https://img.shields.io/badge/Poetry-%3E%3D1.8-60A5FA?logo=poetry&logoColor=white)
+![Poetry](https://img.shields.io/badge/Poetry-%3E%3D2.0-60A5FA?logo=poetry&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-%3E%3D2.4%20%28CUDA%2012.4%29-EE4C2C?logo=pytorch&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+---
+
+**Table of Contents**
+
+[TOC]
+
+---
+
+# Introduction
 > **Generating Adaptive Background Music with Explainability Models for Musical Improvisation**
 
 Symbolic RAVE is a master thesis research codebase for symbolic MIDI music generation using a modular two-stage training pipeline. Stage 1 learns a compact music representation (autoregressive or VAE-based) from MIDI data using interchangeable adapters and sequence decoders. Stage 2 fine-tunes the decoder for downstream tasks. The project incorporates explainability mechanisms to generate adaptive background music for live musical improvisation, with full support for experiment tracking, hierarchical configuration, and multi-dataset training.
@@ -15,10 +23,9 @@ Symbolic RAVE is a master thesis research codebase for symbolic MIDI music gener
 
 ## 🚀 Quick Setup
 
-### 2.1 — Install Python 3.12
+### 2.1 — Install Python 3.12 (Or newer)
 
-Using your system Python is a recipe for version conflicts. 
-Recommended option for installing specific python version is `pyenv`!
+Recommended option for installing specific python version is `pyenv`.
 It gives you isolated, reproducible Python versions per project.
 
 ```bash
