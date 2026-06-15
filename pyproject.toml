@@ -1,18 +1,13 @@
 [tool.poetry]
-name = "Symbolic_rave"
-version = "0.1.0"
-description = ""
+name = "Symbolic Music Generation"
+version = "1.0.0"
+description = "Repository for my master thesis with topic: Generating Adaptive Background Music with Explainability Models for Musical Improvisation"
 authors = ["stepi2299 <boenisch22@gmail.com>"]
 readme = "README.md"
 package-mode = false
 
-[[tool.poetry.source]]
-name = "pytorch_cu124"
-url = "https://download.pytorch.org/whl/cu124"
-priority = "explicit"
-
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.13"
 torch = { version = "*", source = "pytorch_cu124" }
 numpy = "^2.2.1"
 wandb = "^0.19.1"
@@ -41,8 +36,13 @@ optional = true
 mamba-ssm = "^2.3.0"
 causal-conv1d = "^1.6.0"
 
+
 [tool.poe.tasks]
-ruff = "ruff format src/"
+ruff-lint-check = "ruff check src/"
+ruff-format-check= "ruff format --check src/"
+ruff-lint = "ruff check --fix-only src/"
+ruff-format = "ruff format src/"
+ruff-fix = ["ruff-lint", "ruff-format"]
 mypy = "mypy src/"
 test = "pytest tests/"
 train-decoder = "python src/scripts/train_decoder.py"
@@ -52,6 +52,32 @@ train-repr = "python src/scripts/train_repr.py"
 train-repr-patch = "python src/scripts/train_repr.py adapter=patchilizer model/decoder_wrapper=patch"
 train-repr-cp = "python src/scripts/train_repr.py adapter=compound_word loss=cp_elbo model/decoder_wrapper=compound_word"
 
+[tool.ruff]
+line-length = 120
+include = [
+    "pyproject.toml", "src/**/*.py"
+]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "N",  # pep8-naming
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "S",  # flake8-bandit
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade,
+    "FLY", # flynt,
+    "SIM",  # flake8-simplify
+    "PL", # pylint
+#    "ISC",  # flake8-implicit-str-concat, useful but generates warning during formating so it needs to be controlled
+]
+
+[tool.ruff.lint.pylint]
+max-args = 8
+max-statements=100
 
 [build-system]
 requires = ["poetry-core"]

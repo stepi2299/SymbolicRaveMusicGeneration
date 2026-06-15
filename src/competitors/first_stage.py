@@ -1,22 +1,23 @@
 from __future__ import annotations
-from typing import Any
-import copy
-from omegaconf import DictConfig
-import logging as lg
 
-import torch
+import copy
+import logging as lg
 import math
+from pathlib import Path
+from typing import Any
+
 import pytorch_lightning as pl
+import torch
+from omegaconf import DictConfig
 from pytorch_lightning.utilities import grad_norm
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import Subset
-from pathlib import Path
 
-from src.models.high_level_structures import BaseHighLevelModel
-from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
-from src.utils import split_dataset
-from src.dataset.dataloader import get_dataloader
 from src.constants import ExportFormat
+from src.dataset.dataloader import get_dataloader
+from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
+from src.models.high_level_structures import BaseHighLevelModel
+from src.utils import split_dataset
 
 logger = lg.getLogger(__name__)
 
@@ -36,12 +37,10 @@ class FirstStage(pl.LightningModule):
         monitor_metric: str = "val_loss",
         warmup_steps=100,
     ) -> None:
-        super(FirstStage, self).__init__()
+        super().__init__()
         self.main_model = main_model
         if len(symbolic_music_dataset) >= 5:
-            train_subset, val_subset = split_dataset(
-                symbolic_music_dataset, train_split
-            )
+            train_subset, val_subset = split_dataset(symbolic_music_dataset, train_split)
             train_dataset_copy = copy.deepcopy(train_subset.dataset)
             train_dataset_copy.turn_augmentation(augment=train_augment)
             val_subset.dataset.turn_augmentation(augment=val_augment)
@@ -65,12 +64,8 @@ class FirstStage(pl.LightningModule):
         self._val_augment = val_augment
         self.save_hyperparameters()
 
-    def training_step(
-        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> Any:
-        reconstruction, loss, loss_metadata = self.main_model.training_step(
-            batch, self.global_step
-        )
+    def training_step(self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> Any:
+        reconstruction, loss, loss_metadata = self.main_model.training_step(batch, self.global_step)
         if self._single_data_training:
             reconstruction_success, metadata = self.main_model.reconstruct(
                 reconstruction=reconstruction, original_data=batch
@@ -88,12 +83,8 @@ class FirstStage(pl.LightningModule):
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
-    def validation_step(
-        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> Any:
-        reconstruction, loss, loss_metadata = self.main_model.validation_step(
-            batch, self.global_step
-        )
+    def validation_step(self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> Any:
+        reconstruction, loss, loss_metadata = self.main_model.validation_step(batch, self.global_step)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
         return loss
@@ -138,9 +129,7 @@ class FirstStage(pl.LightningModule):
 
             # Phase 2: Cosine Decay
             # After warmup, follow a cosine curve down to 0.
-            progress = float(current_step - warmup_steps) / float(
-                max(1, total_steps - warmup_steps)
-            )
+            progress = float(current_step - warmup_steps) / float(max(1, total_steps - warmup_steps))
 
             # Ensure we don't go below 0.0
             return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))

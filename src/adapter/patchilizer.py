@@ -1,20 +1,19 @@
 import random
 import re
-from typing import Iterable
-import torch
-
-from mido import MidiFile as MidoMidiFile
+from collections.abc import Iterable
 from pathlib import Path
-from src.constants import ExportFormat
 
+import torch
+from mido import MidiFile as MidoMidiFile
 from unidecode import unidecode
-from src.constants import SymbolicMusicFormat
+
+from src.constants import ExportFormat, SymbolicMusicFormat
 from src.utils import (
-    convert_midi_to_string,
-    create_midi_file_from_string,
-    convert_mido_to_score,
-    export_to_wav,
     convert_abc_to_score,
+    convert_midi_to_string,
+    convert_mido_to_score,
+    create_midi_file_from_string,
+    export_to_wav,
 )
 
 
@@ -65,9 +64,7 @@ class MusicPatchilizer:
                     midi_file.save(output_path)
                 case ExportFormat.WAV:
                     output_path = output_path.with_suffix(".wav")
-                    score = convert_mido_to_score(
-                        create_midi_file_from_string(ret_music)
-                    )
+                    score = convert_mido_to_score(create_midi_file_from_string(ret_music))
                     export_to_wav(score, output_path)
                 case _:
                     raise ValueError(f"Export format {export_format} is not supported")
@@ -97,8 +94,7 @@ class MusicPatchilizer:
             patch = ""
             for line in lines:
                 if patch.startswith(line.split(" ")[0]) and (
-                    len(patch) + len(" ".join(line.split(" ")[1:]))
-                    <= self.patch_size - 2
+                    len(patch) + len(" ".join(line.split(" ")[1:])) <= self.patch_size - 2
                 ):
                     patch = patch[:-1] + "\t" + " ".join(line.split(" ")[1:])
                 else:
@@ -109,9 +105,7 @@ class MusicPatchilizer:
                 patches.append(patch)
         else:
             for line in lines:
-                if len(line) > 1 and (
-                    (line[0].isalpha() and line[1] == ":") or line.startswith("%%")
-                ):
+                if len(line) > 1 and ((line[0].isalpha() and line[1] == ":") or line.startswith("%%")):
                     patches.append(line)
                 else:
                     bars = self._split_bars(line)

@@ -1,6 +1,7 @@
-from abc import ABC, abstractmethod
-import torch
 import logging as lg
+from abc import ABC, abstractmethod
+
+import torch
 from torch import nn
 
 from src.models.sequence_decoder import BaseDecoder
@@ -40,9 +41,7 @@ class BaseWrapper(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def input_dropout(
-        self, embeddings: torch.Tensor, input_sequence: torch.Tensor
-    ) -> torch.Tensor:
+    def input_dropout(self, embeddings: torch.Tensor, input_sequence: torch.Tensor) -> torch.Tensor:
         pass
 
     @abstractmethod
@@ -56,7 +55,5 @@ class BaseWrapper(nn.Module, ABC):
 
     @staticmethod
     @abstractmethod
-    def reconstruct(
-        reconstruction: torch.Tensor, target_data: torch.Tensor
-    ) -> tuple[float, dict]:
+    def reconstruct(reconstruction: torch.Tensor, target_data: torch.Tensor) -> tuple[float, dict]:
         pass

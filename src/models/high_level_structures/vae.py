@@ -1,19 +1,18 @@
+import logging as lg
+from pathlib import Path
 from typing import Any
 
 import torch
-import logging as lg
-from pathlib import Path
-
 from omegaconf import DictConfig
 from torch import nn
 
 from src.adapter import MusicAdapter
 from src.constants import ExportFormat
-from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
 from src.loss.base_loss import BaseLoss
-from src.models.encoder import get_encoder
-from src.models.sequence_decoder import get_decoder
 from src.models.decoder_wrappers import get_decoder_wrapper
+from src.models.encoder import get_encoder
+from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
+from src.models.sequence_decoder import get_decoder
 
 logger = lg.getLogger(__name__)
 
@@ -28,15 +27,13 @@ class VAE(BaseHighLevelModel):
         use_cache_generation: bool = False,
         strict_sampling: bool = True,
     ) -> None:
-        super(VAE, self).__init__(
+        super().__init__(
             adapter=adapter,
             loss_function=loss_function,
             use_cache_generation=use_cache_generation,
             strict_sampling=strict_sampling,
         )
-        self._seq_encoder = get_encoder(
-            model_cfg.encoder, adapter, latent_dim=model_cfg.latent_dim
-        )
+        self._seq_encoder = get_encoder(model_cfg.encoder, adapter, latent_dim=model_cfg.latent_dim)
         self._seq_decoder = get_decoder(
             model_cfg.decoder,
             adapter,
@@ -58,9 +55,7 @@ class VAE(BaseHighLevelModel):
                 f"got {self._seq_encoder.latent_dim} for encoder and {self._seq_decoder.latent_dim} for decoder"
             )
 
-    def forward(
-        self, batch_data: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, batch_data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         self._original_sample = batch_data
         mu, log_variance = self._seq_encoder(batch_data)
         latent_vector = self._reparameterize(mu, log_variance)
@@ -136,9 +131,7 @@ class VAE(BaseHighLevelModel):
         latent_vector = torch.randn(number_of_songs, self.latent_dim).to(device)
         folder_path.resolve(True)
         if not folder_path.is_dir():
-            raise ValueError(
-                f"{folder_path} is not a valid directory when trying to generate songs."
-            )
+            raise ValueError(f"{folder_path} is not a valid directory when trying to generate songs.")
         generated_songs = []
         for i, single_condition_latent in enumerate(latent_vector):
             try:
@@ -150,14 +143,10 @@ class VAE(BaseHighLevelModel):
                     temperature=self._temperature,
                 )
                 song_path = self._adapter.decode(coded_song, output_path, export_format)
-                logger.info(
-                    f"Generated song for latent vector for index: {i} at path: {song_path}"
-                )
+                logger.info(f"Generated song for latent vector for index: {i} at path: {song_path}")
                 generated_songs.append(song_path)
             except Exception as e:
-                logger.error(
-                    f"Error generating song for latent vector for index: {i}: {e}"
-                )
+                logger.error(f"Error generating song for latent vector for index: {i}: {e}")
         return generated_songs
 
     def load_pretrained(self) -> None:

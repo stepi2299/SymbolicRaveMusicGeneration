@@ -1,7 +1,8 @@
-import torch
 import logging as lg
 
+import torch
 from torch.nn import functional as F
+
 from src.models.decoder_wrappers.base_wrapper import BaseWrapper
 from src.models.sequence_decoder import BaseDecoder
 from src.models.utils.patch_models import PatchEmbeddings, PatchOutputHead
@@ -10,9 +11,7 @@ logger = lg.getLogger(__name__)
 
 
 class PatchWrapper(BaseWrapper):
-    def __init__(
-        self, decoder: BaseDecoder, input_dropout_rate: float, token_embedding_size: int
-    ):
+    def __init__(self, decoder: BaseDecoder, input_dropout_rate: float, token_embedding_size: int):
         super().__init__(decoder=decoder, input_dropout_rate=input_dropout_rate)
         self._token_embedding_size = token_embedding_size
         self._patch_embedding = PatchEmbeddings(
@@ -46,9 +45,7 @@ class PatchWrapper(BaseWrapper):
         )
         return self._output_proj(model_state)  # [B, seq_len, vocab_size]
 
-    def input_dropout(
-        self, embeddings: torch.Tensor, input_sequence: torch.Tensor
-    ) -> torch.Tensor:
+    def input_dropout(self, embeddings: torch.Tensor, input_sequence: torch.Tensor) -> torch.Tensor:
         if self.training and self._input_dropout_rate > 0.0:
             keep_prob = 1.0 - self._input_dropout_rate
             random_mask = torch.bernoulli(
@@ -75,9 +72,7 @@ class PatchWrapper(BaseWrapper):
         use_cache: bool = False,
         temperature: float = 1.0,
     ) -> list[list[int]]:
-        logger.info(
-            f"Starting generation with decoder: {self._decoder.name} with Patch Wrapper"
-        )
+        logger.info(f"Starting generation with decoder: {self._decoder.name} with Patch Wrapper")
         generated_sequence = [[self._decoder.bos_token] * self.patch_size]
         self._decoder.clean_cache()
         generation_device = (
@@ -86,17 +81,13 @@ class PatchWrapper(BaseWrapper):
             else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         )
         for _ in range(self._decoder.sequence_length):
-            input_seq = (
-                torch.tensor(generated_sequence).unsqueeze(0).to(generation_device)
-            )
+            input_seq = torch.tensor(generated_sequence).unsqueeze(0).to(generation_device)
             logits = self(
                 [input_seq, class_idx],
                 latent_vector=latent_vector,
                 use_cache=use_cache,
             )
-            next_token_logits = logits[
-                0, -1, :, :
-            ]  # taking last ones (logits for next patch)
+            next_token_logits = logits[0, -1, :, :]  # taking last ones (logits for next patch)
             next_patch = self.sample_next_item(
                 next_token_logits,
                 strict_sampling=strict_sampling,
@@ -112,9 +103,7 @@ class PatchWrapper(BaseWrapper):
         self._decoder.clean_cache()
         return generated_sequence[1:]
 
-    def sample_next_item(
-        self, logits: torch.Tensor, strict_sampling: bool, temperature: float
-    ) -> list[int]:
+    def sample_next_item(self, logits: torch.Tensor, strict_sampling: bool, temperature: float) -> list[int]:
         """
         Sample the next patch based on the logits output from the model.
         If strict_sampling is True, it will take the argmax of the logits to get the most likely next patch.
@@ -128,9 +117,7 @@ class PatchWrapper(BaseWrapper):
         """
 
         if logits.dim() != 2:
-            raise ValueError(
-                f"Expected logits to have shape [Patch_Size, Vocab_Size], but got shape: {logits.shape}"
-            )
+            raise ValueError(f"Expected logits to have shape [Patch_Size, Vocab_Size], but got shape: {logits.shape}")
 
         if strict_sampling:
             tokens = logits.argmax(dim=-1)
@@ -142,13 +129,9 @@ class PatchWrapper(BaseWrapper):
             return next_patch_indices.squeeze(-1).tolist()
 
     @staticmethod
-    def reconstruct(
-        reconstruction: torch.Tensor, x_target: torch.Tensor
-    ) -> tuple[float, dict]:
+    def reconstruct(reconstruction: torch.Tensor, x_target: torch.Tensor) -> tuple[float, dict]:
         token_reconstruction = reconstruction.argmax(dim=-1)
-        correctness_reconstruction = (
-            token_reconstruction == x_target
-        ).float().mean().item() * 100
+        correctness_reconstruction = (token_reconstruction == x_target).float().mean().item() * 100
         return correctness_reconstruction, {}
 
     @property

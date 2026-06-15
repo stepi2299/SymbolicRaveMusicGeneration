@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 class AdaLN(nn.Module):
@@ -23,16 +23,14 @@ class AdaLN(nn.Module):
 
         """
         Zero-initialization of the linear layer's weights and biases.
-        This ensures that at the beginning of training, the model behaves exactly 
-        like a standard, unconditioned Transformer. The scale multiplier starts at 0 
+        This ensures that at the beginning of training, the model behaves exactly
+        like a standard, unconditioned Transformer. The scale multiplier starts at 0
         (which we add to 1 later) and shift starts at 0.
         """
         nn.init.zeros_(self.emb2ada.weight)
         nn.init.zeros_(self.emb2ada.bias)
 
-    def forward(
-        self, input_activation: torch.Tensor, conditioning_vector: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, input_activation: torch.Tensor, conditioning_vector: torch.Tensor) -> torch.Tensor:
         """
         Forward pass for the AdaLN module.
 

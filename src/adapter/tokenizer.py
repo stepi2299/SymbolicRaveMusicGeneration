@@ -1,30 +1,28 @@
-import random
-from pathlib import Path
 import logging as lg
-import torch
+from pathlib import Path
 
+import torch
 from miditok import (
-    REMI,
-    MIDILike,
-    TSD,
-    Structured,
-    CPWord,
-    Octuple,
-    MuMIDI,
     MMM,
+    REMI,
+    TSD,
+    CPWord,
+    MIDILike,
+    MuMIDI,
+    Octuple,
+    Structured,
     TokenizerConfig,
 )
 from mido import MidiFile as MidoMidiFile
 
+from src.adapter.augmenter import CpWordAugmenter, OneLevelTokAugmenter
+from src.constants import ExportFormat, SymbolicMusicFormat
 from src.utils import (
-    base_weights_path,
     base_dataset_path,
+    base_weights_path,
     convert_mido_to_score,
     export_to_wav,
 )
-from src.adapter.augmenter import OneLevelTokAugmenter, CpWordAugmenter
-from src.constants import SymbolicMusicFormat, ExportFormat
-
 
 logger = lg.getLogger(__name__)
 
@@ -81,47 +79,30 @@ class Tokenizer:
         self.add_special_patches = add_special_patches
         self._dataset_name = dataset_name
         self.patch_size = self.PATCH_MAPPER[tokenizer_name]
-        self._augmenter_params = (
-            augmenter_params if augmenter_params is not None else {}
-        )
+        self._augmenter_params = augmenter_params if augmenter_params is not None else {}
         if tokenizer_name not in self.TOKENIZER_MAPPER:
             raise ValueError(
-                f"Tokenizer {tokenizer_name} not supported, supported tokenizers "
-                f"are {self.TOKENIZER_MAPPER.keys()}"
+                f"Tokenizer {tokenizer_name} not supported, supported tokenizers " f"are {self.TOKENIZER_MAPPER.keys()}"
             )
         if self.cache_tokenizer_path.exists():
-            logger.info(
-                f"Loading tokenizer {self.tokenizer_name} from {self.cache_tokenizer_path}"
-            )
-            self.tokenizer = self.TOKENIZER_MAPPER[tokenizer_name](
-                params=self.cache_tokenizer_path
-            )
+            logger.info(f"Loading tokenizer {self.tokenizer_name} from {self.cache_tokenizer_path}")
+            self.tokenizer = self.TOKENIZER_MAPPER[tokenizer_name](params=self.cache_tokenizer_path)
             self._is_trained = True
         else:
-            logger.info(
-                f"Initializing new tokenizer {self.tokenizer_name} with config: {config}"
-            )
+            logger.info(f"Initializing new tokenizer {self.tokenizer_name} with config: {config}")
             tokenizer_config = TokenizerConfig(**config if config is not None else {})
-            self.tokenizer = self.TOKENIZER_MAPPER[tokenizer_name](
-                tokenizer_config=tokenizer_config
-            )
+            self.tokenizer = self.TOKENIZER_MAPPER[tokenizer_name](tokenizer_config=tokenizer_config)
             self._is_trained = False
         self._dim_of_song = 2 if self.patch_size > 1 else 1
         augmenter_class = self.AUGMENTATION_MAPPER[tokenizer_name]
-        self.augmenter = augmenter_class(
-            tokenizer_config=self.tokenizer.config, **self._augmenter_params
-        )
+        self.augmenter = augmenter_class(tokenizer_config=self.tokenizer.config, **self._augmenter_params)
 
-    def encode(
-        self, music_file: MidoMidiFile, symbolic_format: SymbolicMusicFormat
-    ) -> list[int]:
+    def encode(self, music_file: MidoMidiFile, symbolic_format: SymbolicMusicFormat) -> list[int]:
         if symbolic_format == SymbolicMusicFormat.ABC:
             raise ValueError("ABC format is not supported for tokenizer")
         if not self._is_trained:
-            logger.warning(f"Tokenizer is not trained")
-        midi_score = convert_mido_to_score(
-            music_file
-        )  # Change from mido into symusic.Score
+            logger.warning("Tokenizer is not trained")
+        midi_score = convert_mido_to_score(music_file)  # Change from mido into symusic.Score
         tok_sequence = self.tokenizer(midi_score)[0].ids[: self.sequence_length - 2]
         if self.add_special_patches:
             tok_sequence = self._add_special_tokens(tok_sequence)
@@ -137,7 +118,7 @@ class Tokenizer:
         if symbolic_format == SymbolicMusicFormat.ABC:
             raise ValueError("ABC format is not supported for tokenizer")
         if not self._is_trained:
-            logger.warning(f"Tokenizer is not trained")
+            logger.warning("Tokenizer is not trained")
         score = self.tokenizer.decode([tokens])
 
         match export_format:
@@ -174,13 +155,11 @@ class Tokenizer:
                 tokenizer_config=self.tokenizer.config, **self._augmenter_params
             )
         else:
-            logger.info(f"Current tokenizer is CPWord, skipping training step.")
+            logger.info("Current tokenizer is CPWord, skipping training step.")
             self._is_trained = True
 
     def save(self) -> None:
-        logger.info(
-            f"Saving tokenizer {self.tokenizer_name} to {self.cache_tokenizer_path}"
-        )
+        logger.info(f"Saving tokenizer {self.tokenizer_name} to {self.cache_tokenizer_path}")
         self.tokenizer.save(out_path=self.cache_tokenizer_path)
 
     @property
@@ -210,9 +189,7 @@ class Tokenizer:
     def song_dim(self) -> int:
         return self._dim_of_song
 
-    def _add_special_tokens(
-        self, tokens: list[int] | list[list[int]]
-    ) -> list[int] | list[list[int]]:
+    def _add_special_tokens(self, tokens: list[int] | list[list[int]]) -> list[int] | list[list[int]]:
         if self._dim_of_song == 2:
             bos_token = [self.bos_token_id] * self.patch_size
             eos_token = [self.eos_token_id] * self.patch_size

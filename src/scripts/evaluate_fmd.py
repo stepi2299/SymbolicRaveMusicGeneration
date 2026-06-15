@@ -1,9 +1,9 @@
-import hydra
-from omegaconf import DictConfig
 from pathlib import Path
 
+import hydra
 import torch
 from frechet_music_distance import FrechetMusicDistance
+from omegaconf import DictConfig
 
 
 @hydra.main(config_path="../../configs", config_name="evaluate_fmd", version_base="1.3")

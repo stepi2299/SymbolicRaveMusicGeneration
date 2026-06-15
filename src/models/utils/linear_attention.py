@@ -1,6 +1,6 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class CausalLinearAttention(nn.Module):
@@ -59,9 +59,7 @@ class CausalLinearAttention(nn.Module):
 
             # Obliczenie wyjścia: V' = (Q * S) / (Q * Z)
             num = torch.einsum("bhd, bhde -> bhe", q_i, new_S)
-            den = (
-                torch.einsum("bhd, bhd -> bh", q_i, new_Z) + 1e-6
-            )  # Epsilon dla stabilności
+            den = torch.einsum("bhd, bhd -> bh", q_i, new_Z) + 1e-6  # Epsilon dla stabilności
 
             output = num / den.unsqueeze(-1)  # [B, H, D]
             output = output.unsqueeze(1)  # [B, 1, H, D]

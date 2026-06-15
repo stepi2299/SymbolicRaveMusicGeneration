@@ -1,7 +1,8 @@
-import torch
 import logging as lg
 
+import torch
 from transformers import TransfoXLConfig, TransfoXLModel
+
 from src.models.sequence_decoder.base_decoder import BaseDecoder
 
 logger = lg.getLogger(__name__)
@@ -26,7 +27,7 @@ class TransformerXL(BaseDecoder):
         class_conditioning: bool,
         num_classes: int,
     ) -> None:
-        super(TransformerXL, self).__init__(
+        super().__init__(
             latent_dim=latent_dim,
             name="transformer_xl",
             vocab_size=vocab_size,
@@ -71,13 +72,9 @@ class TransformerXL(BaseDecoder):
         class_idx: torch.Tensor | None = None,
         use_cache: bool = False,
     ) -> torch.Tensor:
-        decoder_inputs_embeds = self._prepare_input(
-            input_embedding, latent_vector, class_idx
-        )
+        decoder_inputs_embeds = self._prepare_input(input_embedding, latent_vector, class_idx)
 
-        outputs = self.model(
-            inputs_embeds=decoder_inputs_embeds, mems=self._cache_params
-        )
+        outputs = self.model(inputs_embeds=decoder_inputs_embeds, mems=self._cache_params)
         self._cache_params = outputs.mems
         return outputs.last_hidden_state  # [B, Seq_Len, Hidden]
 

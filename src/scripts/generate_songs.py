@@ -1,20 +1,18 @@
-import hydra
 import logging as lg
-from omegaconf import DictConfig
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
+import hydra
 import torch
+from omegaconf import DictConfig
 
 from src.competitors.first_stage import FirstStage
 from src.competitors.second_stage import SecondStage
-from src.utils import output_songs_path
 from src.constants import ExportFormat
+from src.utils import output_songs_path
 
 
-@hydra.main(
-    config_path="../../configs", config_name="generate_song", version_base="1.3"
-)
+@hydra.main(config_path="../../configs", config_name="generate_song", version_base="1.3")
 def main(cfg: DictConfig) -> None:
     torch.cuda.empty_cache()
     torch.set_float32_matmul_precision(cfg.processing_precision)
@@ -23,23 +21,15 @@ def main(cfg: DictConfig) -> None:
 
     checkpoint_path = Path(cfg.checkpoint_path).resolve(True)
     model_name = checkpoint_path.parent.name
-    current_output_songs_path = output_songs_path / (
-        model_name + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    )
+    current_output_songs_path = output_songs_path / (model_name + datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     class_idx = int(cfg.class_idx)
     output_format = ExportFormat(cfg.output_format)
     current_output_songs_path.mkdir(parents=True, exist_ok=False)
     try:
-        competitor = FirstStage.load_from_checkpoint(
-            checkpoint_path, weights_only=False
-        )
+        competitor = FirstStage.load_from_checkpoint(checkpoint_path, weights_only=False)
     except Exception as e:
-        logger.warning(
-            f"Failed to load FirstStage from checkpoint: {e}. Trying SecondStage..."
-        )
-        competitor = SecondStage.load_from_checkpoint(
-            checkpoint_path, weights_only=False
-        )
+        logger.warning(f"Failed to load FirstStage from checkpoint: {e}. Trying SecondStage...")
+        competitor = SecondStage.load_from_checkpoint(checkpoint_path, weights_only=False)
     logger.info(
         f"Starting Generation Script! Expected number generated songs: {cfg.songs_to_generate}, "
         f"Checkpoint path: {current_output_songs_path.as_posix()}"

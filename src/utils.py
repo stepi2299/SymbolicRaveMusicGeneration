@@ -1,21 +1,17 @@
-from typing import Tuple, Dict
+import logging as lg
+import math
+import re
+from pathlib import Path
+
+import mido
 import requests
 import symusic
 import torch
-from tqdm import tqdm
-import logging as lg
-import math
-from torch.nn import functional as F
-import re
-
-
-import mido
 from mido.messages.messages import Message
-from symusic import Score, Track, Note
-from torch.utils.data import Dataset, random_split
+from symusic import Note, Score, Synthesizer, Track, dump_wav
 from torch.nn.utils.rnn import pad_sequence
-from symusic import Synthesizer, dump_wav
-from pathlib import Path
+from torch.utils.data import Dataset, random_split
+from tqdm import tqdm
 
 KB = 1024
 MB = 1024 * KB
@@ -27,9 +23,7 @@ output_songs_path = Path.cwd() / "outputs" / "generated"
 logger = lg.getLogger(__name__)
 
 
-def download_file(
-    url: str, destination: Path, verbose: bool = True, chunk_size: int = 10 * MB
-) -> None:
+def download_file(url: str, destination: Path, verbose: bool = True, chunk_size: int = 10 * MB) -> None:
     try:
         with requests.get(url, stream=True) as response:
             response.raise_for_status()
@@ -73,7 +67,6 @@ def load_midi_song(filepath: Path) -> mido.MidiFile:
 
 def convert_mido_to_score(midi_file: mido.MidiFile) -> Score:
     score = Score()
-    tpb = midi_file.ticks_per_beat
 
     for mido_track in midi_file.tracks:
         track = Track()
@@ -86,9 +79,7 @@ def convert_mido_to_score(midi_file: mido.MidiFile) -> Score:
             if msg.type == "note_on" and msg.velocity > 0:
                 notes_on[(msg.channel, msg.note)] = (current_time, msg.velocity)
 
-            elif (msg.type == "note_off") or (
-                msg.type == "note_on" and msg.velocity == 0
-            ):
+            elif (msg.type == "note_off") or (msg.type == "note_on" and msg.velocity == 0):
                 key = (msg.channel, msg.note)
                 if key in notes_on:
                     start_time, velocity = notes_on.pop(key)
@@ -135,7 +126,7 @@ def convert_midi_to_string(midi_file: mido.MidiFile) -> str:
 
 
 def load_abc_song(filepath: Path) -> str:
-    with open(filepath, "r", encoding="utf-8") as file:
+    with open(filepath, encoding="utf-8") as file:
         data = file.read()
 
     return data
@@ -145,9 +136,7 @@ def symbolic_collate_fn(batch: list[torch.Tensor]) -> torch.Tensor:
     return pad_sequence(batch, batch_first=True, padding_value=0)
 
 
-def split_dataset(
-    dataset: Dataset, train_split: float = 0.8
-) -> Tuple[Dataset, Dataset]:
+def split_dataset(dataset: Dataset, train_split: float = 0.8) -> tuple[Dataset, Dataset]:
     dataset_size = len(dataset)
     train_size = int(train_split * dataset_size)
     val_size = dataset_size - train_size
@@ -193,12 +182,11 @@ def filter_abc(lines: list[str]) -> str:
             or (line.startswith("%") and not line.startswith("%%score"))
         ):
             continue
+        elif "%" in line and not line.startswith("%%score"):
+            line = "%".join(line.split("%")[:-1])
+            music += line[:-1] + "\n"
         else:
-            if "%" in line and not line.startswith("%%score"):
-                line = "%".join(line.split("%")[:-1])
-                music += line[:-1] + "\n"
-            else:
-                music += line + "\n"
+            music += line + "\n"
     return music
 
 
@@ -235,11 +223,7 @@ def str_to_msg(str_msg: str) -> mido.Message:
         list_str = [int(num) for num in str_msg[left_idx + 1 : right_idx].split(", ")]
         if not is_bracket:
             list_str = tuple(list_str)
-        values = (
-            str_msg[:left_idx].split(" ")
-            + [list_str]
-            + str_msg[right_idx + 1 :].split(" ")
-        )
+        values = str_msg[:left_idx].split(" ") + [list_str] + str_msg[right_idx + 1 :].split(" ")
         values = [value for value in values if value != ""]
     else:
         values = str_msg.split(" ")
@@ -249,7 +233,7 @@ def str_to_msg(str_msg: str) -> mido.Message:
             if key == "type":
                 continue
             value = values[idx]
-            if isinstance(content, int) or isinstance(content, float):
+            if isinstance(content, int | float):
                 float_value = float(value)
                 value = float_value
                 if value % 1 == 0:
@@ -269,9 +253,7 @@ def create_midi_file_from_string(mtf_text: str) -> mido.MidiFile:
 
     ticks_per_beat_line = mtf_lines[0]
     if not ticks_per_beat_line.startswith("ticks_per_beat "):
-        logger.warning(
-            "Lack of important information about ticks_per_beat when creating midifile from string"
-        )
+        logger.warning("Lack of important information about ticks_per_beat when creating midifile from string")
         mid = mido.MidiFile()
     else:
         ticks_per_beat = int(ticks_per_beat_line.split()[1])
@@ -290,12 +272,7 @@ def create_midi_file_from_string(mtf_text: str) -> mido.MidiFile:
             try:
                 track.append(str_to_msg(parts[0]))
             except Exception as e:
-                logger.error(
-                    "Error during parsing the first part of compressed message: "
-                    + parts[0]
-                    + " -> "
-                    + str(e)
-                )
+                logger.error("Error during parsing the first part of compressed message: " + parts[0] + " -> " + str(e))
                 continue
 
             for part in parts[1:]:
@@ -304,20 +281,13 @@ def create_midi_file_from_string(mtf_text: str) -> mido.MidiFile:
                 try:
                     track.append(str_to_msg(reconstructed_msg))
                 except Exception as e:
-                    logger.debug(
-                        "Error during parsing compressed message: "
-                        + reconstructed_msg
-                        + " -> "
-                        + str(e)
-                    )
+                    logger.debug("Error during parsing compressed message: " + reconstructed_msg + " -> " + str(e))
                     continue
         else:
             try:
                 track.append(str_to_msg(msg))
             except Exception as e:
-                logger.debug(
-                    "Error during parsing compressed message: " + msg + " -> " + str(e)
-                )
+                logger.debug("Error during parsing compressed message: " + msg + " -> " + str(e))
                 continue
 
     return mid
@@ -328,7 +298,7 @@ def save_midi_song_from_string(mtf_text: str, output_path: Path) -> None:
     midi_file.save(str(output_path))
 
 
-def filter_state_dict_keys(state_dict: Dict[str, torch.Tensor], old_name: str):
+def filter_state_dict_keys(state_dict: dict[str, torch.Tensor], old_name: str):
     new_state_dict = {}
     for key, value in state_dict.items():
         if old_name in key:
@@ -338,10 +308,10 @@ def filter_state_dict_keys(state_dict: Dict[str, torch.Tensor], old_name: str):
 
 
 def rename_state_dict_keys(
-    state_dict: Dict[str, torch.Tensor], substring_to_rename: str, new_name: str
-) -> Dict[str, torch.Tensor]:
+    state_dict: dict[str, torch.Tensor], substring_to_rename: str, new_name: str
+) -> dict[str, torch.Tensor]:
     new_state_dict = {}
-    for keys in state_dict.keys():
+    for keys in state_dict:
         separated_keys = keys.split(".")
         if substring_to_rename in separated_keys:
             for idx, key in enumerate(separated_keys):
@@ -354,11 +324,9 @@ def rename_state_dict_keys(
     return new_state_dict
 
 
-def remove_state_dict_keys(
-    state_dict: Dict[str, torch.Tensor], keys_to_remove: list
-) -> Dict[str, torch.Tensor]:
+def remove_state_dict_keys(state_dict: dict[str, torch.Tensor], keys_to_remove: list) -> dict[str, torch.Tensor]:
     new_state_dict = {}
-    for keys_string in state_dict.keys():
+    for keys_string in state_dict:
         list_of_keys = keys_string.split(".")
         for key in list_of_keys:
             if key in keys_to_remove:
@@ -376,9 +344,7 @@ def convert_abc_to_score(abc_string: str) -> symusic.Score:
 synth = Synthesizer(sample_rate=44100)
 
 
-def export_to_wav(
-    score: symusic.Score, filepath: Path, sample_rate: int = 44100
-) -> None:
+def export_to_wav(score: symusic.Score, filepath: Path, sample_rate: int = 44100) -> None:
     audio = synth.render(score, stereo=True)
     dump_wav(filepath.as_posix(), audio, sample_rate=sample_rate, use_int16=True)
 

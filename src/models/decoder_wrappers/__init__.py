@@ -7,9 +7,7 @@ from src.models.decoder_wrappers.simple_wrapper import SimpleWrapper
 from src.models.sequence_decoder import BaseDecoder
 
 
-def get_decoder_wrapper(
-    wrapper_type: str, decoder: BaseDecoder, params: DictConfig
-) -> BaseWrapper:
+def get_decoder_wrapper(wrapper_type: str, decoder: BaseDecoder, params: DictConfig) -> BaseWrapper:
     match wrapper_type.lower():
         case "simple":
             return SimpleWrapper(decoder=decoder, **params)
@@ -18,6 +16,4 @@ def get_decoder_wrapper(
         case "patch":
             return PatchWrapper(decoder=decoder, **params)
         case _:
-            raise ValueError(
-                f"Unsupported wrapper type: {wrapper_type}, supported: simple, compound_word, patch"
-            )
+            raise ValueError(f"Unsupported wrapper type: {wrapper_type}, supported: simple, compound_word, patch")

@@ -1,19 +1,16 @@
+from pathlib import Path
+
 import torch
+from mido import MidiFile as MidoMidiFile
 from omegaconf import DictConfig
 
 from src.adapter.patchilizer import MusicPatchilizer
 from src.adapter.tokenizer import Tokenizer, get_tokenizer
-
-from mido import MidiFile as MidoMidiFile
-from pathlib import Path
-
-from src.constants import SymbolicMusicFormat, MusicAdapterType, ExportFormat
+from src.constants import ExportFormat, MusicAdapterType, SymbolicMusicFormat
 
 
 class MusicAdapter:
-    def __init__(
-        self, adapter_config: DictConfig, symbolic_format: str, dataset_name: str
-    ) -> None:
+    def __init__(self, adapter_config: DictConfig, symbolic_format: str, dataset_name: str) -> None:
         self.adapter_type = MusicAdapterType(adapter_config.name)
         self._adapter = self.get_preprocessor(
             self.adapter_type,
@@ -34,9 +31,7 @@ class MusicAdapter:
         export_format: ExportFormat,
     ) -> Path:
         try:
-            ret_music = self._adapter.decode(
-                item, self.symbolic_format, output_path, export_format
-            )
+            ret_music = self._adapter.decode(item, self.symbolic_format, output_path, export_format)
         except Exception as e:
             raise RuntimeError(f"Decoding failed: {e}") from e
         if isinstance(ret_music, str):
@@ -47,21 +42,13 @@ class MusicAdapter:
         return self._adapter.augment(music_data)
 
     def _get_single_dim_padded_sequence(self, music_file: list[int]) -> list[int]:
-        return music_file + [self.pad_token_id] * (
-            self.sequence_length - len(music_file)
-        )
+        return music_file + [self.pad_token_id] * (self.sequence_length - len(music_file))
 
-    def _get_two_dim_padded_sequence(
-        self, music_file: list[list[int]]
-    ) -> list[list[int]]:
-        music_file = music_file + [[self.pad_token_id] * self.patch_size] * (
-            self.sequence_length - len(music_file)
-        )
+    def _get_two_dim_padded_sequence(self, music_file: list[list[int]]) -> list[list[int]]:
+        music_file = music_file + [[self.pad_token_id] * self.patch_size] * (self.sequence_length - len(music_file))
         return music_file
 
-    def get_padded_sequence(
-        self, music_file: list[list[int]] | list[int]
-    ) -> list[list[int]] | list[int]:
+    def get_padded_sequence(self, music_file: list[list[int]] | list[int]) -> list[list[int]] | list[int]:
         if len(music_file) < self.sequence_length:
             if isinstance(music_file[0], list):
                 return self._get_two_dim_padded_sequence(music_file)

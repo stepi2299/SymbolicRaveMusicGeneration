@@ -1,16 +1,17 @@
 from typing import Type
-from omegaconf import DictConfig
-from src.adapter import MusicAdapter
 
-from src.models.sequence_decoder.mistral_decoder import MistralDecoder
+from omegaconf import DictConfig
+
+from src.adapter import MusicAdapter
+from src.models.sequence_decoder.base_decoder import BaseDecoder
+from src.models.sequence_decoder.gpt_decoder import GptDecoder
 from src.models.sequence_decoder.mamba_decoder import MambaDecoder
+from src.models.sequence_decoder.mistral_decoder import MistralDecoder
 from src.models.sequence_decoder.transformer_rope import TransformerRope
 from src.models.sequence_decoder.transformer_xl import TransformerXL
-from src.models.sequence_decoder.gpt_decoder import GptDecoder
-from src.models.sequence_decoder.base_decoder import BaseDecoder
 
 
-def _decoder_mapper(decoder_name: str) -> Type[BaseDecoder]:
+def _decoder_mapper(decoder_name: str) -> type[BaseDecoder]:
     if decoder_name == "gpt_decoder":
         return GptDecoder
     elif decoder_name == "transformer_xl":

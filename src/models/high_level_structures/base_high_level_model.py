@@ -1,16 +1,15 @@
-from typing import Any
-from omegaconf import DictConfig
-
-from torch import nn
-import torch
-from abc import ABC, abstractmethod
 import logging as lg
+from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any
+
+import torch
+from omegaconf import DictConfig
+from torch import nn
 
 from src.adapter import MusicAdapter
 from src.constants import ExportFormat
 from src.loss.base_loss import BaseLoss
-
 
 logger = lg.getLogger(__name__)
 
@@ -29,12 +28,8 @@ class BaseHighLevelModel(nn.Module, ABC):
         self._strict_sampling = strict_sampling
         self._temperature = 1.0
         self._loss_function = loss_function
-        self._original_sample = (
-            None  # Useful for single data training to compute reconstruction loss
-        )
-        logger.info(
-            f"Initialized {self.__class__.__name__} with adapter: {adapter.__class__.__name__}"
-        )
+        self._original_sample = None  # Useful for single data training to compute reconstruction loss
+        logger.info(f"Initialized {self.__class__.__name__} with adapter: {adapter.__class__.__name__}")
 
     def set_generation_params(
         self,

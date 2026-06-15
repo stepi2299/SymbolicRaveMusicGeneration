@@ -10,17 +10,16 @@ Supports:
 import logging as lg
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 
 from src.models.sequence_decoder.base_decoder import BaseDecoder
 from src.models.sequence_decoder.gpt_decoder import GptDecoder
 from src.models.sequence_decoder.transformer_rope import TransformerRope
 from src.models.sequence_decoder.transformer_xl import TransformerXL
-
-import matplotlib.pyplot as plt
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
 
 logger = lg.getLogger(__name__)
 
@@ -48,9 +47,7 @@ class PositionalEncodingVisualizer:
         elif isinstance(decoder, TransformerXL):
             return self._extract_xl_pe(decoder)
         else:
-            raise TypeError(
-                f"Unsupported decoder type for PE visualization: {type(decoder).__name__}"
-            )
+            raise TypeError(f"Unsupported decoder type for PE visualization: {type(decoder).__name__}")
 
     @torch.no_grad()
     def _extract_learned_pe(
@@ -84,9 +81,7 @@ class PositionalEncodingVisualizer:
         # rotary_emb lives on the model (GPTNeoXModel or CustomGPTNeoXModel)
         hidden_size = decoder.hidden_size
         dummy = torch.zeros(1, sequence_length, hidden_size, device=device)
-        position_ids = torch.arange(
-            sequence_length, dtype=torch.long, device=device
-        ).unsqueeze(0)  # [1, seq_len]
+        position_ids = torch.arange(sequence_length, dtype=torch.long, device=device).unsqueeze(0)  # [1, seq_len]
 
         cos, sin = decoder.model.rotary_emb(dummy, position_ids)
         # cos/sin: [1, seq_len, rotary_dim]

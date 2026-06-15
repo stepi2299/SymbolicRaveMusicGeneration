@@ -1,8 +1,9 @@
-import torch
-import torch.nn as nn
 import logging as lg
 
-from src.constants import CP_WORD_INDEXES, CP_TOKEN_SIZE
+import torch
+from torch import nn
+
+from src.constants import CP_TOKEN_SIZE, CP_WORD_INDEXES
 
 logger = lg.getLogger(__name__)
 
@@ -80,7 +81,5 @@ class MultiHeadOutput(nn.Module):
         # hidden_states: [Batch, Seq_Len, Hidden]
         outputs = {}
         for name, layer in self.heads.items():
-            outputs[name] = layer(
-                hidden_states
-            )  # [Batch, Seq_Len, Vocab_Size_Attribute]
+            outputs[name] = layer(hidden_states)  # [Batch, Seq_Len, Vocab_Size_Attribute]
         return outputs

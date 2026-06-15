@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import torch
-from transformers import BertConfig, PreTrainedModel, BertModel
+from transformers import BertConfig, BertModel, PreTrainedModel
 
 
 class PatchEncoder(PreTrainedModel):
@@ -13,9 +13,7 @@ class PatchEncoder(PreTrainedModel):
         vocab_size: int,
     ) -> None:
         super().__init__(config)
-        self.patch_embedding = torch.nn.Linear(
-            patch_size * vocab_size, projection_layer
-        )
+        self.patch_embedding = torch.nn.Linear(patch_size * vocab_size, projection_layer)
         torch.nn.init.normal_(self.patch_embedding.weight, std=0.02)
         self.config = config
         self.base = BertModel(config=config)
@@ -31,9 +29,7 @@ class PatchEncoder(PreTrainedModel):
         if input_patches.is_floating_point():
             # Soft input (e.g. Gumbel-Softmax one-hot): [batch, T, V]
             # Reshape to [batch, T/patch_size, patch_size * vocab_size] for patch_embedding
-            input_patches = input_patches.reshape(
-                len(input_patches), -1, self.patch_size * self.vocab_size
-            )
+            input_patches = input_patches.reshape(len(input_patches), -1, self.patch_size * self.vocab_size)
         else:
             # Integer token input: one-hot encode first
             input_patches = torch.nn.functional.one_hot(
@@ -62,16 +58,12 @@ class CLaMPModel(PreTrainedModel):
         self.music_proj = torch.nn.Linear(
             self.patch_encoder.projection_layer, latent_dim
         )  # Linear layer for music projections
-        torch.nn.init.normal_(
-            self.music_proj.weight, std=0.02
-        )  # Initialize weights with normal distribution
+        torch.nn.init.normal_(self.music_proj.weight, std=0.02)  # Initialize weights with normal distribution
 
-    def get_music_features(
-        self, music_inputs: torch.Tensor, music_masks: torch.Tensor
-    ) -> torch.Tensor:
-        music_features = self.patch_encoder(
-            music_inputs.to(self.device), music_masks.to(self.device)
-        )["last_hidden_state"]
+    def get_music_features(self, music_inputs: torch.Tensor, music_masks: torch.Tensor) -> torch.Tensor:
+        music_features = self.patch_encoder(music_inputs.to(self.device), music_masks.to(self.device))[
+            "last_hidden_state"
+        ]
 
         # Normalize features (Reduce Temporal Dimension)
         music_features = self._avg_pooling(music_features, music_masks)
@@ -79,9 +71,7 @@ class CLaMPModel(PreTrainedModel):
 
         return music_features
 
-    def _avg_pooling(
-        self, input_features: torch.FloatTensor, input_masks: torch.LongTensor
-    ) -> torch.FloatTensor:
+    def _avg_pooling(self, input_features: torch.FloatTensor, input_masks: torch.LongTensor) -> torch.FloatTensor:
         """
         Applies average pooling to the input features.
 

@@ -1,7 +1,8 @@
+import logging as lg
+from abc import ABC, abstractmethod
+
 import torch
 from torch import nn
-from abc import ABC, abstractmethod
-import logging as lg
 
 from src.constants import Conditioning
 
@@ -45,9 +46,7 @@ class BaseDecoder(nn.Module, ABC):
         self._class_conditioning = class_conditioning
         self._cache_params = None
         special_token_ids = [self.bos_token, self.eos_token, self.pad_token]
-        self.register_buffer(
-            "special_ids", torch.tensor(special_token_ids, dtype=torch.long)
-        )
+        self.register_buffer("special_ids", torch.tensor(special_token_ids, dtype=torch.long))
         if self.latent_dim is not None:
             self.latent_proj = nn.Linear(latent_dim, self.hidden_size)
         self._concat_proj = nn.Linear(self.hidden_size * 2, self.hidden_size)
@@ -56,9 +55,7 @@ class BaseDecoder(nn.Module, ABC):
             raise ValueError(
                 "Class conditioning and latent conditioning cannot be enabled at the same time. Please choose one or the other."
             )
-        self._concat_conditioning_layer = (
-            self._concat_proj if self.latent_dim else self._class_embedding
-        )
+        self._concat_conditioning_layer = self._concat_proj if self.latent_dim else self._class_embedding
         logger.info(
             f"Initialize Decoder: {self.__class__.__name__} with conditioning: {self._conditioning} - Class Conditioning: {self._class_conditioning} - Latent Dim: {self.latent_dim}"
         )
@@ -76,16 +73,10 @@ class BaseDecoder(nn.Module, ABC):
             case Conditioning.ADD:
                 return token_embedding + conditioned_embedding
             case Conditioning.CONCATENATION:
-                concat_input = torch.cat(
-                    [token_embedding, conditioned_embedding], dim=-1
-                )  # [B, Seq_Len, Hidden*2]
-                return self._concat_conditioning_layer(
-                    concat_input
-                )  # [B, Seq_Len, Hidden]
+                concat_input = torch.cat([token_embedding, conditioned_embedding], dim=-1)  # [B, Seq_Len, Hidden*2]
+                return self._concat_conditioning_layer(concat_input)  # [B, Seq_Len, Hidden]
             case _:
-                raise ValueError(
-                    f"Unsupported conditioning method: {self._conditioning}"
-                )
+                raise ValueError(f"Unsupported conditioning method: {self._conditioning}")
 
     def _prepare_input(
         self,
@@ -105,9 +96,7 @@ class BaseDecoder(nn.Module, ABC):
                 batch_size=batch_size,
                 current_sequence_len=current_sequence_len,
             )
-            return self._condition_input(
-                token_embedding=input_embeddings, conditioned_embedding=class_embedding
-            )
+            return self._condition_input(token_embedding=input_embeddings, conditioned_embedding=class_embedding)
         elif self.latent_dim is not None:
             latent_proj_expanded = self._prepare_latent_embedding(
                 latent_vector=latent_vector,
@@ -127,9 +116,7 @@ class BaseDecoder(nn.Module, ABC):
         if latent_vector is None:
             raise ValueError("Latent vector must be provided for latent conditioning.")
         latent_proj = self.latent_proj(latent_vector)
-        latent_proj_expanded = latent_proj.unsqueeze(1).expand(
-            batch_size, current_sequence_len, self.hidden_size
-        )
+        latent_proj_expanded = latent_proj.unsqueeze(1).expand(batch_size, current_sequence_len, self.hidden_size)
         return latent_proj_expanded
 
     def _prepare_class_embedding(
@@ -138,9 +125,7 @@ class BaseDecoder(nn.Module, ABC):
         if class_idx is None:
             raise ValueError("Class index must be provided for class conditioning.")
         class_emb = self._class_embedding(class_idx)
-        class_emb_expanded = class_emb.unsqueeze(1).expand(
-            batch_size, current_sequence_len, self.hidden_size
-        )
+        class_emb_expanded = class_emb.unsqueeze(1).expand(batch_size, current_sequence_len, self.hidden_size)
         return class_emb_expanded
 
     @abstractmethod

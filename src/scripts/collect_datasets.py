@@ -1,11 +1,12 @@
-from pathlib import Path
-import shutil
-import requests
-import tarfile
-import logging as lg
-import zipfile
-import muspy
 import json
+import logging as lg
+import shutil
+import tarfile
+import zipfile
+from pathlib import Path
+
+import muspy
+import requests
 
 lg.basicConfig(level=lg.INFO)
 logger = lg.getLogger(__name__)
@@ -23,13 +24,10 @@ GENRE_KEY = "genre"
 GENRE_TO_SAVE = [GENRE_1, GENRE_2, GENRE_3, GENRE_4, GENRE_5]
 
 
-def download_archive_from_url(
-    url: str, save_path: Path, archive_path: Path, verbose=False, **kwargs
-) -> Path:
+def download_archive_from_url(url: str, save_path: Path, archive_path: Path, verbose=False, **kwargs) -> Path:
     logger.info(f"Downloading to {archive_path} ...")
-    with requests.get(url, stream=True) as r:
-        with open(archive_path, "wb") as f:
-            shutil.copyfileobj(r.raw, f)
+    with requests.get(url, stream=True) as r, open(archive_path, "wb") as f:
+        shutil.copyfileobj(r.raw, f)
 
     logger.info(f"Extracting {archive_path} to {save_path} ...")
     save_path.mkdir(exist_ok=True)
@@ -111,9 +109,7 @@ def process_raw_midicaps(midicaps_path: Path) -> None:
 
 
 def download_and_process_pop909(save_path: Path) -> None:
-    pop909_url = (
-        "https://github.com/music-x-lab/POP909-Dataset/archive/refs/heads/master.zip"
-    )
+    pop909_url = "https://github.com/music-x-lab/POP909-Dataset/archive/refs/heads/master.zip"
     pop909_path = save_path / "pop909"
     pop909_path.mkdir(exist_ok=True)
     pop909_zip_path = download_archive_from_url(
@@ -158,9 +154,7 @@ def prepare_midicaps_classes_dirs(base_dir: Path) -> Path:
     return midicaps_classes_dir
 
 
-def divide_midicaps_into_classes(
-    base_path: Path, main_midicaps_file_path: Path
-) -> None:
+def divide_midicaps_into_classes(base_path: Path, main_midicaps_file_path: Path) -> None:
     midicaps_json_url = "https://huggingface.co/datasets/amaai-lab/MidiCaps/resolve/main/train.json?download=true"
     divided_midicaps_path = prepare_midicaps_classes_dirs(base_path)
     json_file = download_file_from_url(midicaps_json_url)

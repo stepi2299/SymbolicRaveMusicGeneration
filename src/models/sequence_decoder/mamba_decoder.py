@@ -1,5 +1,6 @@
-import torch
 import logging as lg
+
+import torch
 from transformers import MambaConfig, MambaModel
 
 from src.models.sequence_decoder.base_decoder import BaseDecoder
@@ -26,7 +27,7 @@ class MambaDecoder(BaseDecoder):
         class_conditioning: bool,
         num_classes: int,
     ) -> None:
-        super(MambaDecoder, self).__init__(
+        super().__init__(
             latent_dim=latent_dim,
             name="mamba_decoder",
             vocab_size=vocab_size,
@@ -64,9 +65,7 @@ class MambaDecoder(BaseDecoder):
         recv_in_music_form: bool = False,
         use_cache: bool = False,
     ) -> torch.Tensor:
-        decoder_inputs_embeds = self._prepare_input(
-            input_embedding, latent_vector=latent_vector, class_idx=class_idx
-        )
+        decoder_inputs_embeds = self._prepare_input(input_embedding, latent_vector=latent_vector, class_idx=class_idx)
 
         outputs = self.model(
             inputs_embeds=decoder_inputs_embeds,

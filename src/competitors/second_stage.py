@@ -1,24 +1,23 @@
 from __future__ import annotations
 
 import copy
-import math
 import logging as lg
+import math
+from pathlib import Path
 from typing import Any
 
-from omegaconf import DictConfig
-from pathlib import Path
-
-import torch
 import pytorch_lightning as pl
+import torch
 import torch.nn.functional as F
+from omegaconf import DictConfig
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import Subset
 
 from src.constants import ExportFormat
-from src.models.high_level_structures import BaseHighLevelModel
-from src.models.discriminator import Discriminator
-from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
 from src.dataset.dataloader import get_dataloader
+from src.dataset.symbolic_music_dataset import SymbolicMusicDataset
+from src.models.discriminator import Discriminator
+from src.models.high_level_structures import BaseHighLevelModel
 from src.utils import split_dataset
 
 logger = lg.getLogger(__name__)
@@ -63,7 +62,7 @@ class SecondStage(pl.LightningModule):
         monitor_metric: str = "val_loss",
         warmup_steps: int = 100,
     ) -> None:
-        super(SecondStage, self).__init__()
+        super().__init__()
 
         self.main_model = main_model
         self.main_model.freeze_encoder()  # no-op for encoder-free models
@@ -71,9 +70,7 @@ class SecondStage(pl.LightningModule):
 
         # ── Dataset split (identical pattern to FirstStage) ───────────────────
         if len(symbolic_music_dataset) >= 5:
-            train_subset, val_subset = split_dataset(
-                symbolic_music_dataset, train_split
-            )
+            train_subset, val_subset = split_dataset(symbolic_music_dataset, train_split)
             train_dataset_copy = copy.deepcopy(train_subset.dataset)
             train_dataset_copy.turn_augmentation(augment=train_augment)
             val_subset.dataset.turn_augmentation(augment=val_augment)
@@ -108,9 +105,7 @@ class SecondStage(pl.LightningModule):
     def forward(self, *args: Any, **kwargs: Any) -> Any:
         return self.main_model(*args, **kwargs)
 
-    def training_step(
-        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> Any:
+    def training_step(self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> Any:
         data, class_idx = batch
         x_target = data[:, 1:]  # all tokens except the first (target)
 
@@ -121,13 +116,9 @@ class SecondStage(pl.LightningModule):
         # 0. FORWARD PASS (Run once for both phases to save compute)
         # =====================================================================
         # Let the main model calculate its standard reconstruction loss & logits
-        reconstruction, model_loss, loss_metadata = self.main_model.training_step(
-            batch, self.global_step
-        )
+        reconstruction, model_loss, loss_metadata = self.main_model.training_step(batch, self.global_step)
 
-        raw_recon = (
-            reconstruction[0] if isinstance(reconstruction, tuple) else reconstruction
-        )
+        raw_recon = reconstruction[0] if isinstance(reconstruction, tuple) else reconstruction
 
         # Generate Gumbel-Softmax discrete-like continuous vectors (Batch, Seq_Len, Vocab)
         gumbel_fakes = F.gumbel_softmax(raw_recon, tau=self._gumbel_tau, hard=True)
@@ -136,9 +127,7 @@ class SecondStage(pl.LightningModule):
         real_one_hot = F.one_hot(x_target, num_classes=self._vocab_size).float()
 
         # Labels for BCE Loss
-        real_labels = torch.full(
-            (len(x_target), 1), 1.0 - self._label_smoothing, device=self.device
-        )
+        real_labels = torch.full((len(x_target), 1), 1.0 - self._label_smoothing, device=self.device)
         fake_labels = torch.zeros((len(x_target), 1), device=self.device)
         gen_labels = torch.ones((len(x_target), 1), device=self.device)
 
@@ -199,12 +188,8 @@ class SecondStage(pl.LightningModule):
 
         return total_decoder_loss + loss_discriminator
 
-    def validation_step(
-        self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> Any:
-        reconstruction, loss, loss_metadata = self.main_model.validation_step(
-            batch, self.global_step
-        )
+    def validation_step(self, batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> Any:
+        reconstruction, loss, loss_metadata = self.main_model.validation_step(batch, self.global_step)
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log_dict(loss_metadata, on_step=False, on_epoch=True, prog_bar=True)
         return loss
@@ -238,9 +223,7 @@ class SecondStage(pl.LightningModule):
         # encoder/decoder in VAE, single AdamW for SequenceModel).
         # Warmup + cosine decay applies here because we are fine-tuning a
         # pre-trained model and want a gentle, stable learning rate schedule.
-        decoder_optimizer = self.main_model.get_optimizer(
-            self._generator_optimizer_params
-        )
+        decoder_optimizer = self.main_model.get_optimizer(self._generator_optimizer_params)
 
         total_steps = self.trainer.estimated_stepping_batches
         warmup_steps = self._warmup_steps
@@ -248,9 +231,7 @@ class SecondStage(pl.LightningModule):
         def lr_lambda(current_step: int) -> float:
             if current_step < warmup_steps:
                 return float(current_step) / float(max(1, warmup_steps))
-            progress = float(current_step - warmup_steps) / float(
-                max(1, total_steps - warmup_steps)
-            )
+            progress = float(current_step - warmup_steps) / float(max(1, total_steps - warmup_steps))
             return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
 
         decoder_scheduler = LambdaLR(decoder_optimizer, lr_lambda)

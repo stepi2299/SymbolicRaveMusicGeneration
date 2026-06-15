@@ -1,6 +1,7 @@
+import logging as lg
+
 import torch
 from torch import nn
-import logging as lg
 
 from src.models.sequence_decoder.base_decoder import BaseDecoder
 
@@ -24,7 +25,7 @@ class GptDecoder(BaseDecoder):
         class_conditioning: bool,
         num_classes: int,
     ) -> None:
-        super(GptDecoder, self).__init__(
+        super().__init__(
             latent_dim=latent_dim,
             name="gpt",
             vocab_size=vocab_size,
@@ -41,9 +42,7 @@ class GptDecoder(BaseDecoder):
             num_classes=num_classes,
         )
 
-        self.positional_embeddings = nn.Embedding(
-            self.sequence_length, self.hidden_size
-        )
+        self.positional_embeddings = nn.Embedding(self.sequence_length, self.hidden_size)
         layer = nn.TransformerDecoderLayer(
             d_model=self.hidden_size,
             nhead=self.num_heads,
@@ -64,9 +63,7 @@ class GptDecoder(BaseDecoder):
         # Getting current sequence length (for generation when len is growing)
         batch_size, current_sequence_len, _ = input_embedding.shape
 
-        position_idx = torch.arange(
-            current_sequence_len, dtype=torch.long, device=input_embedding.device
-        )
+        position_idx = torch.arange(current_sequence_len, dtype=torch.long, device=input_embedding.device)
         position_idx = position_idx.unsqueeze(0).repeat(batch_size, 1)
         pos_emb = self.positional_embeddings(position_idx)  # [1, seq_len, hidden]
 
@@ -74,9 +71,7 @@ class GptDecoder(BaseDecoder):
         decoder_input = decoder_input + pos_emb
         decoder_input = decoder_input.permute(1, 0, 2)
 
-        mask = nn.Transformer.generate_square_subsequent_mask(current_sequence_len).to(
-            input_embedding.device
-        )
+        mask = nn.Transformer.generate_square_subsequent_mask(current_sequence_len).to(input_embedding.device)
 
         return self.model(
             decoder_input,

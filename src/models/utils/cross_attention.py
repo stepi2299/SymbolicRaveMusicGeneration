@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+from torch import nn
 from transformers.models.gpt_neox.configuration_gpt_neox import GPTNeoXConfig
 
 
@@ -22,9 +22,7 @@ class CrossAttention(nn.Module):
         self.v_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
         self.out_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
 
-    def forward(
-        self, hidden_states: torch.Tensor, encoder_hidden_states: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, encoder_hidden_states: torch.Tensor) -> torch.Tensor:
         # hidden_states (Query): [Batch, Seq_Len, Hidden]
         # encoder_hidden_states (Key/Value): [Batch, 1, Hidden] (nasze Z)
 
@@ -48,8 +46,6 @@ class CrossAttention(nn.Module):
         # 4. Agregacja (Weights * V)
         attn_output = torch.matmul(attn_weights, v)
 
-        attn_output = (
-            attn_output.transpose(1, 2).contiguous().view(B, L, self.hidden_size)
-        )
+        attn_output = attn_output.transpose(1, 2).contiguous().view(B, L, self.hidden_size)
 
         return self.out_proj(attn_output)

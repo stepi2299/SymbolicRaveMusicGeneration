@@ -1,8 +1,8 @@
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import torch
 from torch import nn
-
+from transformers import GPTNeoXConfig
 from transformers.activations import ACT2FN
 from transformers.cache_utils import Cache, DynamicCache
 from transformers.integrations import use_kernel_forward_from_hub
@@ -16,11 +16,9 @@ from transformers.processing_utils import Unpack
 from transformers.utils import TransformersKwargs, logging
 from transformers.utils.deprecation import deprecate_kwarg
 from transformers.utils.generic import check_model_inputs
-from transformers import GPTNeoXConfig
 
-from src.models.utils.cross_attention import CrossAttention
 from src.models.utils.adaln import AdaLN
-
+from src.models.utils.cross_attention import CrossAttention
 
 logger = logging.get_logger(__name__)
 
@@ -92,7 +90,7 @@ def eager_attention_forward(
     attention_mask: torch.Tensor,
     scaling: float,
     dropout: float = 0.0,
-    head_mask: Optional[torch.Tensor] = None,
+    head_mask: torch.Tensor | None = None,
     **kwargs,
 ):
     attn_weights = torch.matmul(query, key.transpose(2, 3)) * scaling
@@ -101,17 +99,13 @@ def eager_attention_forward(
         causal_mask = attention_mask[:, :, :, : key.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(
-        query.dtype
-    )
+    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
 
     # Mask heads if we want to
     if head_mask is not None:
         attn_weights = attn_weights * head_mask
 
-    attn_weights = nn.functional.dropout(
-        attn_weights, p=dropout, training=module.training
-    )
+    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = torch.matmul(attn_weights, value)
 
     # Reshape outputs
@@ -131,24 +125,18 @@ class GPTNeoXAttention(nn.Module):
         self.is_causal = True
         self.layer_idx = layer_idx
 
-        self.query_key_value = nn.Linear(
-            config.hidden_size, 3 * config.hidden_size, bias=config.attention_bias
-        )
-        self.dense = nn.Linear(
-            config.hidden_size, config.hidden_size, bias=config.attention_bias
-        )
+        self.query_key_value = nn.Linear(config.hidden_size, 3 * config.hidden_size, bias=config.attention_bias)
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size, bias=config.attention_bias)
 
     def forward(
         self,
         hidden_states: torch.FloatTensor,
         attention_mask: torch.FloatTensor,
-        head_mask: Optional[torch.FloatTensor] = None,
-        layer_past: Optional[Cache] = None,
-        output_attentions: Optional[bool] = False,
-        cache_position: Optional[torch.LongTensor] = None,
-        position_embeddings: Optional[
-            tuple[torch.Tensor, torch.Tensor]
-        ] = None,  # necessary, but kept here for BC
+        head_mask: torch.FloatTensor | None = None,
+        layer_past: Cache | None = None,
+        output_attentions: bool | None = False,
+        cache_position: torch.LongTensor | None = None,
+        position_embeddings: tuple[torch.Tensor, torch.Tensor] | None = None,  # necessary, but kept here for BC
         **kwargs: Unpack[FlashAttentionKwargs],
     ):
         input_shape = hidden_states.shape[:-1]
@@ -158,9 +146,7 @@ class GPTNeoXAttention(nn.Module):
         query_states, key_states, value_states = qkv.chunk(3, dim=-1)
 
         cos, sin = position_embeddings
-        query_states, key_states = apply_rotary_pos_emb(
-            query_states, key_states, cos, sin
-        )
+        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
         # Cache QKV values
         if layer_past is not None:
@@ -170,15 +156,11 @@ class GPTNeoXAttention(nn.Module):
                 "partial_rotation_size": self.rotary_ndims,
                 "cache_position": cache_position,
             }
-            key_states, value_states = layer_past.update(
-                key_states, value_states, self.layer_idx, cache_kwargs
-            )
+            key_states, value_states = layer_past.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
         attention_interface: Callable = eager_attention_forward
         if self.config._attn_implementation != "eager":
-            attention_interface = ALL_ATTENTION_FUNCTIONS[
-                self.config._attn_implementation
-            ]
+            attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
 
         # Compute attention
         attn_output, attn_weights = attention_interface(
@@ -206,25 +188,13 @@ class GPTNeoXLayer(GradientCheckpointingLayer):
         self.use_parallel_residual = config.use_parallel_residual
         self._adaln_norm = adaln_norm
         if adaln_norm:
-            logger.info(
-                "Initializing GPTNeoXLayer with custom RMSNorm instead of LayerNorm!!!"
-            )
-            self.input_layernorm = AdaLN(
-                config.hidden_size, eps=config.layer_norm_eps, cond_size=cond_size
-            )
-            self.post_attention_layernorm = AdaLN(
-                config.hidden_size, eps=config.layer_norm_eps, cond_size=cond_size
-            )
+            logger.info("Initializing GPTNeoXLayer with custom RMSNorm instead of LayerNorm!!!")
+            self.input_layernorm = AdaLN(config.hidden_size, eps=config.layer_norm_eps, cond_size=cond_size)
+            self.post_attention_layernorm = AdaLN(config.hidden_size, eps=config.layer_norm_eps, cond_size=cond_size)
         else:
-            logger.info(
-                "Initializing GPTNeoXLayer with standard LayerNorm (not RMSNorm)!!!"
-            )
-            self.input_layernorm = nn.LayerNorm(
-                config.hidden_size, eps=config.layer_norm_eps
-            )
-            self.post_attention_layernorm = nn.LayerNorm(
-                config.hidden_size, eps=config.layer_norm_eps
-            )
+            logger.info("Initializing GPTNeoXLayer with standard LayerNorm (not RMSNorm)!!!")
+            self.input_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+            self.post_attention_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.post_attention_dropout = nn.Dropout(config.hidden_dropout)
         self.post_mlp_dropout = nn.Dropout(config.hidden_dropout)
         self.attention = GPTNeoXAttention(config, layer_idx)
@@ -232,18 +202,16 @@ class GPTNeoXLayer(GradientCheckpointingLayer):
 
     def forward(
         self,
-        hidden_states: Optional[torch.FloatTensor],
-        conditioning_vector: Optional[torch.FloatTensor] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.FloatTensor] = None,
-        use_cache: Optional[bool] = False,
-        layer_past: Optional[Cache] = None,
-        output_attentions: Optional[bool] = False,
-        cache_position: Optional[torch.LongTensor] = None,
-        position_embeddings: Optional[
-            tuple[torch.Tensor, torch.Tensor]
-        ] = None,  # necessary, but kept here for BC
+        hidden_states: torch.FloatTensor | None,
+        conditioning_vector: torch.FloatTensor | None = None,
+        attention_mask: torch.FloatTensor | None = None,
+        position_ids: torch.LongTensor | None = None,
+        head_mask: torch.FloatTensor | None = None,
+        use_cache: bool | None = False,
+        layer_past: Cache | None = None,
+        output_attentions: bool | None = False,
+        cache_position: torch.LongTensor | None = None,
+        position_embeddings: tuple[torch.Tensor, torch.Tensor] | None = None,  # necessary, but kept here for BC
         **kwargs: Unpack[FlashAttentionKwargs],
     ):
         if self._adaln_norm:
@@ -268,9 +236,7 @@ class GPTNeoXLayer(GradientCheckpointingLayer):
             # pseudocode:
             # x = x + attn(ln1(x)) + mlp(ln2(x))
             if self._adaln_norm:
-                mlp_output = self.mlp(
-                    self.post_attention_layernorm(hidden_states, conditioning_vector)
-                )
+                mlp_output = self.mlp(self.post_attention_layernorm(hidden_states, conditioning_vector))
             else:
                 mlp_output = self.mlp(self.post_attention_layernorm(hidden_states))
             mlp_output = self.post_mlp_dropout(mlp_output)
@@ -281,9 +247,7 @@ class GPTNeoXLayer(GradientCheckpointingLayer):
             # x = x + mlp(ln2(x))
             attn_output = attn_output + hidden_states
             if self._adaln_norm:
-                mlp_output = self.mlp(
-                    self.post_attention_layernorm(attn_output, conditioning_vector)
-                )
+                mlp_output = self.mlp(self.post_attention_layernorm(attn_output, conditioning_vector))
             else:
                 mlp_output = self.mlp(self.post_attention_layernorm(attn_output))
             mlp_output = self.post_mlp_dropout(mlp_output)
@@ -303,9 +267,7 @@ class GPTNeoXRotaryEmbedding(nn.Module):
         super().__init__()
         # BC: "rope_type" was originally "type"
         if hasattr(config, "rope_scaling") and isinstance(config.rope_scaling, dict):
-            self.rope_type = config.rope_scaling.get(
-                "rope_type", config.rope_scaling.get("type")
-            )
+            self.rope_type = config.rope_scaling.get("rope_type", config.rope_scaling.get("type"))
         else:
             self.rope_type = "default"
         self.max_seq_len_cached = config.max_position_embeddings
@@ -321,23 +283,12 @@ class GPTNeoXRotaryEmbedding(nn.Module):
     @torch.no_grad()
     @dynamic_rope_update  # power user: used with advanced RoPE types (e.g. dynamic rope)
     def forward(self, x, position_ids):
-        inv_freq_expanded = (
-            self.inv_freq[None, :, None]
-            .float()
-            .expand(position_ids.shape[0], -1, 1)
-            .to(x.device)
-        )
+        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1).to(x.device)
         position_ids_expanded = position_ids[:, None, :].float()
 
-        device_type = (
-            x.device.type
-            if isinstance(x.device.type, str) and x.device.type != "mps"
-            else "cpu"
-        )
+        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != "mps" else "cpu"
         with torch.autocast(device_type=device_type, enabled=False):  # Force float32
-            freqs = (
-                inv_freq_expanded.float() @ position_ids_expanded.float()
-            ).transpose(1, 2)
+            freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
             emb = torch.cat((freqs, freqs), dim=-1)
             cos = emb.cos() * self.attention_scaling
             sin = emb.sin() * self.attention_scaling
@@ -374,25 +325,19 @@ class GPTNeoXDecoderLayer(GradientCheckpointingLayer):
         self.self_attn = GPTNeoXAttention(config=config, layer_idx=layer_idx)
 
         self.mlp = GPTNeoXMLP(config)
-        self.input_layernorm = GPTNeoXRMSNorm(
-            config.hidden_size, eps=config.rms_norm_eps
-        )
-        self.post_attention_layernorm = GPTNeoXRMSNorm(
-            config.hidden_size, eps=config.rms_norm_eps
-        )
+        self.input_layernorm = GPTNeoXRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = GPTNeoXRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
     def forward(
         self,
         hidden_states: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[Cache] = None,
-        use_cache: Optional[bool] = False,
-        cache_position: Optional[torch.LongTensor] = None,
-        position_embeddings: Optional[
-            tuple[torch.Tensor, torch.Tensor]
-        ] = None,  # necessary, but kept here for BC
+        attention_mask: torch.Tensor | None = None,
+        position_ids: torch.LongTensor | None = None,
+        past_key_values: Cache | None = None,
+        use_cache: bool | None = False,
+        cache_position: torch.LongTensor | None = None,
+        position_embeddings: tuple[torch.Tensor, torch.Tensor] | None = None,  # necessary, but kept here for BC
         **kwargs: Unpack[TransformersKwargs],
     ) -> torch.Tensor:
         residual = hidden_states
@@ -451,15 +396,11 @@ class CustomGPTNeoXModel(GPTNeoXPreTrainedModel):
         self.emb_dropout = nn.Dropout(config.hidden_dropout)
         self.layers = nn.ModuleList(
             [
-                GPTNeoXLayer(
-                    config, i, adaln_norm=adaln_norm, cond_size=condition_layer_size
-                )
+                GPTNeoXLayer(config, i, adaln_norm=adaln_norm, cond_size=condition_layer_size)
                 for i in range(config.num_hidden_layers)
             ]
         )
-        self.final_layer_norm = nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
+        self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.rotary_emb = GPTNeoXRotaryEmbedding(config=config)
         self.gradient_checkpointing = False
         self.use_cross_attention = use_cross_attention
@@ -470,9 +411,7 @@ class CustomGPTNeoXModel(GPTNeoXPreTrainedModel):
                     "It's not possible to use both custom layer norm and cross attention at the same time in CustomGPTNeoXModel. Please set either custom_layer_norm or use_cross_attention to False."
                 )
             logger.info("Initializing GPTNeoX model with Cross-Attention layers!!!")
-            self.cross_layer_norm = nn.LayerNorm(
-                config.hidden_size, eps=config.layer_norm_eps
-            )
+            self.cross_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
             self.cross_attention = CrossAttention(config)
         else:
             self.cross_attention = None
@@ -490,41 +429,32 @@ class CustomGPTNeoXModel(GPTNeoXPreTrainedModel):
     @check_model_inputs
     def forward(
         self,
-        inputs_embeds: Optional[torch.FloatTensor],
-        encoder_hidden_states: Optional[torch.FloatTensor],
-        past_key_values: Optional[Cache] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        cache_position: Optional[torch.LongTensor] = None,
+        inputs_embeds: torch.FloatTensor | None,
+        encoder_hidden_states: torch.FloatTensor | None,
+        past_key_values: Cache | None = None,
+        use_cache: bool | None = None,
+        output_attentions: bool | None = None,
+        output_hidden_states: bool | None = None,
+        cache_position: torch.LongTensor | None = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> BaseModelOutputWithPast:
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
         use_cache = use_cache if use_cache is not None else self.config.use_cache
 
-        if self.gradient_checkpointing and self.training:
-            if use_cache:
-                logger.warning_once(
-                    "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
-                )
-                use_cache = False
+        if self.gradient_checkpointing and self.training and use_cache:
+            logger.warning_once(
+                "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
+            )
+            use_cache = False
 
         if use_cache and past_key_values is None:
             past_key_values = DynamicCache(config=self.config)
 
         if cache_position is None:
-            past_seen_tokens = (
-                past_key_values.get_seq_length() if past_key_values is not None else 0
-            )
+            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = torch.arange(
                 past_seen_tokens,
                 past_seen_tokens + inputs_embeds.shape[1],

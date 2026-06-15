@@ -1,18 +1,17 @@
-from pathlib import Path
-from typing import Callable
-from torch.utils.data import Dataset
-from abc import ABC, abstractmethod
-import random
 import logging as lg
+import random
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from pathlib import Path
 
 import torch
-
 from miditoolkit import MidiFile
+from torch.utils.data import Dataset
 
-from src.utils import load_midi_song, load_abc_song
 from src.adapter import MusicAdapter
 from src.constants import SymbolicMusicFormat
 from src.dataset.music_augmenter import get_augmenter
+from src.utils import load_abc_song, load_midi_song
 
 logger = lg.getLogger(__name__)
 
@@ -29,9 +28,7 @@ class SymbolicMusicDataset(Dataset, ABC):
         index_of_overtrained: int | None = None,
     ) -> None:
         self.dataset_path = dataset_path
-        self._classes = sorted(
-            [d.name for d in self.dataset_path.iterdir() if d.is_dir()]
-        )
+        self._classes = sorted([d.name for d in self.dataset_path.iterdir() if d.is_dir()])
         self._class_to_idx = {cls_name: i for i, cls_name in enumerate(self._classes)}
         self.load_music_function = load_music_function
         self._augment: bool | None = None
@@ -39,9 +36,7 @@ class SymbolicMusicDataset(Dataset, ABC):
         self._index_of_overtrained = index_of_overtrained
         self.music_adapter = adapter
         self.music_format = music_format
-        self._music_augmenter = get_augmenter(
-            music_format=music_format, **augmentation_params
-        )
+        self._music_augmenter = get_augmenter(music_format=music_format, **augmentation_params)
         self._samples = self._load_music_files_with_labels()
         if self._single_data_training:
             if self._index_of_overtrained is not None:
@@ -97,9 +92,7 @@ class SymbolicMusicDataset(Dataset, ABC):
             tensor_data = self.music_adapter.augment(tensor_data)
         return tensor_data, label_tensor
 
-    def _get_padded_data(
-        self, music_file: list[list[int]] | list[int]
-    ) -> list[list[int]] | list[int]:
+    def _get_padded_data(self, music_file: list[list[int]] | list[int]) -> list[list[int]] | list[int]:
         return self.music_adapter.get_padded_sequence(music_file)
 
     def get_music_file(self, idx: int | None = None) -> str | MidiFile:
@@ -123,7 +116,7 @@ class MidiDataset(SymbolicMusicDataset):
         single_data_training: bool = False,
         index_of_overtrained: int | None = None,
     ) -> None:
-        super(MidiDataset, self).__init__(
+        super().__init__(
             dataset_path=dataset_path,
             load_music_function=load_music_function,
             augmentation_params=augmentation_params,
@@ -134,9 +127,7 @@ class MidiDataset(SymbolicMusicDataset):
         )
 
     def imread_music_files(self) -> list[Path]:
-        return list(self.dataset_path.glob("**/*.mid")) + list(
-            self.dataset_path.glob("**/*.midi")
-        )
+        return list(self.dataset_path.glob("**/*.mid")) + list(self.dataset_path.glob("**/*.midi"))
 
 
 class AbcDataset(SymbolicMusicDataset):
@@ -149,7 +140,7 @@ class AbcDataset(SymbolicMusicDataset):
         single_data_training: bool = False,
         index_of_overtrained: int | None = None,
     ) -> None:
-        super(AbcDataset, self).__init__(
+        super().__init__(
             dataset_path=dataset_path,
             load_music_function=load_music_function,
             augmentation_params=augmentation_params,

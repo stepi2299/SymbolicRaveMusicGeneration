@@ -1,11 +1,11 @@
-import torch
 import logging as lg
 
+import torch
+
+from src.constants import CP_WORD_INDEXES
 from src.models.decoder_wrappers.base_wrapper import BaseWrapper
 from src.models.sequence_decoder import BaseDecoder
-from src.models.utils.cp_word import MultiHeadOutput, CompoundWordEmbedding
-from src.constants import CP_WORD_INDEXES
-
+from src.models.utils.cp_word import CompoundWordEmbedding, MultiHeadOutput
 
 logger = lg.getLogger(__name__)
 
@@ -34,9 +34,7 @@ class CompoundWordWrapper(BaseWrapper):
         # A. Embed Inputs
         # Zamieniamy [B, L, Attrs] -> [B, L, Hidden]
         inputs_embeds = self.cp_embedding(input_sequence)
-        inputs_embeds = self.input_dropout(
-            inputs_embeds, input_sequence, CP_WORD_INDEXES["family"]
-        )
+        inputs_embeds = self.input_dropout(inputs_embeds, input_sequence, CP_WORD_INDEXES["family"])
         model_state = self._decoder(
             input_embedding=inputs_embeds,
             latent_vector=latent_vector,
@@ -90,9 +88,7 @@ class CompoundWordWrapper(BaseWrapper):
         use_cache: bool = False,
         temperature: float = 1.0,
     ) -> list[list[int]]:
-        logger.info(
-            f"Starting generation with decoder: {self._decoder.name} in CP Wrapper"
-        )
+        logger.info(f"Starting generation with decoder: {self._decoder.name} in CP Wrapper")
         generated_sequence = [[self._decoder.bos_token] * self.patch_size]
         self._decoder.clean_cache()
         generation_device = (
@@ -100,19 +96,15 @@ class CompoundWordWrapper(BaseWrapper):
             if latent_vector is not None
             else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         )
-        for i in range(self._decoder.sequence_length - 1):
-            input_seq = (
-                torch.tensor(generated_sequence).unsqueeze(0).to(generation_device)
-            )
+        for _i in range(self._decoder.sequence_length - 1):
+            input_seq = torch.tensor(generated_sequence).unsqueeze(0).to(generation_device)
             dict_logits = self(
                 [input_seq, class_idx],
                 latent_vector=latent_vector,
                 use_cache=use_cache,
             )  # (1, seq_len, VOCAB_SIZE) - logits for each token in the sequence
 
-            next_patch = self.sample_next_item(
-                dict_logits, strict_sampling=strict_sampling, temperature=temperature
-            )
+            next_patch = self.sample_next_item(dict_logits, strict_sampling=strict_sampling, temperature=temperature)
             generated_sequence.append(next_patch)
             if (
                 len(generated_sequence) >= self._decoder.sequence_length
@@ -122,9 +114,7 @@ class CompoundWordWrapper(BaseWrapper):
         self._decoder.clean_cache()
         return generated_sequence[1:]
 
-    def sample_next_item(
-        self, logits: dict[str, torch.Tensor], strict_sampling: bool, temperature: float
-    ) -> list[int]:
+    def sample_next_item(self, logits: dict[str, torch.Tensor], strict_sampling: bool, temperature: float) -> list[int]:
         """
         Sample next patch tokens from the logits for each attribute.
         Args:
@@ -137,9 +127,7 @@ class CompoundWordWrapper(BaseWrapper):
         next_patch = []
         for attr, attr_logits in logits.items():
             if strict_sampling:
-                all_current_tokens = attr_logits.argmax(
-                    dim=-1
-                )  # [batch_size, sequence_length]
+                all_current_tokens = attr_logits.argmax(dim=-1)  # [batch_size, sequence_length]
                 next_token = all_current_tokens[0, -1]
             else:
                 last_logits = attr_logits[:, -1, :]  # [batch_size, vocab_size]
@@ -150,9 +138,7 @@ class CompoundWordWrapper(BaseWrapper):
         return next_patch
 
     @staticmethod
-    def reconstruct(
-        reconstruction: dict[str, torch.Tensor], x_target: torch.Tensor
-    ) -> tuple[float, dict]:
+    def reconstruct(reconstruction: dict[str, torch.Tensor], x_target: torch.Tensor) -> tuple[float, dict]:
         total_accuracy = 0.0
         metadata = {}
         for attr_name, logits in reconstruction.items():

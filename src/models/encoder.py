@@ -1,20 +1,21 @@
 from __future__ import annotations
-import torch
-from torch import nn
-from abc import ABC, abstractmethod
-from typing import Tuple, Type, Dict
-import logging as lg
-import requests
-from tqdm import tqdm
-from omegaconf import DictConfig
-from src.adapter import MusicAdapter
 
+import logging as lg
+from abc import ABC, abstractmethod
+
+import requests
+import torch
+from omegaconf import DictConfig
+from torch import nn
+from tqdm import tqdm
 from transformers import BertConfig
-from src.models.utils.clamp import PatchEncoder, CLaMPModel
+
+from src.adapter import MusicAdapter
+from src.models.utils.clamp import CLaMPModel, PatchEncoder
 from src.utils import (
+    base_weights_path,
     download_file,
     get_possible_device,
-    base_weights_path,
     remove_state_dict_keys,
     rename_state_dict_keys,
 )
@@ -39,7 +40,7 @@ class Encoder(nn.Module, ABC):
         self.patch_size = patch_size
 
     @abstractmethod
-    def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         pass
 
     def load_pretrained(self) -> None:
@@ -48,7 +49,7 @@ class Encoder(nn.Module, ABC):
 
 class DummyEncoder(Encoder):
     def __init__(self, latent_dim: int, vocab_size: int) -> None:
-        super(DummyEncoder, self).__init__(
+        super().__init__(
             latent_dim=latent_dim,
             vocab_size=vocab_size,
             name="dummy",
@@ -56,10 +57,8 @@ class DummyEncoder(Encoder):
             sequence_length=64,
         )
 
-    def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        return torch.zeros(len(data), self.latent_dim), torch.zeros(
-            data.shape[0], self.latent_dim
-        )
+    def forward(self, data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        return torch.zeros(len(data), self.latent_dim), torch.zeros(data.shape[0], self.latent_dim)
 
 
 class Clamp2Encoder(Encoder):
@@ -74,7 +73,7 @@ class Clamp2Encoder(Encoder):
         vocab_size: int,
         weights_url: str,
     ) -> None:
-        super(Clamp2Encoder, self).__init__(
+        super().__init__(
             latent_dim=latent_dim,
             name="clamp2",
             vocab_size=vocab_size,
@@ -104,21 +103,13 @@ class Clamp2Encoder(Encoder):
 
     def load_pretrained(self) -> None:
         if self.weights_path.exists():
-            checkpoint = torch.load(
-                self.weights_path, map_location="cpu", weights_only=True
-            )
+            checkpoint = torch.load(self.weights_path, map_location="cpu", weights_only=True)
         else:
             self._download_checkpoint()
-            checkpoint = torch.load(
-                self.weights_path, map_location="cpu", weights_only=True
-            )
+            checkpoint = torch.load(self.weights_path, map_location="cpu", weights_only=True)
         model_checkpoint = checkpoint["model"]
-        model_checkpoint = remove_state_dict_keys(
-            model_checkpoint, ["text_model", "text_proj"]
-        )
-        model_checkpoint = rename_state_dict_keys(
-            model_checkpoint, "music_model", "patch_encoder"
-        )
+        model_checkpoint = remove_state_dict_keys(model_checkpoint, ["text_model", "text_proj"])
+        model_checkpoint = rename_state_dict_keys(model_checkpoint, "music_model", "patch_encoder")
         try:
             self.model.load_state_dict(model_checkpoint)
             logger.info(f"Successfully loaded the checkpoint to the model: {self.name}")
@@ -139,36 +130,25 @@ class Clamp2Encoder(Encoder):
                 model_checkpoint.pop("patch_encoder.patch_embedding.bias")
             if (
                 self.model.patch_encoder.base.embeddings.position_embeddings.weight.size()
-                != model_checkpoint[
-                    "patch_encoder.base.embeddings.position_embeddings.weight"
-                ].size()
+                != model_checkpoint["patch_encoder.base.embeddings.position_embeddings.weight"].size()
             ):
                 logger.warning(
                     "The position embeddings weights size does not match the checkpoint size. "
                     "Removing position embeddings weights from the checkpoint."
                     f"Expected sequence len in CLAMP2: 512, received: {self.sequence_length}"
                 )
-                model_checkpoint.pop(
-                    "patch_encoder.base.embeddings.position_embeddings.weight"
-                )
+                model_checkpoint.pop("patch_encoder.base.embeddings.position_embeddings.weight")
             self.model.load_state_dict(model_checkpoint, strict=False)
 
     def _download_checkpoint(self) -> None:
-        logger.info(
-            f"Downloading CLaMP2 weights from: {self.weights_url} into {self.weights_path}"
-        )
+        logger.info(f"Downloading CLaMP2 weights from: {self.weights_url} into {self.weights_path}")
         download_file(self.weights_url, self.weights_path, verbose=True)
 
-    def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         data, _ = data
-        if data.dim() == 3:
-            masks = (data != 0).any(dim=-1).long()
-        else:
-            masks = (data != 0).long()
+        masks = (data != 0).any(dim=-1).long() if data.dim() == 3 else (data != 0).long()
 
-        hidden_states = self.model.get_music_features(
-            music_inputs=data, music_masks=masks
-        )
+        hidden_states = self.model.get_music_features(music_inputs=data, music_masks=masks)
 
         mu = self.fc_mu(hidden_states)
         logvar = self.fc_logvar(hidden_states)
@@ -179,14 +159,14 @@ class Clamp2Encoder(Encoder):
 class ClampEncoder(Encoder):
     def __init__(
         self,
-        patchilizer_config: Dict,
+        patchilizer_config: dict,
         sequence_length: int,
         patch_size: int,
         latent_dim: int,
         vocab_size: int,
         model_name: str | None = None,
     ) -> None:
-        super(ClampEncoder, self).__init__(
+        super().__init__(
             latent_dim=latent_dim,
             name="clamp",
             vocab_size=vocab_size,
@@ -216,9 +196,7 @@ class ClampEncoder(Encoder):
         if self.model_name is None:
             raise ValueError("Model name is not provided for CLAMP encoder")
         if not self.weights_path.exists():
-            logger.info(
-                f"Downloading CLAMP V1 model from: {self.model_name} to local machine"
-            )
+            logger.info(f"Downloading CLAMP V1 model from: {self.model_name} to local machine")
             self.weights_path.mkdir(parents=True, exist_ok=True)
             config_url = f"https://huggingface.co/sander-wood/{self.model_name}/raw/main/config.json"
             model_url = f"https://huggingface.co/sander-wood/{self.model_name}/resolve/main/pytorch_model.bin"
@@ -227,38 +205,34 @@ class ClampEncoder(Encoder):
             with requests.get(config_url, stream=True) as r:
                 r.raise_for_status()
                 total_size = int(r.headers.get("content-length", 0))
-                with open(self.weights_path.parent / "clamp_config.json", "wb") as f:
-                    with tqdm(
-                        total=total_size,
-                        unit="B",
-                        unit_scale=True,
-                        desc="Downloading config",
-                    ) as pbar:
-                        for chunk in r.iter_content(chunk_size=chunk_size):
-                            f.write(chunk)
-                            pbar.update(len(chunk))
+                with open(self.weights_path.parent / "clamp_config.json", "wb") as f, tqdm(
+                    total=total_size,
+                    unit="B",
+                    unit_scale=True,
+                    desc="Downloading config",
+                ) as pbar:
+                    for chunk in r.iter_content(chunk_size=chunk_size):
+                        f.write(chunk)
+                        pbar.update(len(chunk))
 
             # Download model file
             with requests.get(model_url, stream=True) as r:
                 r.raise_for_status()
                 total_size = int(r.headers.get("content-length", 0))
-                with open(self.weights_path, "wb") as f:
-                    with tqdm(
-                        total=total_size,
-                        unit="B",
-                        unit_scale=True,
-                        desc="Downloading model",
-                    ) as pbar:
-                        for chunk in r.iter_content(chunk_size=chunk_size):
-                            f.write(chunk)
-                            pbar.update(len(chunk))
+                with open(self.weights_path, "wb") as f, tqdm(
+                    total=total_size,
+                    unit="B",
+                    unit_scale=True,
+                    desc="Downloading model",
+                ) as pbar:
+                    for chunk in r.iter_content(chunk_size=chunk_size):
+                        f.write(chunk)
+                        pbar.update(len(chunk))
 
-    def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         masks = (data != 0).any(dim=-1).long()
 
-        hidden_states = self.model.get_music_features(
-            music_inputs=data, music_masks=masks
-        )
+        hidden_states = self.model.get_music_features(music_inputs=data, music_masks=masks)
 
         mu = self.fc_mu(hidden_states)
         logvar = self.fc_logvar(hidden_states)
@@ -266,7 +240,7 @@ class ClampEncoder(Encoder):
         return mu, logvar
 
 
-def _encoder_mapper(encoder_name: str) -> Type[Encoder]:
+def _encoder_mapper(encoder_name: str) -> type[Encoder]:
     if encoder_name == "clamp2":
         return Clamp2Encoder
     elif encoder_name == "clamp":
@@ -275,9 +249,7 @@ def _encoder_mapper(encoder_name: str) -> Type[Encoder]:
         raise ValueError(f"Unknown encoder: {encoder_name}, possible: ['simple_conv']")
 
 
-def get_encoder(
-    encoder_cfg: DictConfig, adapter: MusicAdapter, latent_dim: int
-) -> Encoder:
+def get_encoder(encoder_cfg: DictConfig, adapter: MusicAdapter, latent_dim: int) -> Encoder:
     return _encoder_mapper(encoder_cfg.name)(
         latent_dim=latent_dim,
         vocab_size=adapter.vocab_size,

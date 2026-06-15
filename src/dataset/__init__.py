@@ -1,12 +1,13 @@
 from pathlib import Path
+
 from omegaconf import DictConfig
 
-from src.dataset.symbolic_music_dataset import (
-    SymbolicMusicDataset,
-    MidiDataset,
-    AbcDataset,
-)
 from src.adapter.adapter import MusicAdapter
+from src.dataset.symbolic_music_dataset import (
+    AbcDataset,
+    MidiDataset,
+    SymbolicMusicDataset,
+)
 
 
 def get_dataset(
@@ -19,19 +20,15 @@ def get_dataset(
     if adapter is None:
         if adapter_config is None:
             raise ValueError("adapter_config must be provided if adapter is None")
-        music_adapter = MusicAdapter(
-            adapter_config, dataset_config.extension, dataset_config.name
-        )
+        music_adapter = MusicAdapter(adapter_config, dataset_config.extension, dataset_config.name)
     else:
         if adapter_config is not None:
-            raise ValueError(
-                f"adapter_config must be provided ONLY if adapter is None, otherwise None"
-            )
+            raise ValueError("adapter_config must be provided ONLY if adapter is None, otherwise None")
         music_adapter = adapter
 
     dataset_path = Path.cwd() / "data" / dataset_config.data_dir
     dataset_path = dataset_path.resolve(True)
-    if dataset_config.extension == "mid" or dataset_config.extension == "midi":
+    if dataset_config.extension in ("mid", "midi"):
         return MidiDataset(
             dataset_path,
             adapter=music_adapter,

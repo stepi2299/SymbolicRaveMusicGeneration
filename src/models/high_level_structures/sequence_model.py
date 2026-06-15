@@ -1,19 +1,17 @@
-import random
-
-import torch
 import logging as lg
-from omegaconf import DictConfig
-from src.adapter import MusicAdapter
-from src.loss.base_loss import BaseLoss
 from pathlib import Path
 
-from src.constants import ExportFormat
+import torch
+from omegaconf import DictConfig
 
-from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
-from src.models.utils.pe_visualizer import PositionalEncodingVisualizer
-from src.models.utils.attention_visualizer import AttentionVisualizer
-from src.models.sequence_decoder import get_decoder
+from src.adapter import MusicAdapter
+from src.constants import ExportFormat
+from src.loss.base_loss import BaseLoss
 from src.models.decoder_wrappers import get_decoder_wrapper
+from src.models.high_level_structures.base_high_level_model import BaseHighLevelModel
+from src.models.sequence_decoder import get_decoder
+from src.models.utils.attention_visualizer import AttentionVisualizer
+from src.models.utils.pe_visualizer import PositionalEncodingVisualizer
 
 logger = lg.getLogger(__name__)
 
@@ -34,18 +32,14 @@ class SequenceModel(BaseHighLevelModel):
             use_cache_generation=use_cache_generation,
             strict_sampling=strict_sampling,
         )
-        self._seq_decoder = get_decoder(
-            model_cfg.decoder, adapter, latent_dim=None, num_classes=num_classes
-        )
+        self._seq_decoder = get_decoder(model_cfg.decoder, adapter, latent_dim=None, num_classes=num_classes)
         self._decoder_wrapper = get_decoder_wrapper(
             model_cfg.decoder_wrapper.type,
             self._seq_decoder,
             model_cfg.decoder_wrapper.params,
         )
 
-    def forward(
-        self, batch_data: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, batch_data: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         self._original_sample = batch_data
         tensor_reconstruction = self._decoder_wrapper(
             batch_data=batch_data,
@@ -84,25 +78,17 @@ class SequenceModel(BaseHighLevelModel):
     ):
         folder_path.resolve(True)
         if not folder_path.is_dir():
-            raise ValueError(
-                f"{folder_path} is not a valid directory when trying to generate songs."
-            )
+            raise ValueError(f"{folder_path} is not a valid directory when trying to generate songs.")
         generated_songs = []
         if class_idx >= self._seq_decoder.num_classes:
-            raise ValueError(
-                f"Class index out of range, maximum clas value is: {self._seq_decoder.num_classes - 1}"
-            )
+            raise ValueError(f"Class index out of range, maximum clas value is: {self._seq_decoder.num_classes - 1}")
         logger.info(f"Generating {number_of_songs} songs with class idx: {class_idx}")
         for i in range(number_of_songs):
             try:
                 logger.debug(f"Generating song for index: {i}")
-                class_idx_tensor = torch.tensor([class_idx], dtype=torch.long).to(
-                    device
-                )
+                class_idx_tensor = torch.tensor([class_idx], dtype=torch.long).to(device)
                 output_path = folder_path / f"{file_name}_{i}"
-                logger.debug(
-                    "Output path: %s and class embedding is ready", output_path
-                )
+                logger.debug("Output path: %s and class embedding is ready", output_path)
                 coded_song = self._decoder_wrapper.generate(
                     use_cache=self._use_cache,
                     strict_sampling=self._strict_sampling,
@@ -110,9 +96,7 @@ class SequenceModel(BaseHighLevelModel):
                     class_idx=class_idx_tensor,
                 )
                 song_path = self._adapter.decode(coded_song, output_path, export_format)
-                logger.debug(
-                    f"Successfully generated song for index: {i} at path: {song_path}"
-                )
+                logger.debug(f"Successfully generated song for index: {i} at path: {song_path}")
                 generated_songs.append(song_path)
             except Exception as e:
                 logger.error(f"Error generating song for index: {i}: {e}")

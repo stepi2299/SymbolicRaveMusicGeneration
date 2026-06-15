@@ -1,15 +1,16 @@
 from __future__ import annotations
+
+import logging as lg
+from abc import ABC, abstractmethod
+
 import torch
 from torch import nn
-from abc import ABC, abstractmethod
-from typing import Type
-import logging as lg
-
 from transformers import BertConfig
-from src.models.utils.clamp import PatchEncoder, CLaMPModel
+
+from src.models.utils.clamp import CLaMPModel, PatchEncoder
 from src.utils import (
-    download_file,
     base_weights_path,
+    download_file,
     remove_state_dict_keys,
     rename_state_dict_keys,
 )
@@ -64,9 +65,7 @@ class DenseDiscriminator(Discriminator):
         )
         self.projection_layer = projection_layer
 
-        self.patch_embedding = torch.nn.Linear(
-            patch_size * vocab_size, projection_layer
-        )
+        self.patch_embedding = torch.nn.Linear(patch_size * vocab_size, projection_layer)
         torch.nn.init.normal_(self.patch_embedding.weight, std=0.02)
         self.dense1 = nn.Linear(projection_layer * (sequence_length - 1), first_layer)
         self.leaky_relu_1 = nn.LeakyReLU(0.2)
@@ -81,9 +80,7 @@ class DenseDiscriminator(Discriminator):
         #   soft one-hot    [batch, seq_len, vocab_size]  (float, from Gumbel-Softmax)
         if music_tensor.is_floating_point():
             # Already in probability form → reshape to [batch, -1, patch_size * vocab_size]
-            music_embedding = music_tensor.reshape(
-                len(music_tensor), -1, self.patch_size * self.vocab_size
-            )
+            music_embedding = music_tensor.reshape(len(music_tensor), -1, self.patch_size * self.vocab_size)
         else:
             music_embedding = (
                 torch.nn.functional.one_hot(music_tensor, num_classes=self.vocab_size)
@@ -155,61 +152,42 @@ class Clamp2Discriminator(Discriminator):
 
     def load_pretrained(self) -> None:
         if self.weights_path.exists():
-            checkpoint = torch.load(
-                self.weights_path, map_location="cpu", weights_only=True
-            )
+            checkpoint = torch.load(self.weights_path, map_location="cpu", weights_only=True)
         else:
             self._download_checkpoint()
-            checkpoint = torch.load(
-                self.weights_path, map_location="cpu", weights_only=True
-            )
+            checkpoint = torch.load(self.weights_path, map_location="cpu", weights_only=True)
 
         model_checkpoint = checkpoint["model"]
-        model_checkpoint = remove_state_dict_keys(
-            model_checkpoint, ["text_model", "text_proj"]
-        )
-        model_checkpoint = rename_state_dict_keys(
-            model_checkpoint, "music_model", "patch_encoder"
-        )
+        model_checkpoint = remove_state_dict_keys(model_checkpoint, ["text_model", "text_proj"])
+        model_checkpoint = rename_state_dict_keys(model_checkpoint, "music_model", "patch_encoder")
 
         try:
             self.model.load_state_dict(model_checkpoint)
-            logger.info(
-                f"Successfully loaded the CLaMP-2 checkpoint into {self.name} discriminator"
-            )
+            logger.info(f"Successfully loaded the CLaMP-2 checkpoint into {self.name} discriminator")
         except RuntimeError as e:
             logger.warning(
-                "Could not load the checkpoint in strict mode. "
-                f"Received error: {e}. Loading in non-strict way."
+                "Could not load the checkpoint in strict mode. " f"Received error: {e}. Loading in non-strict way."
             )
             if (
                 self.model.patch_encoder.patch_embedding.weight.size()
                 != model_checkpoint["patch_encoder.patch_embedding.weight"].size()
             ):
-                logger.warning(
-                    "Patch embedding weight size mismatch – removing from checkpoint."
-                )
+                logger.warning("Patch embedding weight size mismatch – removing from checkpoint.")
                 model_checkpoint.pop("patch_encoder.patch_embedding.weight")
                 model_checkpoint.pop("patch_encoder.patch_embedding.bias")
             if (
                 self.model.patch_encoder.base.embeddings.position_embeddings.weight.size()
-                != model_checkpoint[
-                    "patch_encoder.base.embeddings.position_embeddings.weight"
-                ].size()
+                != model_checkpoint["patch_encoder.base.embeddings.position_embeddings.weight"].size()
             ):
                 logger.warning(
                     "Position embeddings weight size mismatch – removing from checkpoint."
                     f" Expected sequence len in CLAMP2: 512, received: {self.sequence_length}"
                 )
-                model_checkpoint.pop(
-                    "patch_encoder.base.embeddings.position_embeddings.weight"
-                )
+                model_checkpoint.pop("patch_encoder.base.embeddings.position_embeddings.weight")
             self.model.load_state_dict(model_checkpoint, strict=False)
 
     def _download_checkpoint(self) -> None:
-        logger.info(
-            f"Downloading CLaMP-2 weights from {self.weights_url} into {self.weights_path}"
-        )
+        logger.info(f"Downloading CLaMP-2 weights from {self.weights_url} into {self.weights_path}")
         download_file(self.weights_url, self.weights_path, verbose=True)
 
     # ------------------------------------------------------------------
@@ -236,14 +214,12 @@ class Clamp2Discriminator(Discriminator):
         else:
             masks = (data != 0).long()
 
-        hidden_states = self.model.get_music_features(
-            music_inputs=data, music_masks=masks
-        )  # [batch, latent_dim]
+        hidden_states = self.model.get_music_features(music_inputs=data, music_masks=masks)  # [batch, latent_dim]
 
         return self.sigmoid(self.classifier(hidden_states))  # [batch, 1]
 
 
-def discriminator_mapper(discriminator_name: str) -> Type[Discriminator]:
+def discriminator_mapper(discriminator_name: str) -> type[Discriminator]:
     if discriminator_name == "dense":
         return DenseDiscriminator
     elif discriminator_name == "clamp2":

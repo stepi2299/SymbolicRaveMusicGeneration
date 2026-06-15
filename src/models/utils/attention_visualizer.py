@@ -82,10 +82,7 @@ class AttentionVisualizer:
         elif isinstance(decoder, TransformerXL):
             return self._extract_xl_attentions(decoder, wrapper, device)
         else:
-            raise TypeError(
-                f"Unsupported decoder type for attention visualisation: "
-                f"{type(decoder).__name__}"
-            )
+            raise TypeError(f"Unsupported decoder type for attention visualisation: " f"{type(decoder).__name__}")
 
     def save_plot(
         self,
@@ -111,9 +108,7 @@ class AttentionVisualizer:
         n_layers = min(attentions.shape[0], max_layers)
         n_heads = min(attentions.shape[1], max_heads)
 
-        fig, axes = plt.subplots(
-            n_layers, n_heads, figsize=(3 * n_heads, 3 * n_layers), squeeze=False
-        )
+        fig, axes = plt.subplots(n_layers, n_heads, figsize=(3 * n_heads, 3 * n_layers), squeeze=False)
 
         xlabel = "key/mem position" if is_xl else "key position"
         ylabel = "query position"
@@ -122,7 +117,7 @@ class AttentionVisualizer:
             for hi in range(n_heads):
                 ax = axes[li][hi]
                 data = attentions[li, hi]  # [seq_len, kv_len]
-                im = ax.imshow(data, cmap="viridis", vmin=0, vmax=1, aspect="auto")
+                ax.imshow(data, cmap="viridis", vmin=0, vmax=1, aspect="auto")
                 ax.set_title(f"L{li} H{hi}", fontsize=9)
                 if li == n_layers - 1:
                     ax.set_xlabel(xlabel, fontsize=7)
@@ -173,22 +168,13 @@ class AttentionVisualizer:
         shown_heads = min(n_heads, 4)
 
         if isinstance(decoder, GptDecoder):
-            title = (
-                f"GPT Self-Attention Maps "
-                f"(first {shown_layers} layers × {shown_heads} heads)"
-            )
+            title = f"GPT Self-Attention Maps " f"(first {shown_layers} layers × {shown_heads} heads)"
             is_xl = False
         elif isinstance(decoder, TransformerRope):
-            title = (
-                f"RoPE Transformer Attention Maps "
-                f"(first {shown_layers} layers × {shown_heads} heads)"
-            )
+            title = f"RoPE Transformer Attention Maps " f"(first {shown_layers} layers × {shown_heads} heads)"
             is_xl = False
         elif isinstance(decoder, TransformerXL):
-            title = (
-                f"Transformer-XL Attention Maps "
-                f"(first {shown_layers} layers × {shown_heads} heads)"
-            )
+            title = f"Transformer-XL Attention Maps " f"(first {shown_layers} layers × {shown_heads} heads)"
             is_xl = True
         else:
             title = f"Attention Maps — {type(decoder).__name__}"
@@ -225,7 +211,7 @@ class AttentionVisualizer:
                 kwargs["average_attn_weights"] = False
                 result = original_forward(*args, **kwargs)
                 # result is (attn_output, attn_weights)
-                if isinstance(result, (tuple, list)) and len(result) >= 2:
+                if isinstance(result, tuple | list) and len(result) >= 2:
                     captured[layer_idx] = result[1]
                 return result
 
@@ -256,8 +242,7 @@ class AttentionVisualizer:
 
         if not captured:
             raise RuntimeError(
-                "No attention weights were captured for GptDecoder. "
-                "Check that hooks are correctly registered."
+                "No attention weights were captured for GptDecoder. " "Check that hooks are correctly registered."
             )
 
         # Stack layers in order
@@ -292,13 +277,9 @@ class AttentionVisualizer:
         if decoder.use_cross_attention or decoder.adaln_norm:
             batch_size = emb.shape[0]
             if decoder._class_conditioning:
-                cond_emb = decoder._prepare_class_embedding(
-                    class_idx_tensor, batch_size, seq_len
-                )
+                cond_emb = decoder._prepare_class_embedding(class_idx_tensor, batch_size, seq_len)
             else:
-                cond_emb = decoder._prepare_latent_embedding(
-                    latent_vector, batch_size, seq_len
-                )
+                cond_emb = decoder._prepare_latent_embedding(latent_vector, batch_size, seq_len)
             outputs = decoder.model(
                 inputs_embeds=emb,
                 encoder_hidden_states=cond_emb,
@@ -352,8 +333,7 @@ class AttentionVisualizer:
 
         if outputs.attentions is None:
             raise RuntimeError(
-                "TransformerXL model returned no attention weights. "
-                "Ensure output_attentions=True is supported."
+                "TransformerXL model returned no attention weights. " "Ensure output_attentions=True is supported."
             )
 
         # attentions: tuple of [batch, num_heads, seq_len, mem_len+seq_len] per layer
@@ -394,9 +374,7 @@ class AttentionVisualizer:
         """
         # SimpleWrapper
         if hasattr(wrapper, "token_embeddings"):
-            bos_seq = torch.full(
-                (1, seq_len), decoder.bos_token, dtype=torch.long, device=device
-            )
+            bos_seq = torch.full((1, seq_len), decoder.bos_token, dtype=torch.long, device=device)
             return wrapper.token_embeddings(bos_seq)  # [1, seq_len, hidden]
 
         # CompoundWordWrapper — input is [B, L, num_attrs]; fill all attrs with bos
@@ -443,9 +421,7 @@ class AttentionVisualizer:
             latent_vector = None
         elif decoder.latent_dim is not None:
             class_idx_tensor = None
-            latent_vector = torch.zeros(
-                1, decoder.latent_dim, dtype=torch.float, device=device
-            )
+            latent_vector = torch.zeros(1, decoder.latent_dim, dtype=torch.float, device=device)
         else:
             class_idx_tensor = None
             latent_vector = None

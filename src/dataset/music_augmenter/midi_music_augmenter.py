@@ -1,7 +1,8 @@
-from mido import MidiFile, MidiTrack
-import random
 import copy
 import logging as lg
+import random
+
+from mido import MidiFile, MidiTrack
 
 from src.dataset.music_augmenter.base_music_augmenter import BaseMusicAugmenter
 
@@ -115,8 +116,7 @@ class MidiAugmentor(BaseMusicAugmenter):
             for abs_time, msg in abs_events:
                 delta = abs_time - last_time
                 # Zabezpieczenie (teoretycznie sortowanie to załatwia, ale dla pewności)
-                if delta < 0:
-                    delta = 0
+                delta = max(delta, 0)
 
                 msg.time = delta
                 new_track.append(msg)

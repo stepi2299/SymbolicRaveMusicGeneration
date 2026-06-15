@@ -1,9 +1,11 @@
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from pathlib import Path
 import logging
-from tqdm import tqdm
-from src.utils import export_to_wav
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
+from pathlib import Path
+
 from symusic import Score
+from tqdm import tqdm
+
+from src.utils import export_to_wav
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)

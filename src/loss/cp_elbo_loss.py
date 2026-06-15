@@ -1,7 +1,8 @@
 import torch
-import torch.nn as nn
-from src.loss.base_vae_loss import BaseVaeLoss
+from torch import nn
+
 from src.constants import CP_WORD_INDEXES
+from src.loss.base_vae_loss import BaseVaeLoss
 
 
 class CpElboLoss(BaseVaeLoss):
@@ -32,9 +33,7 @@ class CpElboLoss(BaseVaeLoss):
     def __call__(
         self,
         org_data: torch.Tensor,
-        reconstruction: dict[
-            str, torch.Tensor
-        ],  # Wyjście z modelu: {'pitch': [B, L, 128], ...}
+        reconstruction: dict[str, torch.Tensor],  # Wyjście z modelu: {'pitch': [B, L, 128], ...}
         global_step: int,
         train: bool,
         *,
@@ -81,9 +80,7 @@ class CpElboLoss(BaseVaeLoss):
 
             annealing_beta = self._get_annealing_beta(global_step)
 
-            kl_loss_clamped = torch.max(
-                kl_loss, torch.tensor(self._free_bits).to(kl_loss.device)
-            )
+            kl_loss_clamped = torch.max(kl_loss, torch.tensor(self._free_bits).to(kl_loss.device))
             total_loss = total_recon_loss + (annealing_beta * kl_loss_clamped)
             name = "train" if train else "val"
             metadata = {

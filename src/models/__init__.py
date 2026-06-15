@@ -1,9 +1,9 @@
 from omegaconf import DictConfig, OmegaConf
 
-from src.models.high_level_structures import registered_models, BaseHighLevelModel
-from src.models.discriminator import discriminator_mapper, Discriminator
 from src.adapter import MusicAdapter
 from src.loss.base_loss import BaseLoss
+from src.models.discriminator import Discriminator, discriminator_mapper
+from src.models.high_level_structures import BaseHighLevelModel, registered_models
 
 
 def get_model(
@@ -22,9 +22,7 @@ def get_model(
     )
 
 
-def get_discriminator(
-    discriminator_cfg: DictConfig, adapter: MusicAdapter
-) -> Discriminator:
+def get_discriminator(discriminator_cfg: DictConfig, adapter: MusicAdapter) -> Discriminator:
     discriminator_obj = discriminator_mapper(discriminator_cfg.name)(
         sequence_length=adapter.sequence_length,
         patch_size=adapter.patch_size,

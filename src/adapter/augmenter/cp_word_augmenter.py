@@ -1,10 +1,11 @@
-import torch
-import random
-from miditok import TokenizerConfig
 import logging as lg
+import random
+
+import torch
+from miditok import TokenizerConfig
 
 from src.adapter.augmenter.base_augmenter import BaseAugmenter
-from src.constants import CP_WORD_INDEXES, CP_TOKEN_SIZE
+from src.constants import CP_TOKEN_SIZE, CP_WORD_INDEXES
 
 logger = lg.getLogger(__name__)
 
@@ -30,9 +31,7 @@ class CpWordAugmenter(BaseAugmenter):
 
     def augment(self, music_data: torch.Tensor) -> torch.Tensor:
         if self._augment_velocity:
-            shift_velocity = random.choice(
-                [-self._velocity_interval, self._velocity_interval]
-            )
+            shift_velocity = random.choice([-self._velocity_interval, self._velocity_interval])
             music_data = self._modify_one_family(
                 music_sequence=music_data,
                 family_name="velocity",
@@ -60,9 +59,7 @@ class CpWordAugmenter(BaseAugmenter):
         family_tokens = augmented[:, CP_WORD_INDEXES[family_name]]
         mask = family_tokens >= min_range
         new_family_tokens = family_tokens[mask] + shift_interval
-        new_family_tokens = torch.clamp(
-            new_family_tokens, min=min_range, max=CP_TOKEN_SIZE[family_name]
-        )
+        new_family_tokens = torch.clamp(new_family_tokens, min=min_range, max=CP_TOKEN_SIZE[family_name])
 
         augmented[mask, CP_WORD_INDEXES[family_name]] = new_family_tokens
         return augmented

@@ -1,7 +1,8 @@
-import torch
-import random
-from miditok import TokenizerConfig
 import logging as lg
+import random
+
+import torch
+from miditok import TokenizerConfig
 
 from src.adapter.augmenter.base_augmenter import BaseAugmenter
 
@@ -21,9 +22,7 @@ class OneLevelTokAugmenter(BaseAugmenter):
         self._augment_velocity = augment_velocity
         self._augment_pitch = augment_pitch
         self._pitch_min = 4
-        self._pitch_max = self._pitch_min + (
-            tokenizer_config.pitch_range[1] - tokenizer_config.pitch_range[0]
-        )
+        self._pitch_max = self._pitch_min + (tokenizer_config.pitch_range[1] - tokenizer_config.pitch_range[0])
         self._velocity_min = self._pitch_max + 1
         self._velocity_max = self._velocity_min + tokenizer_config.num_velocities
         self._max_vel_interval = velocity_interval
@@ -36,9 +35,7 @@ class OneLevelTokAugmenter(BaseAugmenter):
 
     def augment(self, music_data: torch.Tensor) -> torch.Tensor:
         if self._augment_pitch:
-            pitch_interval = random.randint(
-                -self._max_pitch_interval, self._max_pitch_interval
-            )
+            pitch_interval = random.randint(-self._max_pitch_interval, self._max_pitch_interval)
             music_data = self._modify_one_family(
                 music_sequence=music_data,
                 min_range=self._pitch_min,
@@ -46,9 +43,7 @@ class OneLevelTokAugmenter(BaseAugmenter):
                 shift_interval=pitch_interval,
             )
         if self._augment_velocity:
-            velocity_interval = random.randint(
-                -self._max_vel_interval, self._max_vel_interval
-            )
+            velocity_interval = random.randint(-self._max_vel_interval, self._max_vel_interval)
             music_data = self._modify_one_family(
                 music_sequence=music_data,
                 min_range=self._velocity_min,

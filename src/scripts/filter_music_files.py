@@ -1,11 +1,12 @@
 import multiprocessing
 from functools import partial
 from pathlib import Path
+
 import torch
 from omegaconf import DictConfig
 
-from src.utils import load_midi_song, load_abc_song
 from src.adapter.adapter import MusicAdapter
+from src.utils import load_abc_song, load_midi_song
 
 DATASET = "maestro"  # maestro, midicaps
 base_path = Path.cwd() / "data"
@@ -33,9 +34,7 @@ def filter_music_files(filepath: Path, adapter: MusicAdapter) -> None:
         if len(song) > adapter.sequence_length:
             song = torch.tensor(song[: adapter.sequence_length])
         else:
-            padded_song = song + [adapter.pad_token] * (
-                adapter.sequence_length - len(song)
-            )
+            padded_song = song + [adapter.pad_token] * (adapter.sequence_length - len(song))
             song = torch.tensor(padded_song)
     except Exception as e:
         print(f"Error processing file: {filepath}. Error: {e}, removing this file")

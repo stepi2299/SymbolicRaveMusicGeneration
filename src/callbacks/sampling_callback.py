@@ -1,8 +1,9 @@
-import torch
 import logging as lg
 from pathlib import Path
 
+import torch
 from pytorch_lightning.callbacks import Callback
+
 from src.constants import ExportFormat
 
 logger = lg.getLogger(__name__)
@@ -40,9 +41,7 @@ class SamplingCallback(Callback):
             pl_module.eval()
             with torch.no_grad():
                 # Sample random latent vectors
-                logger.info(
-                    f"=== [SamplingCallback] Samples at epoch {current_epoch} ==="
-                )
+                logger.info(f"=== [SamplingCallback] Samples at epoch {current_epoch} ===")
                 try:
                     pl_module.generate(
                         num_samples=self.num_samples,
@@ -51,8 +50,6 @@ class SamplingCallback(Callback):
                         export_format=self.export_format,
                     )
                 except Exception as e:
-                    logger.warning(
-                        f"Failed in songs generation on epoch: {current_epoch}, error: {e}"
-                    )
+                    logger.warning(f"Failed in songs generation on epoch: {current_epoch}, error: {e}")
 
             pl_module.train()

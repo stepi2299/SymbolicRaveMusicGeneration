@@ -1,24 +1,22 @@
-import hydra
 import logging as lg
-import wandb
-from omegaconf import DictConfig
-from pathlib import Path
 import os
+from pathlib import Path
 
+import hydra
 import torch
+from omegaconf import DictConfig
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
 
+import wandb
+from src.callbacks import get_callbacks
+from src.competitors.first_stage import FirstStage
+from src.competitors.second_stage import SecondStage
 from src.dataset import get_dataset
 from src.models import get_discriminator
-from src.competitors.second_stage import SecondStage
-from src.competitors.first_stage import FirstStage
-from src.callbacks import get_callbacks
 
 
-@hydra.main(
-    config_path="../../configs", config_name="train_decoder", version_base="1.3"
-)
+@hydra.main(config_path="../../configs", config_name="train_decoder", version_base="1.3")
 def main(cfg: DictConfig) -> None:
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     wandb_logger = WandbLogger(
@@ -55,11 +53,7 @@ def main(cfg: DictConfig) -> None:
         **cfg.competitor,
     )
 
-    callback_name = (
-        first_stage_checkpoint.main_model.__class__.__name__
-        + "_"
-        + cfg.discriminator.name
-    )
+    callback_name = first_stage_checkpoint.main_model.__class__.__name__ + "_" + cfg.discriminator.name
     used_callbacks = get_callbacks(
         cfg=cfg.callbacks,
         model_name=callback_name,

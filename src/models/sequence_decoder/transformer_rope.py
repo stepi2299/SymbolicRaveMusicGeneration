@@ -1,11 +1,10 @@
-import torch
-
 import logging as lg
+
+import torch
 from transformers import GPTNeoXConfig, GPTNeoXModel
-from src.models.utils.custom_rope import CustomGPTNeoXModel
 
 from src.models.sequence_decoder.base_decoder import BaseDecoder
-
+from src.models.utils.custom_rope import CustomGPTNeoXModel
 
 logger = lg.getLogger(__name__)
 
@@ -34,7 +33,7 @@ class TransformerRope(BaseDecoder):
         class_conditioning: bool,
         num_classes: int,
     ) -> None:
-        super(TransformerRope, self).__init__(
+        super().__init__(
             latent_dim=latent_dim,
             name="transformer_rope",
             vocab_size=vocab_size,
@@ -96,13 +95,9 @@ class TransformerRope(BaseDecoder):
                     "Its not possible to use class bot - conditioning with latent vector projection in TransformerRope decoder. Please set latent_dim to None or _class_conditioning to False."
                 )
             if self._class_conditioning:
-                conditioning_embedding = self._prepare_class_embedding(
-                    class_idx, batch_size, current_sequence_len
-                )
+                conditioning_embedding = self._prepare_class_embedding(class_idx, batch_size, current_sequence_len)
             elif self.latent_dim is not None:
-                conditioning_embedding = self._prepare_latent_embedding(
-                    latent_vector, batch_size, current_sequence_len
-                )
+                conditioning_embedding = self._prepare_latent_embedding(latent_vector, batch_size, current_sequence_len)
             else:
                 raise ValueError(
                     "Either class conditioning or latent vector projection must be enabled for the custom TransformerRope decoder."
@@ -115,9 +110,7 @@ class TransformerRope(BaseDecoder):
                 use_cache=use_cache,
             )
         else:
-            input_embedding = self._prepare_input(
-                input_embedding, latent_vector, class_idx
-            )
+            input_embedding = self._prepare_input(input_embedding, latent_vector, class_idx)
             outputs = self.model(
                 inputs_embeds=input_embedding,
                 past_key_values=self._cache_params,

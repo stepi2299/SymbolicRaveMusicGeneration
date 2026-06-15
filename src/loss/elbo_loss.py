@@ -1,7 +1,6 @@
-from typing import Tuple
-from src.loss.base_vae_loss import BaseVaeLoss
-
 import torch
+
+from src.loss.base_vae_loss import BaseVaeLoss
 
 
 class ElboLoss(BaseVaeLoss):
@@ -43,7 +42,7 @@ class ElboLoss(BaseVaeLoss):
         *,
         mu: torch.Tensor | None = None,
         logvar: torch.Tensor | None = None,
-    ) -> Tuple[torch.Tensor, dict]:
+    ) -> tuple[torch.Tensor, dict]:
         """
         Args:
             org_data: Original input data.
@@ -63,9 +62,7 @@ class ElboLoss(BaseVaeLoss):
         Elbo explanation in documentation
         """
         recon_loss = torch.nn.functional.cross_entropy(
-            reconstruction.view(
-                -1, self._vocab_size
-            ),  # Reshape to (batch*sequence_length, vocab_size)
+            reconstruction.view(-1, self._vocab_size),  # Reshape to (batch*sequence_length, vocab_size)
             org_data.view(-1),  # Reshape to (batch*sequence_length)
             reduction="mean",
         )
@@ -77,9 +74,7 @@ class ElboLoss(BaseVaeLoss):
 
             annealing_beta = self._get_annealing_beta(global_step)
 
-            kl_div_clamped = torch.max(
-                kl_div, torch.tensor(self._free_bits).to(kl_div.device)
-            )
+            kl_div_clamped = torch.max(kl_div, torch.tensor(self._free_bits).to(kl_div.device))
             loss = recon_loss + annealing_beta * kl_div_clamped
             name = "train" if train else "val"
             metadata = {

@@ -25,8 +25,8 @@ import logging
 import math
 from pathlib import Path
 
-import pandas as pd
 import muspy
+import pandas as pd
 
 logging.basicConfig(
     level=logging.INFO,
@@ -79,9 +79,7 @@ SCALE_MAP: dict[str, tuple[int, str]] = {
 def parse_scale(scale_str: str) -> tuple[int, str]:
     """Parse a scale string like 'C_major' into (root, mode) tuple."""
     if scale_str not in SCALE_MAP:
-        raise ValueError(
-            f"Unknown scale '{scale_str}'. Valid options: {sorted(SCALE_MAP)}"
-        )
+        raise ValueError(f"Unknown scale '{scale_str}'. Valid options: {sorted(SCALE_MAP)}")
     return SCALE_MAP[scale_str]
 
 
@@ -162,9 +160,7 @@ def compute_metrics(music: muspy.Music, root: int, mode: str) -> dict[str, float
     metrics["empty_beat_rate"] = _try(muspy.empty_beat_rate, music)
     # measure_resolution = ticks per measure (4 beats × ticks-per-beat)
     measure_resolution = 4 * (music.resolution if music.resolution else 24)
-    metrics["groove_consistency"] = _try(
-        muspy.groove_consistency, music, measure_resolution
-    )
+    metrics["groove_consistency"] = _try(muspy.groove_consistency, music, measure_resolution)
     metrics["n_pitches_used"] = _try(muspy.n_pitches_used, music)
     metrics["n_pitch_classes_used"] = _try(muspy.n_pitch_classes_used, music)
     metrics["drum_in_pattern_rate"] = _try(muspy.drum_in_pattern_rate, music)
@@ -270,8 +266,7 @@ def _build_report(
     except ImportError:
         # Plain-text fallback
         header = f"{'metric':<28}" + "".join(
-            f"{c:>10}"
-            for c in ["mean", "std", "min", "max", "median", "p25", "p75", "count"]
+            f"{c:>10}" for c in ["mean", "std", "min", "max", "median", "p25", "p75", "count"]
         )
         lines.append(header)
         lines.append("-" * len(header))
@@ -350,9 +345,7 @@ def _detect_mode(input_dir: Path) -> str:
     direct_midis = list(input_dir.glob("*.mid"))
     if direct_midis:
         return "single"
-    sub_dirs_with_midi = [
-        d for d in input_dir.iterdir() if d.is_dir() and list(d.glob("*.mid"))
-    ]
+    sub_dirs_with_midi = [d for d in input_dir.iterdir() if d.is_dir() and list(d.glob("*.mid"))]
     if sub_dirs_with_midi:
         return "multi"
     return "single"
@@ -445,10 +438,7 @@ def main() -> None:
         "--scale",
         type=str,
         default="C_major",
-        help=(
-            "Scale for pitch-in-scale-rate metric, e.g. C_major, A_minor. "
-            f"Valid values: {sorted(SCALE_MAP)}"
-        ),
+        help=("Scale for pitch-in-scale-rate metric, e.g. C_major, A_minor. " f"Valid values: {sorted(SCALE_MAP)}"),
     )
     args = parser.parse_args()
 
@@ -471,22 +461,17 @@ def main() -> None:
         evaluate_single_dir(input_dir, output_dir, root, mode, args.scale)
     else:
         # Mode B: Parent folder of run folders
-        sub_dirs: list[Path] = sorted(
-            d for d in input_dir.iterdir() if d.is_dir() and list(d.glob("*.mid"))
-        )
+        sub_dirs: list[Path] = sorted(d for d in input_dir.iterdir() if d.is_dir() and list(d.glob("*.mid")))
         total_runs = len(sub_dirs)
         logger.info("Found %d run sub-directories to evaluate.", total_runs)
 
         all_per_file_dfs: list[pd.DataFrame] = []
-        all_records: list[dict] = []
         total_files_evaluated = 0
 
         for idx, sub_dir in enumerate(sub_dirs, start=1):
             logger.info("Processing run %d/%d: %s", idx, total_runs, sub_dir.name)
             sub_output_dir = output_dir / sub_dir.name
-            per_file_df, _ = evaluate_single_dir(
-                sub_dir, sub_output_dir, root, mode, args.scale
-            )
+            per_file_df, _ = evaluate_single_dir(sub_dir, sub_output_dir, root, mode, args.scale)
             if per_file_df.empty:
                 continue
             # Tag with run name
@@ -502,15 +487,11 @@ def main() -> None:
         combined_per_file_df = pd.concat(all_per_file_dfs, ignore_index=True)
 
         # Build combined records (drop 'run' column for aggregate_results)
-        metric_cols = [
-            c for c in combined_per_file_df.columns if c not in ("run", "file")
-        ]
-        combined_records = combined_per_file_df[["file"] + metric_cols].to_dict(
-            orient="records"
-        )
+        metric_cols = [c for c in combined_per_file_df.columns if c not in ("run", "file")]
+        combined_records = combined_per_file_df[["file"] + metric_cols].to_dict(orient="records")
         combined_summary_df = aggregate_results(combined_records)
 
-        combined_meta = {
+        {
             "input_dir": str(input_dir),
             "scale": args.scale,
             "files_found": total_files_evaluated,
@@ -567,16 +548,13 @@ def main() -> None:
             report_lines.append(table)
         except ImportError:
             header = f"{'metric':<28}" + "".join(
-                f"{c:>10}"
-                for c in ["mean", "std", "min", "max", "median", "p25", "p75", "count"]
+                f"{c:>10}" for c in ["mean", "std", "min", "max", "median", "p25", "p75", "count"]
             )
             report_lines.append(header)
             report_lines.append("-" * len(header))
             for metric, row in combined_summary_df.iterrows():
                 line = f"{metric:<28}" + "".join(
-                    f"{row[c]:>10.4f}"
-                    if not math.isnan(float(row[c]))
-                    else f"{'NaN':>10}"
+                    f"{row[c]:>10.4f}" if not math.isnan(float(row[c])) else f"{'NaN':>10}"
                     for c in [
                         "mean",
                         "std",

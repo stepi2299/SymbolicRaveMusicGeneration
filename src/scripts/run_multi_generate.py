@@ -14,7 +14,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 CHECKPOINTS_DIR = Path("outputs/checkpoints/train_repr")
 
 
@@ -55,9 +54,7 @@ def run_generation(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Run generate_songs for every checkpoint in a directory."
-    )
+    parser = argparse.ArgumentParser(description="Run generate_songs for every checkpoint in a directory.")
     parser.add_argument(
         "--checkpoints-dir",
         type=Path,
@@ -96,9 +93,7 @@ def main() -> None:
 
     failed: list[tuple[Path, int]] = []
     for idx, ckpt in enumerate(checkpoints, start=1):
-        print(
-            f"\n[{idx}/{len(checkpoints)}] Processing: {ckpt.parent.name}/{ckpt.name}"
-        )
+        print(f"\n[{idx}/{len(checkpoints)}] Processing: {ckpt.parent.name}/{ckpt.name}")
         exit_code = run_generation(
             checkpoint_path=ckpt,
             songs_to_generate=args.songs,
@@ -110,9 +105,7 @@ def main() -> None:
             failed.append((ckpt, exit_code))
 
     print(f"\n{'='*60}")
-    print(
-        f"Done. {len(checkpoints) - len(failed)}/{len(checkpoints)} checkpoint(s) succeeded."
-    )
+    print(f"Done. {len(checkpoints) - len(failed)}/{len(checkpoints)} checkpoint(s) succeeded.")
     if failed:
         print("Failed checkpoints:")
         for ckpt, code in failed:

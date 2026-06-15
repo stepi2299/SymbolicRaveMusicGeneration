@@ -1,18 +1,18 @@
-import hydra
 import logging as lg
-import wandb
-from omegaconf import DictConfig
 import os
 
+import hydra
 import torch
+from omegaconf import DictConfig
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
 
-from src.dataset import get_dataset
-from src.models import get_model
-from src.competitors.first_stage import FirstStage
+import wandb
 from src.callbacks import get_callbacks
+from src.competitors.first_stage import FirstStage
+from src.dataset import get_dataset
 from src.loss import get_loss_function
+from src.models import get_model
 
 
 @hydra.main(
@@ -71,13 +71,7 @@ def main(cfg: DictConfig) -> None:
         single_data_training=single_data_training,
         **cfg.competitor,
     )
-    callback_name = (
-        cfg.model.name
-        + "_"
-        + cfg.model.decoder_wrapper.type
-        + "_"
-        + cfg.model.decoder.name
-    )
+    callback_name = cfg.model.name + "_" + cfg.model.decoder_wrapper.type + "_" + cfg.model.decoder.name
     used_callbacks = get_callbacks(
         cfg=cfg.callbacks,
         model_name=callback_name,
