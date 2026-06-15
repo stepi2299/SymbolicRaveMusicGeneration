@@ -51,6 +51,7 @@ collect-dataset = "python src/scripts/collect_datasets.py"
 train-repr = "python src/scripts/train_repr.py"
 train-repr-patch = "python src/scripts/train_repr.py adapter=patchilizer model/decoder_wrapper=patch"
 train-repr-cp = "python src/scripts/train_repr.py adapter=compound_word loss=cp_elbo model/decoder_wrapper=compound_word"
+evaluate-fmd = "python src/scripts/evaluate_fmd.py"
 
 [tool.ruff]
 line-length = 120
@@ -72,7 +73,6 @@ select = [
     "FLY", # flynt,
     "SIM",  # flake8-simplify
     "PL", # pylint
-#    "ISC",  # flake8-implicit-str-concat, useful but generates warning during formating so it needs to be controlled
 ]
 
 [tool.ruff.lint.pylint]
