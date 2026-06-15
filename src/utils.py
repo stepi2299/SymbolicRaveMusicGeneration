@@ -373,10 +373,12 @@ def convert_abc_to_score(abc_string: str) -> symusic.Score:
     return score
 
 
+synth = Synthesizer(sample_rate=44100)
+
+
 def export_to_wav(
     score: symusic.Score, filepath: Path, sample_rate: int = 44100
 ) -> None:
-    synth = Synthesizer(sample_rate=sample_rate)
     audio = synth.render(score, stereo=True)
     dump_wav(filepath.as_posix(), audio, sample_rate=sample_rate, use_int16=True)
 

@@ -7,9 +7,9 @@ from datetime import datetime
 import torch
 
 from src.competitors.first_stage import FirstStage
+from src.competitors.second_stage import SecondStage
 from src.utils import output_songs_path
 from src.constants import ExportFormat
-from src.models.high_level_structures.vae import VAE
 
 
 @hydra.main(
@@ -29,7 +29,17 @@ def main(cfg: DictConfig) -> None:
     class_idx = int(cfg.class_idx)
     output_format = ExportFormat(cfg.output_format)
     current_output_songs_path.mkdir(parents=True, exist_ok=False)
-    competitor = FirstStage.load_from_checkpoint(checkpoint_path, weights_only=False)
+    try:
+        competitor = FirstStage.load_from_checkpoint(
+            checkpoint_path, weights_only=False
+        )
+    except Exception as e:
+        logger.warning(
+            f"Failed to load FirstStage from checkpoint: {e}. Trying SecondStage..."
+        )
+        competitor = SecondStage.load_from_checkpoint(
+            checkpoint_path, weights_only=False
+        )
     logger.info(
         f"Starting Generation Script! Expected number generated songs: {cfg.songs_to_generate}, "
         f"Checkpoint path: {current_output_songs_path.as_posix()}"

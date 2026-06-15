@@ -99,6 +99,7 @@ class SecondStage(pl.LightningModule):
         self._gumbel_tau = gumbel_tau
         self._train_augment = train_augment
         self._val_augment = val_augment
+        self._vocab_size = symbolic_music_dataset.music_adapter.vocab_size
 
         # Manual optimisation so we can update discriminator and decoder separately
         self.automatic_optimization = False
@@ -127,13 +128,12 @@ class SecondStage(pl.LightningModule):
         raw_recon = (
             reconstruction[0] if isinstance(reconstruction, tuple) else reconstruction
         )
-        vocab_size = raw_recon.shape[-1]
 
         # Generate Gumbel-Softmax discrete-like continuous vectors (Batch, Seq_Len, Vocab)
         gumbel_fakes = F.gumbel_softmax(raw_recon, tau=self._gumbel_tau, hard=True)
 
         # Convert real targets to one-hot so they match the shape of gumbel_fakes
-        real_one_hot = F.one_hot(x_target, num_classes=vocab_size).float()
+        real_one_hot = F.one_hot(x_target, num_classes=self._vocab_size).float()
 
         # Labels for BCE Loss
         real_labels = torch.full(

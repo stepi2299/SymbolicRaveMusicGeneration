@@ -6,5 +6,5 @@ hydra:
     dir: outputs/hydra_generate/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 processing_precision: medium  # possible values: medium | high
-reference_dataset_dir: pop909  # possible values: maestro, midicaps_classes, pop909
-testing_dataset_dir: "outputs/generated_midi/augm_no_cp_rope_pop2026-05-31_22-58-52"
+reference_dataset_dir: pop909 # possible values: maestro, midicaps_classes, pop909
+testing_dataset_dir: "outputs/generated_midi/patch_rope_pop"

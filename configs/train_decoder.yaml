@@ -1,8 +1,8 @@
 
 defaults:
-  - dataset: pop909     # default dataset
-  - adapter: patchilizer  # default adapter
-  - discriminator: dense  # default discriminator
+  - dataset: pop909     # default dataset, possible values: pop909, midicaps, maestro, midicaps_classes
+  - adapter: compound_word  # default adapter, possible values: tokenizer, patchilizer, compound_word
+  - discriminator: dense  # default discriminator, possible values: dense, clamp2
   - _self_
 
 # You can add any additional high-level settings or Hydra settings below
@@ -15,7 +15,7 @@ hydra:
 competitor:
   batch_size: 1
   num_workers: 16
-  discriminator_learning_rate: 0.001
+  discriminator_learning_rate: 0.0001
   generator_optimizer_params:
     max_decoder_learning_rate: 0.0003
     decoder_weight_decay: 0.1
@@ -34,7 +34,7 @@ log_level: INFO  # possible values: DEBUG | INFO | WARNING | ERROR | CRITICAL
 log_format: "[%(asctime)s] - [%(name)s] - [%(levelname)s] - %(message)s"
 processing_precision: medium  # possible values: medium | high
 pretrained: true  # possible values: true | false, if true, the model will be loaded from the Hugging Face model hub (If it is available)
-main_model_weights_path: "outputs/checkpoints/train_repr/SequenceModel_simple_gpt_decoder_pop909_2026-05-01_21-09-10/model-epoch=28-val_loss=0.00.ckpt"
+main_model_weights_path: "outputs/checkpoints/train_repr/augm_no_cp_rope_pop/model-epoch=18-val_loss=1.19.ckpt"
 
 wandb:
   project: "SymbolicRave"
